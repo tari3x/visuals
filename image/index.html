@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+  <head>
+    
+    <title>Yo</title>
+    
+    <meta charset="utf-8">
+    
+    <style media="screen">
+      * { margin: 0; padding: 0; }
+      body, html {
+          width: 100%;
+          height:100%;
+          background: black;
+      }
+     
+      #canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script src="math.min.js"></script>
+    
+    <script>
+      fillAll = function(ctx, background){
+        var width = ctx.canvas.clientWidth;
+        var height = ctx.canvas.clientHeight;
+        ctx.fillStyle = background; 
+        ctx.fillRect(0, 0, width, height);
+      };
+
+      plotPoint = function(ctx, p, radius){
+        // var p = transform(p);
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], radius, 0, 2 * Math.PI, false);
+        ctx.fill();
+        ctx.beginPath();
+      };
+
+      detect = function(ctx){
+        var x = 0;
+        var y = 0;
+        
+        var left = undefined;
+        var top = undefined;
+        var right = undefined;
+        var bottom = undefined;
+        
+        var width = ctx.canvas.clientWidth;
+        var height = ctx.canvas.clientHeight;
+
+        // This is a clone
+        pixelData = ctx.getImageData(0, 0, width, height);
+        
+        ctx.fillStyle = 'green';
+
+        for(y = 0; y < pixelData.height; y++){
+          for(x = 0; x < pixelData.width; x++){
+            index = (x + y * width) * 4;
+            red = pixelData.data[index];
+            green = pixelData.data[index+1];
+            blue = pixelData.data[index+2];
+            
+            var threshold = 100;
+
+            if(red < threshold && green < threshold && blue < threshold) {
+              plotPoint(ctx, [x, y], 1);
+            }
+
+            // get pixel's data
+            // currently, we're looking at the blue channel only.
+            // Since is a B/W photo, all color channels are the same.
+            // ideally, we would make work for all channels for color photos.
+            
+            /*
+            // Get the values of the surrounding pixels
+            // Color data is stored [r,g,b,a][r,g,b,a]
+            // in sequence.
+            left = pixelData.data[index-4];
+            right = pixelData.data[index+2];
+            top = pixelData.data[index-(width*4)];
+            bottom = pixelData.data[index+(width*4)];
+            
+            // Compare it all.
+            // (Currently, just the left pixel)
+            if(pixel>left+threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel<left-threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel>right+threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel<right-threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel>top+threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel<top-threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel>bottom+threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            else if(pixel<bottom-threshold){
+              plotPoint(ctx, [x, y], 0.5);
+            }
+            */
+          }
+        }
+      };
+
+      main = function () {
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        
+        canvas.width = document.body.clientWidth; 
+        canvas.height = document.body.clientHeight; 
+        
+        console.log("running main");
+        
+        var image = new Image ();
+        image.onload = function(){
+          ctx.drawImage(image, 0, 0, canvas.clientWidth, canvas.clientHeight);
+          detect(ctx);
+        }
+        image.src = 'image.png';
+      };
+      
+      window.onload = main;
+    </script>
+    
+  </body>
+</html>
