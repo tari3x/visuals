@@ -10,13 +10,16 @@ let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s)); fail
 let float = float_of_int
 let int   = int_of_float
 
-let pi = 4.0 *. atan 1.0
-
 let lwt_wrap f =
   let (t, w) = Lwt.task () in
   let cont x = Lwt.wakeup w x in
   f cont;
   t
+
+module Fn = struct
+  let flip f x y =
+    f y x
+end
 
 module Point : sig
   type t
@@ -32,6 +35,26 @@ end = struct
 
   let x (x, _, _) = x
   let y (_, y, _) = y
+end
+
+module Mouse_event = struct
+  let client_coords ev =
+    Point.create ev##.clientX ev##.clientY
+end
+
+(* CR: make it work with multi-touch. *)
+module Touch_event = struct
+  type t =
+    Dom_html.touchEvent Js.t
+
+  let client_coords (ev : t) =
+    let touches = ev##.touches in
+    let touch =
+      touches##item 0
+      |> Fn.flip Optdef.get (fun () ->
+        failwith "Touch_event.client_coords")
+    in
+    Point.create touch##.clientX touch##.clientY
 end
 
 let add_event_listener elt event ~f =
@@ -65,51 +88,30 @@ let clear ctx =
 
 let plot_point ctx p radius =
   ctx##beginPath;
-  ctx##arc (Point.x p) (Point.y p) radius 0. (2. *. pi) _false;
+  ctx##arc (Point.x p) (Point.y p) radius 0. (2. *. Js.math##._PI) _false;
   ctx##fill;
   (* CR: is this necessary? *)
   ctx##beginPath
 
-let setup_canvas id =
-  let canvas = get_element_by_id id Html.CoerceTo.canvas in
-  let ctx = canvas##getContext Html._2d_ in
-  canvas##.width := Html.document##.body##.clientWidth;
-  canvas##.height := Html.document##.body##.clientHeight;
-  canvas, ctx
+let draw_dot ctx p radius =
+  plot_point ctx p radius
 
-let setup_spotlight () =
-  let canvas, ctx = setup_canvas "spotlight_canvas" in
-  ctx##.fillStyle := (string "white");
-  let active = ref false in
-  add_event_listener canvas Html.Event.mousedown ~f:(fun ev ->
-    active := true);
-  add_event_listener canvas Html.Event.mouseup ~f:(fun ev ->
-    clear ctx;
-    active := false);
-  add_event_listener canvas Html.Event.mousemove ~f:(fun ev ->
-    if !active then begin
-      let x = ev##.clientX and y = ev##.clientY in
-      let p = Point.create x y in
-      clear ctx;
-      plot_point ctx p 10.
-    end
-  )
+let draw_horizontal_line
+    (ctx : Html.canvasRenderingContext2D Js.t)
+    (point : Point.t)
+    (width : float)
+    () =
+  let y = Point.y point in
+  let top = y -. width /. 2. in
+  let screen_width = float (ctx##.canvas##.clientWidth) in
+  ctx##fillRect 0. top screen_width width
 
-let main () =
-  let canvas, ctx = setup_canvas "image_canvas" in
-  load_image "image.png"
-  >>= fun image ->
-  ctx##drawImage_withSize image
-    0. 0.
-    (float canvas##.clientWidth) (float canvas##.clientHeight);
-  setup_spotlight ();
-  Lwt.return ()
-
-let go _ = ignore (
-  catch (fun () -> main ())
-    (fun exn -> error "uncaught exception: %s" (Printexc.to_string exn)));
-  _true
-
-;;
-
-Html.window##.onload := Html.handler go
+let draw_vertical_line
+    (ctx : Html.canvasRenderingContext2D Js.t)
+    (point : Point.t)
+    (width : float)
+    () =
+  let x = Point.x point in
+  let left = x -. width /. 2. in
+  let screen_height = float (ctx##.canvas##.clientHeight) in
+  ctx##fillRect left 0. width screen_height

@@ -2,6 +2,8 @@ external
 
 # Boring file regexps:
 
+.depend
+
 # C object files
 *.o
 *.a

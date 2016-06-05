@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+  <head>
+    
+    <title>Yo</title>
+    
+    <meta charset="utf-8">
+    
+    <style media="screen">
+      * { margin: 0; padding: 0; }
+      body, html {
+          width: 100%;
+          height:100%;
+          background: black;
+          background-color: #000;
+          overflow: hidden;
+      }
+      #video {
+          position: absolute;
+          /* CR: no visible: false? */
+          top: -1000px; 
+          cursor: crosshair;
+      }
+      #canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 100;
+      }
+            
+      .container {
+          position: absolute;
+          width: 100%;
+          height: 100%; 
+          perspective: 600px;
+          perspective-origin: 50% -70%;
+      }
+      
+      .box {
+          width: 200px;
+          height: 200px;
+      }
+
+      .circle {
+          display: table-cell;
+          border-radius: 50%;
+          border-style: solid;
+      }
+      
+      .transform {
+          /*
+          -webkit-transform: perspective( 600px ) rotateY( 45deg );
+          -moz-transform: perspective( 600px ) rotateY( 45deg );
+          -o-transform: perspective( 600px ) rotateY( 45deg );
+          */
+          transform: rotateX( -21deg ) scaleY(1.8);
+          position: absolute;
+      }
+      
+      #blue {
+          -webkit-perspective: 600px;
+          -moz-perspective: 600px;
+          -o-perspective: 600px;
+          perspective: 600px;
+      }
+      
+      #blue .box {
+          background-color: blue;
+          -webkit-transform: rotateY( 45deg );
+          -moz-transform: rotateY( 45deg );
+          -o-transform: rotateY( 45deg );
+          transform: rotateY( 45deg );
+      }      
+    </style>
+  </head>
+  <body>
+    
+    <!--<video id="video" width="960" height="720" preload autoplay loop muted controls></video>-->
+    <!--<canvas id="canvas" width="100%" height="100%" onClick="setMarker(event)"></canvas>-->
+    
+    
+    <section id="container" class="container">
+      <!--<div id="circle" class="circle transform" style="left: 400px; top: 200px">1</div>-->
+      <!--<div class="circle transform" style="left: 200px; top: 200px">2</div>
+      <div class="circle transform" style="left: 900px; top: 300px">3</div>
+      <div class="circle transform" style="left: 300px; top: 100px">4</div>-->
+    </section>>
+    
+    <script src="math.min.js"></script>
+
+    <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/velocity/1.2.2/velocity.min.js"></script>
+    
+    <!-- Include the PubNub Library -->
+    <script src="https://cdn.pubnub.com/pubnub-dev.js"></script>
+    
+    <script type="text/javascript">
+
+      var n = 0;
+
+      var Pub = PUBNUB.init({
+        publish_key: 'pub-c-fed5a8f1-713c-4f2e-8915-a4c09e60262f',
+        subscribe_key: 'sub-c-b9b96d2c-9aee-11e5-bdb6-0619f8945a4f'
+      });
+      
+      var outerStyle = {
+        'border-width': '60px',
+        width: '640px',
+        height: '640px',
+        margin: '0px',
+      };
+
+      var innerStyle = {
+        'border-width': '0px',
+        width: '40px',
+        height: '40px',
+        // X_center = 1/2 W + B + M
+        margin: '360px',
+      };
+
+      toCSS = function(style) {
+        var result = '';
+        for(var key in style) {
+          result = result + key + ': ' + style[key] + ';'
+        };
+        return result
+      };
+
+      animate = function(ctrl) {
+        // rgba(255,255,255,1.0)
+        // var random_margin = Math.floor(120.0) + Math.floor(Math.random() * 48.0)
+        if (ctrl.dir == 'in'){
+          var startStyle = Object.assign({}, outerStyle);
+          var finishStyle = Object.assign({}, innerStyle);
+        } else {
+          var startStyle = Object.assign({}, innerStyle);
+          var finishStyle = Object.assign({}, outerStyle);
+        }
+        finishStyle.opacity = '0';
+        
+        var circle = $('<div class="circle transform" style="left: 320px; top: 180px; '
+                       + 'border-color: ' + ctrl.color + '; '
+                       + toCSS(startStyle) 
+                       + '"></div>')
+        $('#container').append(circle)
+        // setting this seems to work better than velocity
+        jQuery.fx.interval = 100;
+        circle.velocity(finishStyle,
+                       {duration: ctrl.duration,
+                        queue: false,
+                        easing: 'linear',
+                        complete: function() { circle.remove(); }
+                       });        
+      }
+      
+      $('html').contextmenu(function(){return false});
+      
+      $('html').mousedown(function(event){
+        if(event.which == 1) { var dir = 'in' } else { var dir = 'out' } 
+        animate(
+          {'color': 'green',
+           'duration': 1000,
+           'dir' : dir }
+        )
+      })
+
+      Pub.subscribe({
+        channel: 'control',
+        message: function(m){
+          // console.log(m);
+          animate(m);
+        }
+      });
+      
+    </script>    
+  </body>
+</html>
