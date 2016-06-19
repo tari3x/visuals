@@ -2,12 +2,14 @@
 <html>
   <head>
     
-    <title>Yo</title>
+    <title>Leader</title>
     
     <meta charset="utf-8">
-    
+
     <style media="screen">
-      * { margin: 0; padding: 0; cursor: none; }
+      * { margin: 0; padding: 0;
+          /* ; cursor: none */
+        }
 
       body, html {
           width: 100%;
@@ -25,15 +27,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
   </head>
   <body oncontextmenu="return false;">
-    <canvas class="canvas" id="image_canvas"></canvas>
-    <canvas class="canvas" id="spotlight_canvas"></canvas>
-    
-    <script src="math.min.js"></script>
-    <script src="main.js"></script>
+    <canvas class="canvas" id="main_canvas"></canvas>
 
-    <script type="text/javascript">
-      document.body.style.cursor = 'none';
+    <script type="text/javascript" 
+            src="http://192.168.1.100:8000/faye/client.js">
     </script>
     
+    <script src="math.min.js"></script>
+    <script src="index_master.js"></script>
   </body>
 </html>

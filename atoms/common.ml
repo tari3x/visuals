@@ -16,6 +16,88 @@ let lwt_wrap f =
   f cont;
   t
 
+module Option = struct
+  type 'a t = 'a option
+  let iter t ~f =
+    match t with
+    | None -> ()
+    | Some x -> f x
+end
+
+module List = struct
+  include ListLabels
+
+  let delete xs x =
+    filter xs ~f:(fun x' -> x' <> x)
+
+  let bring_to_front xs x =
+    x :: delete xs x
+
+  let maybe_find t ~f =
+    try Some (find t ~f) with
+    | Not_found -> None
+end
+
+module Hashtbl = struct
+  include Hashtbl
+
+  let create () =
+    create 1000
+
+  let iter t ~f = iter f t
+
+  let maybe_find t key =
+    try Some (find t key)
+    with Not_found -> None
+end
+
+(* CR: there is Identifiable *)
+module type Id = sig
+  type t
+  val create : unit -> t
+end
+
+module Id = struct
+  type t = int
+
+  let create () =
+    Random.int 100_000_000
+end
+
+module Client_id : Id = Id
+
+(* Must be collision-free *)
+module Shape_id : Id = Id
+
+module Color = struct
+  type t =
+    { r : int
+    ; g : int
+    ; b : int
+    ; a : float
+    }
+
+  let wave ~cycle time =
+    ((sin (time *. cycle) +. 1.) /. 2.) *. 255. |> int
+
+  let of_time time =
+    let r = wave ~cycle:1. time in
+    let g = wave ~cycle:2. time in
+    let b = wave ~cycle:3. time in
+    let a = 0.7 in
+    { r; g; b; a }
+
+  let to_string { r; g; b; a } =
+    Printf.sprintf "rgba(%d, %d, %d, %f)" r g b a
+
+  let random () =
+    let r = Random.int 255 in
+    let g = Random.int 255 in
+    let b = Random.int 255 in
+    let a = 1. in
+    { r; g; b; a }
+end
+
 module Fn = struct
   let flip f x y =
     f y x
@@ -25,27 +107,64 @@ module Point : sig
   type t
 
   val create : int -> int -> t
+  val coords : t -> (float * float)
   val x : t -> float
   val y : t -> float
+
+  val (-) : t -> t -> t
+  val (+) : t -> t -> t
+
+  val to_string : t -> string
 end = struct
   type t = (float * float * float)
 
+  let create_float x y =
+    (x, y, 1.)
+
   let create x y =
-    (float x, float y, 1.)
+    create_float (float x) (float y)
+
+  let coords (x, y, _) =
+    (x, y)
 
   let x (x, _, _) = x
   let y (_, y, _) = y
+
+  let (-) t1 t2 =
+    let x = x t1 -. x t2 in
+    let y = y t1 -. y t2 in
+    create_float x y
+
+  let (+) t1 t2 =
+    let x = x t1 +. x t2 in
+    let y = y t1 +. y t2 in
+    create_float x y
+
+  let to_string (x, y, _) =
+    Printf.sprintf "(%f, %f)" x y
+end
+
+module Button = struct
+  type t = [ `left | `right | `middle | `touch | `none ]
 end
 
 module Mouse_event = struct
-  let client_coords ev =
-    Point.create ev##.clientX ev##.clientY
+  type t = Dom_html.mouseEvent Js.t
+
+  let client_coords t =
+    Point.create t##.clientX t##.clientY
+
+  let button t : Button.t =
+    match Html.buttonPressed t with
+    | Html.No_button     -> `none
+    | Html.Left_button   -> `left
+    | Html.Middle_button -> `middle
+    | Html.Right_button  -> `right
 end
 
 (* CR: make it work with multi-touch. *)
 module Touch_event = struct
-  type t =
-    Dom_html.touchEvent Js.t
+  type t = Dom_html.touchEvent Js.t
 
   let client_coords (ev : t) =
     let touches = ev##.touches in
@@ -81,37 +200,42 @@ let load_image src =
   >>= fun () ->
   Lwt.return img
 
-let clear ctx =
-  let width = ctx##.canvas##.clientWidth |> float in
-  let height = ctx##.canvas##.clientHeight |> float in
-  ctx##clearRect 0. 0. width height
+module Ctx = struct
+  type t = Html.canvasRenderingContext2D Js.t
 
-let plot_point ctx p radius =
-  ctx##beginPath;
-  ctx##arc (Point.x p) (Point.y p) radius 0. (2. *. Js.math##._PI) _false;
-  ctx##fill;
-  (* CR: is this necessary? *)
-  ctx##beginPath
+  let clear t =
+    let width = t##.canvas##.clientWidth |> float in
+    let height = t##.canvas##.clientHeight |> float in
+    t##clearRect 0. 0. width height
 
-let draw_dot ctx p radius =
-  plot_point ctx p radius
+  let plot_point t p radius =
+    t##beginPath;
+    t##arc (Point.x p) (Point.y p) radius 0. (2. *. Js.math##._PI) _false;
+    t##fill;
+    (* CR: is this necessary? *)
+    t##beginPath
 
-let draw_horizontal_line
-    (ctx : Html.canvasRenderingContext2D Js.t)
-    (point : Point.t)
-    (width : float)
-    () =
-  let y = Point.y point in
-  let top = y -. width /. 2. in
-  let screen_width = float (ctx##.canvas##.clientWidth) in
-  ctx##fillRect 0. top screen_width width
+  let draw_dot t p radius =
+    plot_point t p radius
 
-let draw_vertical_line
-    (ctx : Html.canvasRenderingContext2D Js.t)
-    (point : Point.t)
-    (width : float)
-    () =
-  let x = Point.x point in
-  let left = x -. width /. 2. in
-  let screen_height = float (ctx##.canvas##.clientHeight) in
-  ctx##fillRect left 0. width screen_height
+  let draw_horizontal_line (t : t) p width =
+    let y = Point.y p in
+    let top = y -. width /. 2. in
+    let screen_width = float (t##.canvas##.clientWidth) in
+    t##fillRect 0. top screen_width width
+
+  let draw_vertical_line (t : t) p width =
+    let x = Point.x p in
+    let left = x -. width /. 2. in
+    let screen_height = float (t##.canvas##.clientHeight) in
+    t##fillRect left 0. width screen_height
+
+  let draw_rectangle (t : t) p ~width ~height =
+    let x = Point.x p in
+    let y = Point.y p in
+    t##fillRect x y width height
+
+  let set_fill_color (t : t) color =
+    t##.fillStyle := string (Color.to_string color)
+end
+
