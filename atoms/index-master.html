@@ -2,7 +2,7 @@
 <html>
   <head>
     
-    <title>Leader</title>
+    <title>Master</title>
     
     <meta charset="utf-8">
 
@@ -23,17 +23,18 @@
           left: 0;
       }
     </style>
-    <meta name="viewport" content="width=device-width, user-scalable=no">
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1,
+                                   minimum-scale=1, maximum-scale=1,
+                                   user-scalable=no">
   </head>
-  <body oncontextmenu="return false;">
+  <body> <!-- oncontextmenu="return false;" -->
     <canvas class="canvas" id="main_canvas"></canvas>
 
     <script type="text/javascript" 
             src="http://192.168.1.100:8000/faye/client.js">
     </script>
     
-    <script src="math.min.js"></script>
+    <script src="external/math.min.js"></script>
     <script src="index_master.js"></script>
   </body>
 </html>

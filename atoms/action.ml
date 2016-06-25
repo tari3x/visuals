@@ -1,20 +1,39 @@
 open Common
+open Geometry
 
-module Button_action = struct
+module Kind = struct
   type t = [ `down | `up | `move ]
 end
 
+module Button = struct
+  type t = [ `left | `right | `middle | `touch | `none ]
+end
+
+module Pointer_id = struct
+  module T = struct
+    type t = int
+    let to_string t =
+      Printf.sprintf "pointer%d" t
+  end
+  include  T
+  module Table = Make_table(T)
+end
+
+module Pointer = struct
+  type t =
+    { id : Pointer_id.t
+    ; position : Vector.t
+    ; button : Button.t
+    }
+end
+
+module Pointer_action = struct
+  type t =
+    { kind : Kind.t
+    ; changed_touches : Pointer.t list
+    }
+end
+
 type t =
-| Move of Point.t
-| Down of Button.t
-| Up   of Button.t
-
-let of_mouse_event ev = function
-  | `down -> Down (Mouse_event.button ev)
-  | `up   -> Up   (Mouse_event.button ev)
-  | `move -> Move (Mouse_event.client_coords ev)
-
-let of_touch_event ev = function
-  | `down -> Down `touch
-  | `up   -> Up   `touch
-  | `move -> Move (Touch_event.client_coords ev)
+| Pointer of Pointer_action.t
+| Set_color of Color_cycle.t

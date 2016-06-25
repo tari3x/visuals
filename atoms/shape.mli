@@ -1,18 +1,21 @@
-open Common
-
-module Kind : sig
-  type t =
-  | Rect of (float * float)
-end
+open Geometry
+open Dom_wrappers
 
 type t
 
+val dummy : t
+
 val to_string : t -> string
 
-val create : Point.t -> t
+val create : Vector.t -> Color_cycle.t -> t
 
-val render : t -> Ctx.t -> unit
+val render : t -> Ctx.t -> time:float -> unit
 
-val move_by : t -> Point.t -> t
+val frame : t -> Frame.t
+val set_frame : t -> Frame.t -> t
 
-val touched_by : t -> Point.t -> bool
+val color     : t -> Color_cycle.t
+val set_color : t -> Color_cycle.t -> t
+
+val touched_by : t -> Vector.t -> bool
+

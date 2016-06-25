@@ -2,7 +2,7 @@
 <html>
   <head>
     
-    <title>Yo</title>
+    <title>Atoms</title>
     
     <meta charset="utf-8">
     
@@ -14,26 +14,123 @@
       body, html {
           width: 100%;
           height:100%;
-          background: black;
       }
      
       .canvas {
           position: absolute;
           top: 0;
           left: 0;
+          background: black;
       }
-    </style>
-    <meta name="viewport" content="width=device-width, user-scalable=no">
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
-  </head>
-  <body oncontextmenu="return false;">
-    <canvas class="canvas" id="main_canvas"></canvas>
 
+      .jscolor {
+          width:50px;
+          height:20px;
+      }
+
+      .button {
+          width: 40px;
+          height: 20px
+      }
+      
+      #toolbar {
+          top: 10px;
+          right: 10px;
+          position: absolute;
+      }
+
+      #cycle-length-label, #cycle-offset-label {
+          color: white;
+          font-weight: bold;
+      }
+      
+      .vpanel, .hpanel {
+          text-align: center;
+          margin: 0px;
+          padding: 5px;
+      }
+
+      .hpanel {
+          float: left;
+      }
+      
+      input[type=range][orient=vertical]
+      {
+          writing-mode: bt-lr; /* IE */
+          -webkit-appearance: slider-vertical; /* WebKit */
+          padding: 0 5px;
+          width: 20px;
+      }      
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1,
+                                   minimum-scale=1, maximum-scale=1,
+                                   user-scalable=no">
+  </head>
+  <body oncontextmenu="return false;" onload="init_spectrum()">
+    <script src="external/jquery.min.js"></script>
+    <script src="external/spectrum.js"></script>
+    <link rel="stylesheet" href="external/spectrum.css" />
+    <script src="external/math.min.js"></script>
     <script type="text/javascript" 
             src="http://192.168.1.100:8000/faye/client.js">
     </script>
     
-    <script src="math.min.js"></script>
+    <canvas class="canvas" id="main_canvas"></canvas>
+
+    <div id="toolbar">
+      <div id="colors">
+        <div class="vpanel">
+          <input type="range" id="red"   orient="vertical" min="0" max="255">
+          <input type="range" id="green" orient="vertical" min="0" max="255">
+          <input type="range" id="blue"  orient="vertical" min="0" max="255">
+          <input type="range" id="alpha" orient="vertical" min="0" max="255">
+        </div>
+        
+        <div class="vpanel">
+          <button id="get-color" class="button">Get</button>
+          <button id="set-color" class="button">Set</button>
+        </div>
+        
+        <div class="hpanel">
+          <input style="display: none;" name="color1" id="color1" type="text">
+          <br>
+          <input style="display: none;" name="color2" id="color2" type="text">
+          <br>
+          <input style="display: none;" name="color3" id="color3" type="text">
+          <br>
+          <input style="display: none;" name="color4" id="color4" type="text">
+        </div>
+        
+        <div class="hpanel">
+          <label id="cycle-length-label"></label>
+          <input type="range" orient="vertical" id="cycle-length"
+                 min="0" max="20" defaultValue="3">
+          <label id="cycle-offset-label"></label>
+          <input type="range" orient="vertical" id="cycle-offset"
+                 min="0" max="8" defaultValue="0">
+        </div>
+        
+      </div>
+    </div>
+    
+    <script>
+      $("#color1,#color2,#color3,#color4").spectrum({
+        preferredFormat: "hex8",
+        showAlpha: true
+      });
+
+      function update_color_labels(){
+        $("#cycle-length-label").text($("#cycle-length").val() + 's');
+        $("#cycle-offset-label").text($("#cycle-offset").val() /  $("#cycle-offset").prop("max"));
+      };
+
+      $("#cycle-length, #cycle-offset").on("mousemove", update_color_labels);
+      $("#cycle-length, #cycle-offset").on("touchmove", update_color_labels);
+      update_color_labels();
+
+      
+    </script>
+    
     <script src="index.js"></script>
   </body>
 </html>

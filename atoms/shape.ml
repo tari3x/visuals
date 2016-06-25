@@ -1,48 +1,74 @@
-open Common
+open Geometry
+open Dom_wrappers
 
 module Kind = struct
   type t =
-  | Rect of (float * float)
+  | Rect
 
   let to_string = function
-    | Rect (w, h) ->
-      Printf.sprintf "Rect (%f, %f)" w h
+    | Rect -> "Rect"
+
+  let rect_width  = 100.
+  let rect_height = 100.
+
+  let render t ctx =
+    match t with
+    | Rect ->
+      Ctx.draw_centered_rectangle ctx ~width:rect_width ~height:rect_height
+
+  let touched_by t p =
+    let (x, y) = Vector.coords p in
+    match t with
+    | Rect ->
+      abs_float x <= (rect_width /. 2.) && abs_float y <= (rect_height /. 2.)
 end
 
 open Kind
 
 type t =
   { kind : Kind.t
-  ; anchor : Point.t
-  ; color : Color.t
+  ; frame : Frame.t
+  ; color : Color_cycle.t
   }
 
+let frame t =
+  t.frame
+
+let set_frame t frame =
+  { t with frame }
+
+let color t =
+  t.color
+
+let set_color t color =
+  { t with color }
+
 let to_string t =
-  let { kind; anchor; color } = t in
+  let { kind; frame; color } = t in
   Printf.sprintf "{ %s; %s; %s }"
     (Kind.to_string kind)
-    (Point.to_string anchor)
-    (Color.to_string color)
+    (Frame.to_string frame)
+    (Color_cycle.to_string color)
 
-let create anchor =
-  let kind = Rect (200., 100.) in
-  let color = Color.random () in
-  { kind; anchor; color }
+let create anchor color =
+  let frame =
+    Frame.(
+      translate anchor +> rotate (Angle.of_degrees 45.))
+  in
+  let kind = Rect in
+  { kind; frame; color }
 
-let render t ctx =
-  Ctx.set_fill_color ctx t.color;
-  match t.kind with
-  | Rect (width, height) ->
-    Ctx.draw_rectangle ctx t.anchor width height
+let dummy =
+  create Vector.zero Color_cycle.default
 
-let move_by t p =
-  let anchor = Point.(t.anchor + p) in
-  { t with anchor }
+let render t ctx ~time =
+  Ctx.save ctx;
+  Ctx.set_fill_color ctx (Color_cycle.current_color t.color ~time);
+  Ctx.transform ctx (Frame.matrix t.frame);
+  Kind.render t.kind ctx;
+  Ctx.restore ctx
 
 let touched_by t p =
-  match t.kind with
-  | Rect (width, height) ->
-    let anchor_x, anchor_y = Point.coords t.anchor in
-    let x, y = Point.coords p in
-    anchor_x <= x && x <= anchor_x +. width
-    && anchor_y <= y && y <= anchor_y +. height
+  let m_inv = Matrix.inv (Frame.matrix t.frame) in
+  let p = Matrix.apply m_inv p in
+  Kind.touched_by t.kind p

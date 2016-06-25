@@ -1,20 +1,36 @@
 open Common
+open Geometry
 
-module Button_action : sig
+module Kind : sig
   type t = [ `down | `up | `move ]
 end
 
+module Button : sig
+  type t = [ `left | `right | `middle | `touch | `none ]
+end
+
+module Pointer_id : sig
+  type t = int
+  val to_string : t -> string
+  module Table : (Table with type Key.t = t)
+end
+
+(* Either a touch or a mouse. *)
+module Pointer : sig
+  type t =
+    { id : Pointer_id.t
+    ; position : Vector.t
+    ; button : Button.t
+    }
+end
+
+module Pointer_action : sig
+  type t =
+    { kind : Kind.t
+    ; changed_touches : Pointer.t list
+    }
+end
+
 type t =
-| Move of Point.t
-| Down of Button.t
-| Up   of Button.t
-
-val of_mouse_event
-  :  Html.mouseEvent Js.t
-  -> Button_action.t
-  -> t
-
-val of_touch_event
-  :  Html.touchEvent Js.t
-  -> Button_action.t
-  -> t
+| Pointer of Pointer_action.t
+| Set_color of Color_cycle.t
