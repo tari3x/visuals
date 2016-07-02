@@ -7,6 +7,15 @@ module Channel : sig
 end
 
 module Message : sig
+  module Init : sig
+    type t =
+      { shapes : (Shape_id.t * Shape.t * Client_id.t option) list
+      ; width : float
+      ; height : float
+      ; time : float
+      }
+  end
+
   type t =
   | Request of (Client_id.t * Shape_id.t)
   | Grant   of (Client_id.t * Shape_id.t)
@@ -14,15 +23,15 @@ module Message : sig
   | Create  of (Shape_id.t * Client_id.t * Shape.t)
   | Set     of (Shape_id.t * Shape.t)
   | Delete  of Shape_id.t
-  | Request_state of Channel.t
-  | State  of (Shape_id.t * Shape.t * Client_id.t option) list
+  | Request_init of Channel.t
+  | Init    of Init.t
 
   val to_string : t -> string
 end
 
 type t
 
-val create : url:string -> t
+val create : unit -> t
 
 val publish : t -> Channel.t -> Message.t -> unit
 

@@ -9,6 +9,15 @@ module Channel = struct
 end
 
 module Message = struct
+  module Init = struct
+    type t =
+      { shapes : (Shape_id.t * Shape.t * Client_id.t option) list
+      ; width : float
+      ; height : float
+      ; time : float
+      }
+  end
+
   type t =
   | Request of (Client_id.t * Shape_id.t)
   | Grant   of (Client_id.t * Shape_id.t)
@@ -16,8 +25,8 @@ module Message = struct
   | Create  of (Shape_id.t * Client_id.t * Shape.t)
   | Set     of (Shape_id.t * Shape.t)
   | Delete  of Shape_id.t
-  | Request_state of Channel.t
-  | State  of (Shape_id.t * Shape.t * Client_id.t option) list
+  | Request_init of Channel.t
+  | Init    of Init.t
 
   let to_string = function
     | Request _ -> "Request"
@@ -26,8 +35,8 @@ module Message = struct
     | Create _  -> "Create"
     | Set (_, shape)     -> Printf.sprintf "Set %s" (Shape.to_string shape)
     | Delete _  -> "Delete"
-    | State _   -> "State"
-    | Request_state _ -> "Request_state"
+    | Init _   -> "Init"
+    | Request_init _ -> "Request_init"
 
 end
 
@@ -42,8 +51,8 @@ type t = faye Js.t
 let constr : (js_string Js.t -> t) constr =
   Js.Unsafe.global##._Faye##._Client
 
-let create ~url =
-  new%js constr (string url)
+let create () =
+  new%js constr (string "http://192.168.1.100:8000/faye")
 
 let publish t channel msg =
   (* debug "Publishing %s on %s" (Message.to_string msg) channel; *)

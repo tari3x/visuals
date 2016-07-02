@@ -43,8 +43,10 @@ module Matrix : sig
 
   val to_string : t -> string
 
+  val ident : t
+
   val ( * ) : t -> t -> t
-  val (+>)  : t -> t -> t
+  val ( *> )  : t -> t -> t
 
   val inv  : t -> t
 
@@ -64,12 +66,18 @@ module Frame : sig
 
   val to_string : t -> string
 
-  val (+>)  : t -> t -> t
+  val ( *> )  : t -> t -> t
 
   val ident : t
   val translate : Vector.t -> t
   val rotate : Angle.t -> t
   val scale : scale_x:float -> scale_y:float -> t
+
+  val remove_scale : t -> t
+
+  val equal_scale : t -> t
+
+  val set_translation : t -> Vector.t -> t
 
   val matrix : t -> Matrix.t
 end

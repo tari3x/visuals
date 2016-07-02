@@ -23,7 +23,7 @@ module Mouse_event = struct
   let action (t : t) kind =
     let position = client_coords t in
     let button   = button t in
-    let id = 1 in
+    let id = Pointer_id.create 1 in
     let changed_touches =
       [ { Pointer. id; position; button } ]
     in
@@ -41,7 +41,7 @@ module Touch_event = struct
       |> List.map ~f:(fun touch ->
         let touch = Optdef.value_exn touch in
         let position = Vector.create touch##.clientX touch##.clientY in
-        let id = touch##.identifier in
+        let id = Pointer_id.create touch##.identifier in
         { Pointer. id; position; button = `touch })
     in
     Action.Pointer { kind; changed_touches }
@@ -50,10 +50,14 @@ end
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
 
+  let width t =
+    t##.canvas##.clientWidth |> float
+
+  let height t =
+    t##.canvas##.clientHeight |> float
+
   let clear t =
-    let width = t##.canvas##.clientWidth |> float in
-    let height = t##.canvas##.clientHeight |> float in
-    t##clearRect 0. 0. width height
+    t##clearRect 0. 0. (width t) (height t)
 
   let draw_circle (t : t) p ~radius =
     t##beginPath;
@@ -64,15 +68,23 @@ module Ctx = struct
 
   let draw_horizontal_line (t : t) p ~width =
     let y = Vector.y p in
-    let top = y -. width /. 2. in
-    let screen_width = float (t##.canvas##.clientWidth) in
-    t##fillRect 0. top screen_width width
+    t##save;
+    t##.lineWidth := width;
+    t##beginPath;
+    t##moveTo (-10_000.) y;
+    t##lineTo 10_000. y;
+    t##stroke;
+    t##restore
 
   let draw_vertical_line (t : t) p ~width =
     let x = Vector.x p in
-    let left = x -. width /. 2. in
-    let screen_height = float (t##.canvas##.clientHeight) in
-    t##fillRect left 0. width screen_height
+    t##save;
+    t##.lineWidth := width;
+    t##beginPath;
+    t##moveTo x (-10_000.);
+    t##lineTo x 10_000.;
+    t##stroke;
+    t##restore
 
   let draw_centered_rectangle (t : t) ~width ~height =
     t##fillRect
@@ -82,6 +94,10 @@ module Ctx = struct
 
   let set_fill_color (t : t) color =
     t##.fillStyle := string (Color.to_string color)
+
+  let set_stroke_color (t : t) color =
+    t##.strokeStyle := string (Color.to_string color)
+
 
   let save (t : t) =
     t##save

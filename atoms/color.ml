@@ -63,3 +63,7 @@ let interpolate t1 t2 fraction =
   ; b = i t1.b t2.b
   ; a = (1. -. fraction) *. t1.a +. fraction *. t2.a
   }
+
+let set_alpha t ~alpha =
+  { t with a = alpha }
+

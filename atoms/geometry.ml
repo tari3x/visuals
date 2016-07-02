@@ -92,7 +92,7 @@ module Matrix = struct
   let ( * ) = Math.multiply
   let inv   = Math.inv
 
-  let (+>) t1 t2 = t2 * t1
+  let ( *> ) t1 t2 = t2 * t1
 
   let translate v : t =
     let (x, y) = Vector.coords v in
@@ -117,6 +117,9 @@ module Matrix = struct
       ;  [| 0.;         0.;    1. |]
       |]
 
+  let ident =
+    translate Vector.zero
+
   let apply (t : t) v  =
     let (v0, v1, v2) = Vector.projective_coords v in
     let c = get t in
@@ -140,7 +143,7 @@ module Frame = struct
     ; translation : Vector.t
     }
 
-  let (+>) t1 t2 =
+  let ( *> ) t1 t2 =
     { scale_x = t1.scale_x *. t2.scale_x
     ; scale_y = t1.scale_y *. t2.scale_y
     ; rotation = Angle.(t1.rotation + t2.rotation)
@@ -163,12 +166,29 @@ module Frame = struct
   let scale ~scale_x ~scale_y =
     { ident with scale_x; scale_y }
 
+  let set_translation t translation =
+    { t with translation }
+
+  let remove_scale t =
+    { t with
+      scale_x = 1.
+      ; scale_y = 1.
+    }
+
+  let equal_scale t =
+    let scale = max t.scale_x t.scale_y in
+    { t with
+      scale_x = scale
+      ; scale_y = scale
+    }
+
   let matrix t =
     Matrix.(
       scale ~scale_x:t.scale_x ~scale_y:t.scale_y
-      +> rotate t.rotation
-      +> translate t.translation)
+      *> rotate t.rotation
+      *> translate t.translation)
 
   let to_string t =
     Matrix.to_string (matrix t)
 end
+

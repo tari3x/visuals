@@ -10,13 +10,9 @@ module Button = struct
 end
 
 module Pointer_id = struct
-  module T = struct
-    type t = int
-    let to_string t =
-      Printf.sprintf "pointer%d" t
-  end
-  include  T
-  module Table = Make_table(T)
+  type t = string
+  let create id =
+    Printf.sprintf "pointer%d" id
 end
 
 module Pointer = struct
@@ -25,6 +21,11 @@ module Pointer = struct
     ; position : Vector.t
     ; button : Button.t
     }
+
+  let transform_position m t =
+    { t with
+      position = Matrix.apply m t.position
+    }
 end
 
 module Pointer_action = struct
@@ -32,8 +33,17 @@ module Pointer_action = struct
     { kind : Kind.t
     ; changed_touches : Pointer.t list
     }
+
+  let transform_positions m { kind; changed_touches } =
+    { kind
+    ; changed_touches = List.map changed_touches ~f:(Pointer.transform_position m)
+    }
 end
 
 type t =
 | Pointer of Pointer_action.t
 | Set_color of Color_cycle.t
+
+let transform_positions m = function
+  | Set_color color -> Set_color color
+  | Pointer p -> Pointer (Pointer_action.transform_positions m p)

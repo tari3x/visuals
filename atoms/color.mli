@@ -18,6 +18,8 @@ val random : unit -> t
 
 val interpolate : t -> t -> float -> t
 
+val set_alpha : t -> alpha:float -> t
+
 (*
 val red : t -> int
 val green : t -> int

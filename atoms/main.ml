@@ -34,18 +34,18 @@ let get_color_cycle color_cycle =
     Js.Unsafe.eval_string
       (Printf.sprintf "$('#%s').spectrum('set', '%s')" id (Color.to_string color))
   in
-  let set_interval id interval =
+  let set_value id value =
     let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value := Js.string (string_of_int (int_of_float interval))
+    input##.value := Js.string (string_of_int (int_of_float value))
   in
   let { Color_cycle. colors = _; length; offset } = color_cycle in
   let max_offset = range_max "cycle-offset" in
-  set_interval "cycle-length" length;
-  set_interval "cycle-offset" (offset *. max_offset);
-  set_color "color1" (Color_cycle.nth_defaulting_to_white color_cycle 0);
-  set_color "color2" (Color_cycle.nth_defaulting_to_white color_cycle 1);
-  set_color "color3" (Color_cycle.nth_defaulting_to_white color_cycle 2);
-  set_color "color4" (Color_cycle.nth_defaulting_to_white color_cycle 3)
+  set_value "cycle-length" length;
+  set_value "cycle-offset" (offset *. max_offset);
+  set_color "color1" (Color_cycle.nth_defaulting_to_last_or_white color_cycle 0);
+  set_color "color2" (Color_cycle.nth_defaulting_to_last_or_white color_cycle 1);
+  set_color "color3" (Color_cycle.nth_defaulting_to_last_or_white color_cycle 2);
+  set_color "color4" (Color_cycle.nth_defaulting_to_last_or_white color_cycle 3)
 
 let set_color_cycle t =
   let get_color id =
@@ -78,7 +78,7 @@ let get_simple_color color_cycle =
     input##.value := Js.string (string_of_int (int_of_float color))
   in
   let max_alpha = range_max "alpha" in
-  let color = Color_cycle.nth_defaulting_to_white color_cycle 0 in
+  let color = Color_cycle.nth_defaulting_to_last_or_ewhite color_cycle 0 in
   set_color "red"   (Color.r color |> float_of_int);
   set_color "green" (Color.g color |> float_of_int);
   set_color "blue"  (Color.b color |> float_of_int);
@@ -100,15 +100,22 @@ let set_simple_color t =
   let color = Color_cycle.const color in
   State.process_action t (Action.Set_color color)
 
-let add_toolbar_handlers t =
+let add_cycle_handlers t =
   (* let get_button = get_element_by_id "get-color" Html.CoerceTo.button in *)
   let set_button = get_element_by_id "set-color" Html.CoerceTo.button in
   let get_button = get_element_by_id "get-color" Html.CoerceTo.button in
+  add_event_listener set_button Html.Event.touchstart ~f:(fun _ ->
+    set_color_cycle t);
   add_event_listener set_button Html.Event.click ~f:(fun _ ->
     set_color_cycle t);
-  add_event_listener get_button Html.Event.click ~f:(fun _ ->
+  add_event_listener get_button Html.Event.touchstart ~f:(fun _ ->
     Option.iter (State.last_touched t) ~f:(fun shape ->
       get_color_cycle (Shape.color shape)));
+  add_event_listener get_button Html.Event.click ~f:(fun _ ->
+    Option.iter (State.last_touched t) ~f:(fun shape ->
+      get_color_cycle (Shape.color shape)))
+
+let add_picker_handlers t =
   List.iter [ "red"; "green"; "blue"; "alpha" ] ~f:(fun id ->
     let input = get_element_by_id id Html.CoerceTo.input in
     add_event_listener input Html.Event.touchmove ~f:(fun _ ->
@@ -118,20 +125,37 @@ let add_toolbar_handlers t =
   State.on_shape_active t ~f:(fun shape ->
     get_simple_color (Shape.color shape))
 
-let main ~is_leader =
+let add_choice_handlers t =
+  let add_listener id ~f =
+    let elt = get_element_by_id id Html.CoerceTo.button in
+    add_event_listener elt Html.Event.touchstart ~f:(fun _ -> f ())
+  in
+  add_listener "R" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Rect);
+  add_listener "C" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Circle);
+  add_listener "H" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Horizontal_line);
+  add_listener "V" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Vertical_line);
+  add_listener "X" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Cross_line);
+  add_listener "T" ~f:(fun () -> State.toggle_transient_mode t)
+
+let add_toolbar_handlers t =
+  add_cycle_handlers t;
+  add_picker_handlers t;
+  add_choice_handlers t
+
+let main ~is_server =
   Random.self_init ();
   let canvas = get_element_by_id "main_canvas" Html.CoerceTo.canvas in
   canvas##.width := Html.document##.body##.clientWidth;
   canvas##.height := Html.document##.body##.clientHeight;
   let ctx = canvas##getContext Html._2d_ in
-  let t = State.create ctx ~is_leader in
+  let t = State.create ctx ~is_server in
   add_canvas_handlers t canvas;
-  if not is_leader then add_toolbar_handlers t;
+  if not is_server then add_toolbar_handlers t;
   Lwt.return ()
 
-let go ~is_leader _ = ignore (
-  catch (fun () -> main ~is_leader)
-    (fun exn -> error "uncaught exn: %s" (Printexc.to_string exn)));
+let go ~is_server _ = ignore (
+  catch (fun () -> main ~is_server)
+    (fun exn -> failwithf "uncaught exn: %s" (Printexc.to_string exn)));
   _true
 
 ;;

@@ -32,8 +32,8 @@ module Params = struct
     let scale_y = 1. +. scale_delta_y in
     let move_by = Vector.(t2.center - t1.center) in
     Frame.(scale ~scale_x ~scale_y
-           +> rotate rotation
-           +> translate move_by)
+           *> rotate rotation
+           *> translate move_by)
 end
 
 (* One group of pointers per shape. *)
@@ -71,12 +71,12 @@ module Group = struct
     let frame_diff =
       Params.frame_diff ~initial:t.initial_params ~current
     in
-    Frame.(t.initial_frame +> frame_diff)
+    Frame.(t.initial_frame *> frame_diff)
 end
 
 type t =
-  { groups : Group.t Shape_id.Table.t
-  ; positions : Vector.t Pointer_id.Table.t
+  { groups : (Shape_id.t, Group.t) Hashtbl.t
+  ; positions : (Pointer_id.t, Vector.t) Hashtbl.t
   }
 
 let create () =

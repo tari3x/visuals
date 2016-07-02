@@ -60,11 +60,18 @@ let current_color t ~time =
     let c2 = List.nth colors (segment_number + 1) in
     Color.interpolate c1 c2 fraction_of_segment
 
-let nth_defaulting_to_white t n =
+let nth_defaulting_to_last_or_white t n =
   let rec loop n = function
     | [] -> Color.white
+    | [ c ] -> c
     | c :: cs ->
       if n = 0 then c
       else loop (n - 1) cs
   in
   loop n t.colors
+
+let set_alpha t ~alpha =
+  { t with
+    colors = List.map t.colors ~f:(Color.set_alpha ~alpha)
+  }
+

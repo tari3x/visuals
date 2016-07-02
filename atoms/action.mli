@@ -1,4 +1,3 @@
-open Common
 open Geometry
 
 module Kind : sig
@@ -10,9 +9,8 @@ module Button : sig
 end
 
 module Pointer_id : sig
-  type t = int
-  val to_string : t -> string
-  module Table : (Table with type Key.t = t)
+  type t
+  val create : int -> t
 end
 
 (* Either a touch or a mouse. *)
@@ -34,3 +32,6 @@ end
 type t =
 | Pointer of Pointer_action.t
 | Set_color of Color_cycle.t
+
+val transform_positions : Matrix.t -> t -> t
+

@@ -16,4 +16,7 @@ val random : unit -> t
 
 val current_color : t -> time:float -> Color.t
 
-val nth_defaulting_to_white : t -> int -> Color.t
+val nth_defaulting_to_last_or_white : t -> int -> Color.t
+
+val set_alpha : t -> alpha:float -> t
+

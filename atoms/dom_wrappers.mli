@@ -19,6 +19,9 @@ module Ctx : sig
 
   val clear : t -> unit
 
+  val width : t -> float
+  val height : t -> float
+
   val draw_circle : t -> Vector.t -> radius:float -> unit
 
   val draw_horizontal_line : t -> Vector.t -> width:float -> unit
@@ -27,6 +30,7 @@ module Ctx : sig
   val draw_centered_rectangle : t -> width:float -> height:float -> unit
 
   val set_fill_color : t -> Color.t -> unit
+  val set_stroke_color : t -> Color.t -> unit
 
   val save : t -> unit
   val restore : t -> unit

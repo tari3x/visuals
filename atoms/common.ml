@@ -3,9 +3,13 @@ open Js
 
 module Html = Dom_html
 
-let error f = Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s)); failwith s) f
+let error f = Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s))) f
 let debug f = Printf.ksprintf (fun s -> Firebug.console##(log (Js.string s))) f
-let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s)); failwith s) f
+let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s))) f
+let failwithf f =
+  Printf.ksprintf (fun s ->
+    Firebug.console##(error (Js.string s));
+    failwith s) f
 
 let float = float_of_int
 let int   = int_of_float
@@ -61,15 +65,20 @@ module List = struct
 
   let mem xs x =
     mem ~set:xs x
+
+  let filter_map t ~f =
+    let rec loop = function
+      | [] -> []
+      | x :: xs ->
+        match f x with
+        | None -> loop xs
+        | Some x -> x :: loop xs
+    in
+    loop t
 end
 
 module Array = struct
   include ArrayLabels
-end
-
-module type Stringable = sig
-  type t
-  val to_string : t -> string
 end
 
 module type Id = sig
@@ -78,32 +87,8 @@ module type Id = sig
   val to_string : t -> string
 end
 
-module type Table = sig
-  module Key : Stringable
-  type 'a t = (Key.t, 'a) Hashtbl.t
-
-  val create : unit -> 'a t
-
-  val iter : 'a t -> f:(key:Key.t -> data:'a -> unit) -> unit
-
-  val filter_map_inplace : 'a t ->  f:(key:Key.t -> data:'a -> 'a option) -> unit
-
-  val find : 'a t -> Key.t -> 'a
-
-  val maybe_find : 'a t -> Key.t -> 'a option
-
-  val replace : 'a t -> key:Key.t -> data:'a -> unit
-
-  val find_or_add : 'a t -> Key.t -> default:(unit -> 'a) -> 'a
-end
-
-module Make_table(Key : Stringable) : Table with module Key = Key = struct
-  module Key = Key
-  type ('a, 'b) table = ('a, 'b) Hashtbl.t
-  include (Hashtbl :
-           module type of Hashtbl
-             with type ('a, 'b) t := ('a, 'b) table)
-  type 'b t = (Key.t, 'b) table
+module Hashtbl = struct
+  include Hashtbl
 
   let create () =
     create 1000
@@ -116,10 +101,14 @@ module Make_table(Key : Stringable) : Table with module Key = Key = struct
     let f key data = f ~key ~data in
     filter_map_inplace f t
 
+      (*
   let find t key =
     try find t key with
     | Not_found ->
-      failwith (Printf.sprintf "key %s not found" (Key.to_string key))
+      let key : string = Obj.magic key in
+      error "key %s not found" key;
+      raise Not_found
+      *)
 
   let maybe_find t key =
     try Some (find t key)
@@ -137,18 +126,15 @@ module Make_table(Key : Stringable) : Table with module Key = Key = struct
       data
 end
 
-module Id(M: sig val name : string end) = struct
-  module T : Id = struct
-    type t = int
+module Id(M: sig val name : string end) : Id = struct
+  type t = string
 
-    let create () =
-      Random.int 100_000_000
+  let create () =
+    Printf.sprintf "%s%d"
+      M.name
+      (Random.int 100_000_000)
 
-    let to_string t =
-      Printf.sprintf "%s%d" M.name t
-  end
-  include T
-  module Table = Make_table(T)
+  let to_string t = t
 end
 
 module Client_id = Id(struct let name = "Client_id" end)
@@ -164,7 +150,11 @@ let add_event_listener elt event ~f =
   Html.addEventListener elt event
     (Html.handler
        (fun ev ->
-         f ev;
+         begin
+           try f ev with exn ->
+             error "uncaught exn in handler: %s"
+               (Printexc.to_string exn)
+         end;
          Js._true))
     Js._true
   |> ignore
@@ -173,7 +163,7 @@ let get_element_by_id id coerce_to =
   Opt.get
     (Opt.bind ( Html.document##getElementById(string id) )
        coerce_to)
-    (fun () -> error "can't find element %s" id)
+    (fun () -> failwithf "can't find element %s" id)
 
 let load_image src =
   let img = Html.createImg Html.document in
