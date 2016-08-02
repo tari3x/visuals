@@ -30,8 +30,6 @@ let failwithf f =
 let float = float_of_int
 let int   = int_of_float
 
-let current_url = Html.window##.location##.href |> to_string
-
 let lwt_wrap f =
   let (t, w) = Lwt.task () in
   let cont x = Lwt.wakeup w x in
