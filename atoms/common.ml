@@ -12,7 +12,7 @@ let console_error f =
   Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s))) f
 
 (* CR: do something about dev vs prod. *)
-let error = alert
+let error = console_error
 
 (* CR: set [Lwt.async_exception_handler] or whatever it is called. *)
 
