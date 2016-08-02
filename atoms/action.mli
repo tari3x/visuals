@@ -20,18 +20,15 @@ module Pointer : sig
     ; position : Vector.t
     ; button : Button.t
     }
-end
 
-module Pointer_action : sig
-  type t =
-    { kind : Kind.t
-    ; changed_touches : Pointer.t list
-    }
+  val id : t -> Pointer_id.t
 end
 
 type t =
-| Pointer of Pointer_action.t
-| Set_color of Color_cycle.t
+  { kind : Kind.t
+  ; changed_touches : Pointer.t list
+  }
 
-val transform_positions : Matrix.t -> t -> t
+val to_string : t -> string
 
+val coords : t -> Vector.t

@@ -4,15 +4,18 @@ open Geometry
 module Mouse_event : sig
   type t = Dom_html.mouseEvent Js.t
 
+  val client_coords : t -> Vector.t
+
   val action : t -> Action.Kind.t -> Action.t
 end
 
-(* CR: make it work with multi-touch. *)
 module Touch_event : sig
   type t = Dom_html.touchEvent Js.t
 
   val action : t -> Action.Kind.t -> Action.t
 end
+
+val actions : #Html.eventTarget Js.t -> Action.t Lwt_stream.t
 
 module Ctx : sig
   type t = Html.canvasRenderingContext2D Js.t
@@ -31,6 +34,12 @@ module Ctx : sig
 
   val set_fill_color : t -> Color.t -> unit
   val set_stroke_color : t -> Color.t -> unit
+
+  val clip_rect : t -> Vector.t -> width:int -> height:int -> unit
+
+  val set_font : t -> string -> unit
+  val fill_text : t -> string -> float -> float -> unit
+  val stroke_text : t -> string -> float -> float -> unit
 
   val save : t -> unit
   val restore : t -> unit

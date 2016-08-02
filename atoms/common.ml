@@ -3,16 +3,34 @@ open Js
 
 module Html = Dom_html
 
-let error f = Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s))) f
+(* CR: unify catching this *)
+exception Shutdown
+
 let debug f = Printf.ksprintf (fun s -> Firebug.console##(log (Js.string s))) f
 let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s))) f
+let console_error f =
+  Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s))) f
+
+(* CR: do something about dev vs prod. *)
+let error = alert
+
+(* CR: set [Lwt.async_exception_handler] or whatever it is called. *)
+
+(* These will be caught and printed by the top-level onload handler. *)
+(*
+let failwith s =
+  Html.window##(alert (Js.string s));
+  (* Firebug.console##(error (Js.string s)); *)
+  failwith s
+  *)
+
 let failwithf f =
-  Printf.ksprintf (fun s ->
-    Firebug.console##(error (Js.string s));
-    failwith s) f
+  Printf.ksprintf failwith f
 
 let float = float_of_int
 let int   = int_of_float
+
+let current_url = Html.window##.location##.href |> to_string
 
 let lwt_wrap f =
   let (t, w) = Lwt.task () in
@@ -34,10 +52,24 @@ end
 
 module Option = struct
   type 'a t = 'a option
+
   let iter t ~f =
     match t with
     | None -> ()
     | Some x -> f x
+
+  let map t ~f =
+    match t with
+    | None -> None
+    | Some x -> Some (f x)
+
+  let value_exn = function
+    | None -> failwith "Option.value_exn"
+    | Some x -> x
+
+  let to_string a_to_string = function
+    | None -> "none"
+    | Some a -> a_to_string a
 end
 
 module List = struct
@@ -75,16 +107,37 @@ module List = struct
         | Some x -> x :: loop xs
     in
     loop t
+
+  let diff xs ys =
+    filter xs ~f:(fun x ->
+      not (List.mem x ys))
 end
 
 module Array = struct
   include ArrayLabels
 end
 
+module Lwt_stream = struct
+  include Lwt_stream
+
+  let find t ~f =
+    find f t
+    >>= fun x ->
+    return (Option.value_exn x)
+
+  let iter_with_try t ~f =
+    let f x =
+      try f x
+      with e -> begin error "%s" (Printexc.to_string e); () end
+    in
+    iter f t
+end
+
 module type Id = sig
   type t
   val create : unit -> t
   val to_string : t -> string
+  module Set : Set.S with type elt = t
 end
 
 module Hashtbl = struct
@@ -101,18 +154,26 @@ module Hashtbl = struct
     let f key data = f ~key ~data in
     filter_map_inplace f t
 
-      (*
-  let find t key =
-    try find t key with
-    | Not_found ->
-      let key : string = Obj.magic key in
-      error "key %s not found" key;
-      raise Not_found
-      *)
+  let keys t =
+    let keys = ref [] in
+    iter t ~f:(fun ~key ~data:_ ->
+      keys := key :: !keys);
+    List.rev !keys
 
   let maybe_find t key =
     try Some (find t key)
     with Not_found -> None
+
+  let find t key =
+    try find t key with
+    | Not_found ->
+      let key : string = Obj.magic key in
+      let keys =
+        List.map (keys t) ~f:Obj.magic
+        |> String.concat ", "
+      in
+      error "key %s not found, keys: %s" key keys;
+      raise Not_found
 
   let replace t ~key ~data =
     replace t key data
@@ -127,7 +188,8 @@ module Hashtbl = struct
 end
 
 module Id(M: sig val name : string end) : Id = struct
-  type t = string
+  module T = String
+  include T
 
   let create () =
     Printf.sprintf "%s%d"
@@ -135,6 +197,8 @@ module Id(M: sig val name : string end) : Id = struct
       (Random.int 100_000_000)
 
   let to_string t = t
+
+  module Set = Set.Make(T)
 end
 
 module Client_id = Id(struct let name = "Client_id" end)
@@ -143,6 +207,38 @@ module Shape_id  = Id(struct let name = "Shape_id" end)
 module Fn = struct
   let flip f x y =
     f y x
+
+  let const c _ = c
+end
+
+module Time : sig
+  type t
+
+  val of_seconds : float -> t
+  val to_seconds : t -> float
+  val now : unit -> t
+
+  module Span : sig
+    type t
+    val zero : t
+  end
+
+  val (-) : t -> t -> Span.t
+  val (+) : t -> Span.t -> t
+end = struct
+  type t = float
+
+  module Span = struct
+    type t = float
+    let zero = 0.
+  end
+
+  let now () = Unix.gettimeofday ()
+  let of_seconds t = t
+  let to_seconds t = t
+
+  let (-) = (-.)
+  let (+) = (+.)
 end
 
 (* CR: move this to [Dom_wrappers]. *)
@@ -151,13 +247,19 @@ let add_event_listener elt event ~f =
     (Html.handler
        (fun ev ->
          begin
-           try f ev with exn ->
+           try f ev with
+           | Shutdown -> raise Shutdown
+           | exn ->
              error "uncaught exn in handler: %s"
                (Printexc.to_string exn)
          end;
          Js._true))
     Js._true
   |> ignore
+
+let top_level f =
+  add_event_listener Html.window Html.Event.load ~f:(fun _ ->
+    ignore (Lwt.catch f raise))
 
 let get_element_by_id id coerce_to =
   Opt.get

@@ -1,6 +1,6 @@
 
 SRC = $(wildcard *.ml *.mli) 
-ML_SRC = common.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml shape.ml faye.ml multitouch.ml state.ml main.ml
+ML_SRC = common.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml shape.ml faye.ml message.ml multitouch.ml global.ml state_full.ml state_light.ml gui_full.ml gui_light.ml
 OBJS = ${ML_SRC:.ml=.cmo}
 ARGS = -package js_of_ocaml -package js_of_ocaml.syntax -ppx ppx_js -linkpkg 
 OCAMLC = ocamlfind ocamlc -g -package js_of_ocaml -package lwt -ppx ppx_js
@@ -8,7 +8,10 @@ OCAMLC_FLAGS = -w +a-4-40-41-42-44-45-48
 
 EXTRA_LIBS = unix.cma
 
-all: index.js index_server.js
+all: index_client_light.js index_client_full.js index_server.js external/faye/client.js
+
+external/faye/client.js:
+	cp external/faye/node_modules/faye/browser/faye-browser-min.js $@
 
 %.js: %.byte
 	js_of_ocaml --source-map $< --pretty

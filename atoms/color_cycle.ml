@@ -33,6 +33,18 @@ let random () =
   ; offset = 0.1
   }
 
+let random_constant () =
+  let color = Color.random () in
+  debug "%s" (Color.to_string color);
+  let color1 = color in
+  let color2 = color in
+  let color3 = color in
+  let color4 = color in
+  { colors = [ color1; color2; color3; color4 ]
+  ; length = 2.
+  ; offset = 0.1
+  }
+
 let default =
   const Color.white
 

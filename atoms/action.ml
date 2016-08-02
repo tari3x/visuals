@@ -3,6 +3,11 @@ open Geometry
 
 module Kind = struct
   type t = [ `down | `up | `move ]
+
+  let to_string = function
+    | `down -> "down"
+    | `up   -> "up"
+    | `move -> "move"
 end
 
 module Button = struct
@@ -22,28 +27,18 @@ module Pointer = struct
     ; button : Button.t
     }
 
-  let transform_position m t =
-    { t with
-      position = Matrix.apply m t.position
-    }
-end
-
-module Pointer_action = struct
-  type t =
-    { kind : Kind.t
-    ; changed_touches : Pointer.t list
-    }
-
-  let transform_positions m { kind; changed_touches } =
-    { kind
-    ; changed_touches = List.map changed_touches ~f:(Pointer.transform_position m)
-    }
+  let id t =
+    t.id
 end
 
 type t =
-| Pointer of Pointer_action.t
-| Set_color of Color_cycle.t
+  { kind : Kind.t
+  ; changed_touches : Pointer.t list
+  }
 
-let transform_positions m = function
-  | Set_color color -> Set_color color
-  | Pointer p -> Pointer (Pointer_action.transform_positions m p)
+let to_string t =
+  Kind.to_string t.kind
+
+let coords t =
+  let p = List.hd t.changed_touches in
+  p.position

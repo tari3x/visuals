@@ -169,6 +169,13 @@ module Frame = struct
   let set_translation t translation =
     { t with translation }
 
+  let scale_viewport t scale =
+    { t with
+      scale_x = t.scale_x *. scale
+      ; scale_y = t.scale_y *. scale
+      ; translation = Vector.scale t.translation ~by:scale
+    }
+
   let remove_scale t =
     { t with
       scale_x = 1.

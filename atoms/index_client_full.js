@@ -8816,7 +8816,7 @@
         var canvas_f_=get_element_by_id_W_(_mX_,canvas_kd_);
         canvas_f_.width=document_co_.body.clientWidth;
         canvas_f_.height=document_co_.body.clientHeight;
-        var ctx_g_=canvas_f_.getContext(jsoo_ad7fbbdd_kb_),is_server_i_=1;
+        var ctx_g_=canvas_f_.getContext(jsoo_ad7fbbdd_kb_),is_server_i_=0;
         function _y_(t_b_)
          {add_event_listener_N_
            (canvas_f_,
@@ -9000,4 +9000,4 @@
     return}
   (function(){return this}()));
 
-//# sourceMappingURL=index_server.map
+//# sourceMappingURL=index_client_full.map

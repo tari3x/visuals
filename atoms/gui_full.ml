@@ -1,10 +1,8 @@
-open Js
 open Lwt
 open Common
 open Dom_wrappers
 
-let line_width = 5.
-let dot_radius = 200.
+module State = State_full
 
 type t = State.t
 
@@ -70,7 +68,7 @@ let set_color_cycle t =
     ; offset = offset /. max_offset
     }
   in
-  State.process_action t (Action.Set_color color)
+  State.set_color t color
 
 let get_simple_color color_cycle =
   let set_color id color =
@@ -78,7 +76,7 @@ let get_simple_color color_cycle =
     input##.value := Js.string (string_of_int (int_of_float color))
   in
   let max_alpha = range_max "alpha" in
-  let color = Color_cycle.nth_defaulting_to_last_or_ewhite color_cycle 0 in
+  let color = Color_cycle.nth_defaulting_to_last_or_white color_cycle 0 in
   set_color "red"   (Color.r color |> float_of_int);
   set_color "green" (Color.g color |> float_of_int);
   set_color "blue"  (Color.b color |> float_of_int);
@@ -98,7 +96,7 @@ let set_simple_color t =
       ~a:(get_color "alpha" /. max_alpha)
   in
   let color = Color_cycle.const color in
-  State.process_action t (Action.Set_color color)
+  State.set_color t color
 
 let add_cycle_handlers t =
   (* let get_button = get_element_by_id "get-color" Html.CoerceTo.button in *)
@@ -109,10 +107,10 @@ let add_cycle_handlers t =
   add_event_listener set_button Html.Event.click ~f:(fun _ ->
     set_color_cycle t);
   add_event_listener get_button Html.Event.touchstart ~f:(fun _ ->
-    Option.iter (State.last_touched t) ~f:(fun shape ->
+    Option.iter (State.most_recent t) ~f:(fun shape ->
       get_color_cycle (Shape.color shape)));
   add_event_listener get_button Html.Event.click ~f:(fun _ ->
-    Option.iter (State.last_touched t) ~f:(fun shape ->
+    Option.iter (State.most_recent t) ~f:(fun shape ->
       get_color_cycle (Shape.color shape)))
 
 let add_picker_handlers t =
@@ -130,7 +128,7 @@ let add_choice_handlers t =
     let elt = get_element_by_id id Html.CoerceTo.button in
     add_event_listener elt Html.Event.touchstart ~f:(fun _ -> f ())
   in
-  add_listener "R" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Rect);
+  add_listener "R" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Rectangle);
   add_listener "C" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Circle);
   add_listener "H" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Horizontal_line);
   add_listener "V" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Vertical_line);
@@ -148,14 +146,9 @@ let main ~is_server =
   canvas##.width := Html.document##.body##.clientWidth;
   canvas##.height := Html.document##.body##.clientHeight;
   let ctx = canvas##getContext Html._2d_ in
-  let t = State.create ctx ~is_server in
+  State.create ctx ~is_server
+  >>= fun t ->
   add_canvas_handlers t canvas;
   if not is_server then add_toolbar_handlers t;
   Lwt.return ()
-
-let go ~is_server _ = ignore (
-  catch (fun () -> main ~is_server)
-    (fun exn -> failwithf "uncaught exn: %s" (Printexc.to_string exn)));
-  _true
-
 ;;

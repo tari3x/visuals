@@ -1,4 +1,5 @@
 open Common
 
 ;;
-Html.window##.onload := Html.handler (Main.go ~is_server:true)
+
+top_level (fun () -> Gui_full.main ~is_server:true)

@@ -14,12 +14,10 @@ let g t = t.g
 let b t = t.b
 let a t = t.a
 
-let white =
-  { r = 255
-  ; g = 255
-  ; b = 255
-  ; a = 1.
-  }
+let white = create ~r:255 ~g:255 ~b:255 ~a:1.
+let red = create ~r:255 ~g:0 ~b:0 ~a:1.
+let green = create ~r:0 ~g:255 ~b:0 ~a:1.
+let blue = create ~r:0 ~g:0 ~b:255 ~a:1.
 
 (*
 let wave ~cycle time =

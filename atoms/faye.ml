@@ -1,5 +1,23 @@
+open Printf
 open Js
 open Common
+
+(*
+let init_called = ref false
+
+let init () =
+  if not !init_called
+  then begin
+    debug "Loading script";
+    let script = Html.createScript Html.document in
+    let body = get_element_by_id "body" Html.CoerceTo.body in
+    Dom.appendChild body script;
+    add_event_listener script Html.Event.load ~f:(fun _ ->
+      debug "script loaded");
+    script##.src := string "http://192.168.0.5:8000/faye/client.js";
+    init_called := true
+  end
+*)
 
 module Channel = struct
   type t = string
@@ -8,63 +26,41 @@ module Channel = struct
     Printf.sprintf "/%d" (Random.int 100_000_000)
 end
 
-module Message = struct
-  module Init = struct
-    type t =
-      { shapes : (Shape_id.t * Shape.t * Client_id.t option) list
-      ; width : float
-      ; height : float
-      ; time : float
-      }
-  end
-
-  type t =
-  | Request of (Client_id.t * Shape_id.t)
-  | Grant   of (Client_id.t * Shape_id.t)
-  | Release of Shape_id.t
-  | Create  of (Shape_id.t * Client_id.t * Shape.t)
-  | Set     of (Shape_id.t * Shape.t)
-  | Delete  of Shape_id.t
-  | Request_init of Channel.t
-  | Init    of Init.t
-
-  let to_string = function
-    | Request _ -> "Request"
-    | Grant _   -> "Grant"
-    | Release _ -> "Release"
-    | Create _  -> "Create"
-    | Set (_, shape)     -> Printf.sprintf "Set %s" (Shape.to_string shape)
-    | Delete _  -> "Delete"
-    | Init _   -> "Init"
-    | Request_init _ -> "Request_init"
-
-end
-
 (* CR: try publishing without converting *)
 class type faye = object
   method subscribe : js_string Js.t -> (js_string Js.t -> unit) callback -> unit meth
   method publish : js_string Js.t -> js_string Js.t -> unit meth
 end
 
-type t = faye Js.t
+type 'a t =
+  { faye : faye Js.t
+  ; to_string : 'a -> string
+  }
 
-let constr : (js_string Js.t -> t) constr =
+let constr : (js_string Js.t -> faye Js.t) constr =
   Js.Unsafe.global##._Faye##._Client
 
-let create () =
-  new%js constr (string "http://192.168.1.100:8000/faye")
+let faye_url =
+  sprintf "http://%s:8000/faye" (to_string (Html.window##.location##.hostname))
 
-let publish t channel msg =
+let create ~to_string =
+  let faye = new%js constr (string faye_url) in
+  { faye; to_string }
+
+let publish (t : 'a t) channel msg =
   (* debug "Publishing %s on %s" (Message.to_string msg) channel; *)
-  t##publish (string channel) (Json.output msg)
+  t.faye##publish (string channel) (Json.output msg)
 
-let subscribe t channel ~f =
+let subscribe_with_try (t : 'a t) channel ~f =
   let f msg =
     let msg = (Json.unsafe_input msg) in
-    (* debug "Received %s on %s" (Message.to_string msg) channel; *)
-    f msg
+    (* debug "Received %s on %s" (t.to_string msg) channel; *)
+    try f msg
+    with
+    | Shutdown -> raise Shutdown
+    | e -> begin error "%s" (Printexc.to_string e); () end
   in
   (* debug "Subscribed to %s" channel; *)
-  t##subscribe
+  t.faye##subscribe
     (string channel)
     (Js.wrap_callback f)

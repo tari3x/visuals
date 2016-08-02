@@ -27,7 +27,7 @@ module Mouse_event = struct
     let changed_touches =
       [ { Pointer. id; position; button } ]
     in
-    Action.Pointer { kind; changed_touches }
+    { Action. kind; changed_touches }
 end
 
 (* CR: make it work with multi-touch. *)
@@ -44,8 +44,28 @@ module Touch_event = struct
         let id = Pointer_id.create touch##.identifier in
         { Pointer. id; position; button = `touch })
     in
-    Action.Pointer { kind; changed_touches }
+    { Action. kind; changed_touches }
 end
+
+let actions target =
+  let stream, write = Lwt_stream.create () in
+  let write x = write (Some x) in
+  add_event_listener target Html.Event.mousedown ~f:(fun ev ->
+    write (Mouse_event.action ev `down));
+  add_event_listener target Html.Event.mouseup ~f:(fun ev ->
+    write (Mouse_event.action ev `up));
+  add_event_listener target Html.Event.mousemove ~f:(fun ev ->
+    write (Mouse_event.action ev `move));
+  add_event_listener target Html.Event.touchstart ~f:(fun ev ->
+    Dom.preventDefault ev;
+    write (Touch_event.action ev `down));
+  add_event_listener target Html.Event.touchend ~f:(fun ev ->
+    Dom.preventDefault ev;
+    write (Touch_event.action ev `up));
+  add_event_listener target Html.Event.touchmove ~f:(fun ev ->
+    Dom.preventDefault ev;
+    write (Touch_event.action ev `move));
+  stream
 
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
@@ -86,6 +106,12 @@ module Ctx = struct
     t##stroke;
     t##restore
 
+  let clip_rect (t : t) p ~width ~height =
+    let (x, y) = Vector.coords p in
+    t##beginPath;
+    t##rect x y (float_of_int width) (float_of_int height);
+    t##clip
+
   let draw_centered_rectangle (t : t) ~width ~height =
     t##fillRect
       ((-.width) /. 2.)
@@ -98,6 +124,14 @@ module Ctx = struct
   let set_stroke_color (t : t) color =
     t##.strokeStyle := string (Color.to_string color)
 
+  let set_font t font =
+    t##.font := (string font)
+
+  let fill_text (t : t) text x y =
+    t##fillText (string text) x y
+
+  let stroke_text (t : t) text x y =
+    t##strokeText (string text) x y
 
   let save (t : t) =
     t##save

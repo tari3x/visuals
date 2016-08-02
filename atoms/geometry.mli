@@ -45,7 +45,7 @@ module Matrix : sig
 
   val ident : t
 
-  val ( * ) : t -> t -> t
+  val ( * )   : t -> t -> t
   val ( *> )  : t -> t -> t
 
   val inv  : t -> t
@@ -72,6 +72,8 @@ module Frame : sig
   val translate : Vector.t -> t
   val rotate : Angle.t -> t
   val scale : scale_x:float -> scale_y:float -> t
+
+  val scale_viewport : t -> float -> t
 
   val remove_scale : t -> t
 

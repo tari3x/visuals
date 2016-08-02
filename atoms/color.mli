@@ -11,6 +11,9 @@ val a : t -> float
 val to_string : t -> string
 
 val white : t
+val red : t
+val green : t
+val blue : t
 
 val of_hex8_string : string -> t
 
