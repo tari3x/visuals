@@ -42,13 +42,13 @@ let add_picker_handlers t =
       set_color t))
   *)
 
-let color_for_coordinate ~width ~height =
+let color_for_coordinate =
   let colors =
     [ Color.red; Color.magenta; Color.blue
     ; Color.cyan; Color.green; Color.yellow
     ; Color.red ]
   in
-  fun v ->
+  fun ~width ~height v ->
     let (x, y) = Vector.coords v in
     let color = Color.interpolate colors (y /. height) in
     Color.scale color (x /. width)
