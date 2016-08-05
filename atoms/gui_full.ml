@@ -135,6 +135,9 @@ let main ~is_server =
   in
   State.create ctx ~is_server
   >>= fun t ->
-  if not is_server then add_toolbar_handlers t;
-  handle_canvas_actions t ctx
+  if is_server then return ()
+  else begin
+    add_toolbar_handlers t;
+    handle_canvas_actions t ctx
+  end
 ;;
