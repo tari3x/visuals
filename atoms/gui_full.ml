@@ -6,22 +6,9 @@ module State = State_full
 
 type t = State.t
 
-let add_canvas_handlers t canvas =
-  add_event_listener canvas Html.Event.mousedown ~f:(fun ev ->
-    State.process_action t (Mouse_event.action ev `down));
-  add_event_listener canvas Html.Event.mouseup ~f:(fun ev ->
-    State.process_action t (Mouse_event.action ev `up));
-  add_event_listener canvas Html.Event.mousemove ~f:(fun ev ->
-    State.process_action t (Mouse_event.action ev `move));
-  add_event_listener canvas Html.Event.touchstart ~f:(fun ev ->
-    Dom.preventDefault ev;
-    State.process_action t (Touch_event.action ev `down));
-  add_event_listener canvas Html.Event.touchend ~f:(fun ev ->
-    Dom.preventDefault ev;
-    State.process_action t (Touch_event.action ev `up));
-  add_event_listener canvas Html.Event.touchmove ~f:(fun ev ->
-    Dom.preventDefault ev;
-    State.process_action t (Touch_event.action ev `move))
+let handle_canvas_actions t ctx =
+  Ctx.canvas_actions ctx
+  |> Lwt_stream.iter_with_try ~f:(State.process_action t)
 
 let range_max id =
   let input = get_element_by_id id Html.CoerceTo.input in
@@ -142,13 +129,12 @@ let add_toolbar_handlers t =
 
 let main ~is_server =
   Random.self_init ();
-  let canvas = get_element_by_id "main_canvas" Html.CoerceTo.canvas in
-  canvas##.width := Html.document##.body##.clientWidth;
-  canvas##.height := Html.document##.body##.clientHeight;
-  let ctx = canvas##getContext Html._2d_ in
+  let ctx = Ctx.create ~id:"main_canvas"
+    ~width:Html.document##.body##.clientWidth
+    ~height:Html.document##.body##.clientHeight
+  in
   State.create ctx ~is_server
   >>= fun t ->
-  add_canvas_handlers t canvas;
   if not is_server then add_toolbar_handlers t;
-  Lwt.return ()
+  handle_canvas_actions t ctx
 ;;

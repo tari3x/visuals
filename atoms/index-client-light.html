@@ -32,7 +32,7 @@
       }
       
       #main-canvas-div {
-          width: 60%;
+          width: 80%;
           height:100%;
           overflow:hidden;
           float:left; 
@@ -44,10 +44,11 @@
           background: black;
       }
 
-      #color-picker {
-          width: 40%;
+      #color-picker-div {
+          left : 100px;
+          width: 20%;
           height: 100%;
-          float: right; 
+          float: left; 
           background: black;
           overflow:hidden; 
       }
@@ -132,7 +133,8 @@
         <canvas class="canvas" id="main_canvas"></canvas>
       </div>
       
-      <div id="color-picker">
+      <div id="color-picker-div">
+        <canvas class="canvas" id="color-picker-canvas"></canvas>
         <!--
         <div class="color-slider">
           <canvas class="canvas" id="red-slider"></canvas>
@@ -144,9 +146,12 @@
           <canvas class="canvas" id="blue-slider"></canvas>
         </div>
         -->
+        <!--
         <input class="color-slider" type="range" id="red-slider"   orient="vertical" min="0" max="255">
         <input class="color-slider" type="range" id="green-slider" orient="vertical" min="0" max="255">
-        <input class="color-slider" type="range" id="blue-slider"  orient="vertical" min="0" max="255">
+        <input class="color-slider" type="range" id="blue-slider"
+               orient="vertical" min="0" max="255">
+        -->
       </div>
     </div>
     

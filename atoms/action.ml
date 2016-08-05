@@ -1,5 +1,6 @@
 open Common
 open Geometry
+open Printf
 
 module Kind = struct
   type t = [ `down | `up | `move ]
@@ -29,6 +30,9 @@ module Pointer = struct
 
   let id t =
     t.id
+
+  let to_string t =
+    Vector.to_string t.position
 end
 
 type t =
@@ -37,7 +41,9 @@ type t =
   }
 
 let to_string t =
-  Kind.to_string t.kind
+  sprintf "{ kind = %s; changed_touches = (%s)}"
+    (Kind.to_string t.kind)
+    (String.concat ~sep:" " (List.map t.changed_touches ~f:Pointer.to_string))
 
 let coords t =
   let p = List.hd t.changed_touches in

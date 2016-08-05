@@ -43,8 +43,9 @@ let render_help t =
   let x = Ctx.width t.ctx -. 200. in
   Ctx.set_fill_color t.ctx Color.green;
   Ctx.set_font t.ctx "20px Arial";
-  Ctx.fill_text t.ctx "join wifi: atoms" x 20.;
-  Ctx.fill_text t.ctx "browse to http://atoms" x 50.
+  (* Ctx.fill_text t.ctx "join wifi: atoms" x 20.; *)
+  (* 50 for the second line *)
+  Ctx.fill_text t.ctx current_url x 20.
 
 let rec render_loop t =
   Lwt_js.sleep 0.1

@@ -17,7 +17,7 @@ module Kind = struct
     ; Circle
     ; Cross_line
     (* CR: *)
-    ; Bezier []
+    (* ; Bezier [] *)
     ]
 
   let to_string = function

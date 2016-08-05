@@ -1,5 +1,6 @@
 open Lwt
 open Js
+open! Printf
 
 module Html = Dom_html
 
@@ -14,18 +15,15 @@ let console_error f =
 (* CR: do something about dev vs prod. *)
 let error = console_error
 
-(* CR: set [Lwt.async_exception_handler] or whatever it is called. *)
-
-(* These will be caught and printed by the top-level onload handler. *)
-(*
-let failwith s =
-  Html.window##(alert (Js.string s));
-  (* Firebug.console##(error (Js.string s)); *)
-  failwith s
-  *)
+let () =
+  Lwt.async_exception_hook := fun exn ->
+    error "uncaught exn in aysnc: %s" (Printexc.to_string exn)
 
 let failwithf f =
   Printf.ksprintf failwith f
+
+let current_url =
+  sprintf "http://%s" (Js.to_string (Html.window##.location##.host))
 
 let float = float_of_int
 let int   = int_of_float
@@ -109,6 +107,11 @@ module List = struct
   let diff xs ys =
     filter xs ~f:(fun x ->
       not (List.mem x ys))
+
+  let rec last_exn = function
+    | [] -> failwith "last: empty list"
+    | [ x ] -> x
+    | _ :: xs -> last_exn xs
 end
 
 module Array = struct
@@ -129,6 +132,12 @@ module Lwt_stream = struct
       with e -> begin error "%s" (Printexc.to_string e); () end
     in
     iter f t
+end
+
+module String = struct
+  include String
+  let concat t ~sep =
+    concat sep t
 end
 
 module type Id = sig
@@ -168,7 +177,7 @@ module Hashtbl = struct
       let key : string = Obj.magic key in
       let keys =
         List.map (keys t) ~f:Obj.magic
-        |> String.concat ", "
+        |> String.concat ~sep:", "
       in
       error "key %s not found, keys: %s" key keys;
       raise Not_found
@@ -257,7 +266,7 @@ let add_event_listener elt event ~f =
 
 let top_level f =
   add_event_listener Html.window Html.Event.load ~f:(fun _ ->
-    ignore (Lwt.catch f raise))
+    Lwt.async (fun () -> Lwt.catch f raise))
 
 let get_element_by_id id coerce_to =
   Opt.get

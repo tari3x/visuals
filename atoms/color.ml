@@ -1,3 +1,4 @@
+open Common
 
 type t =
   { r : int
@@ -15,9 +16,13 @@ let b t = t.b
 let a t = t.a
 
 let white = create ~r:255 ~g:255 ~b:255 ~a:1.
+let black = create ~r:0 ~g:0 ~b:0 ~a:1.
 let red = create ~r:255 ~g:0 ~b:0 ~a:1.
 let green = create ~r:0 ~g:255 ~b:0 ~a:1.
 let blue = create ~r:0 ~g:0 ~b:255 ~a:1.
+let magenta = create ~r:255 ~g:0 ~b:255 ~a:1.
+let cyan = create ~r:0 ~g:255 ~b:255 ~a:1.
+let yellow = create ~r:255 ~g:255 ~b:0 ~a:1.
 
 (*
 let wave ~cycle time =
@@ -51,7 +56,7 @@ let random () =
   let a = 1. in
   { r; g; b; a }
 
-let interpolate t1 t2 fraction =
+let interpolate_two t1 t2 fraction =
   let i n1 n2 =
     (1. -. fraction) *. (float_of_int n1) +. fraction *. (float_of_int n2)
     |> int_of_float
@@ -62,6 +67,37 @@ let interpolate t1 t2 fraction =
   ; a = (1. -. fraction) *. t1.a +. fraction *. t2.a
   }
 
+let interpolate ts fraction =
+  match ts with
+  | [] -> white
+  | [ t ] -> t
+  | ts ->
+    if fraction <= 0. then List.hd ts
+    else if fraction >= 1. then List.last_exn ts
+    else begin
+      let segment_length = 1. /. (float_of_int (List.length ts - 1)) in
+      let fraction_of_segment =
+        (mod_float fraction segment_length) /. segment_length
+      in
+      let segment_number =
+        int_of_float (floor (fraction /. segment_length))
+      in
+      let c1 = List.nth ts segment_number in
+      let c2 = List.nth ts (segment_number + 1) in
+      interpolate_two c1 c2 fraction_of_segment
+    end
+
 let set_alpha t ~alpha =
   { t with a = alpha }
+
+let scale t scale =
+  if scale <= 0. then black
+  else if scale >= 1. then t
+  else begin
+    let { r; g; b; a } = t in
+    let r = int ((float r) *. scale) in
+    let g = int ((float g) *. scale) in
+    let b = int ((float b) *. scale) in
+    { r; g; b; a }
+  end
 

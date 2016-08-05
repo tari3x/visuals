@@ -17,6 +17,7 @@ let set_color t color =
   let set_slider_
 *)
 
+  (*
 let set_color t =
   let get_color id =
     let input = get_element_by_id id Html.CoerceTo.input in
@@ -39,22 +40,46 @@ let add_picker_handlers t =
       set_color t);
     add_event_listener input Html.Event.mousemove ~f:(fun _ ->
       set_color t))
+  *)
 
-let mousedown_action_and_coords elt =
-  Lwt_js_events.mousedown elt
-  >>= fun ev ->
-  Dom.preventDefault ev;
-  let action = Mouse_event.action ev `down in
-  let p = Mouse_event.client_coords ev in
-  return (action, p)
+let color_for_coordinate ~width ~height =
+  let colors =
+    [ Color.red; Color.magenta; Color.blue
+    ; Color.cyan; Color.green; Color.yellow
+    ; Color.red ]
+  in
+  fun v ->
+    let (x, y) = Vector.coords v in
+    let color = Color.interpolate colors (y /. height) in
+    Color.scale color (x /. width)
 
-let touchstart_action_and_coords elt =
-  Lwt_js_events.touchstart elt
-  >>= fun ev ->
-  Dom.preventDefault ev;
-  let action = Touch_event.action ev `down in
-  let p = Action.coords action in
-  return (action, p)
+let draw_color_picker ctx =
+  let width = Ctx.width ctx in
+  let height = Ctx.height ctx in
+  let cell_size = 3 in
+  let cell_size_float = float cell_size in
+  for i = 0 to (int width) do
+    for j = 0 to (int height) do
+      if i mod cell_size = 0 && j mod cell_size = 0
+      then begin
+        let v = Vector.create i j in
+        let color = color_for_coordinate v ~width ~height in
+        Ctx.set_fill_color ctx color;
+        (* CR: try direct pixel manipulation *)
+        Ctx.fill_rect ctx v ~width:cell_size_float ~height:cell_size_float
+      end
+    done
+  done
+
+let run_color_picker t ctx =
+  let width = Ctx.width ctx in
+  let height = Ctx.height ctx in
+  Ctx.canvas_actions ctx
+  |> Lwt_stream.iter_with_try ~f:(fun action ->
+    let v = Action.coords action in
+    let color = color_for_coordinate v ~width ~height in
+    let color = Color_cycle.const color in
+    State.set_color t color)
 
 let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   (* CR: do better estimate of the toolbar width. *)
@@ -67,9 +92,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       let x = hstep * i + hstep / 2 in
       let y = height / 2 in
       let frame = Frame.translate (Vector.create x y) in
-      let shape =
-        Shape.create ~kind ~frame ~color
-      in
+      let shape = Shape.create ~kind ~frame ~color in
       let margin = min 50 (hstep / 5) in
       let clip_size = min hstep height - margin in
       let clip_p =
@@ -94,19 +117,26 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   Lwt.return (List.nth shapes n, action)
 
 let main () =
+  debug "initializing";
   Random.self_init ();
+  let picker_div = get_element_by_id "color-picker-div" Html.CoerceTo.div in
+  let picker_ctx =
+    Ctx.create ~id:"color-picker-canvas"
+      ~width:picker_div##.clientWidth
+      ~height:picker_div##.clientHeight
+  in
+  draw_color_picker picker_ctx;
   let canvas_div = get_element_by_id "main-canvas-div" Html.CoerceTo.div in
-  let canvas = get_element_by_id "main_canvas" Html.CoerceTo.canvas in
-  (* CR: why the fuck is this necessary? Setting values via CSS fucks things
-     up *)
-  canvas##.width := canvas_div##.clientWidth;
-  canvas##.height := canvas_div##.clientHeight;
-  let ctx = canvas##getContext Html._2d_ in
-  let actions = Dom_wrappers.actions canvas in
+  let ctx =
+    Ctx.create ~id:"main_canvas"
+      ~width:canvas_div##.clientWidth
+      ~height:canvas_div##.clientHeight
+  in
+  let actions = Ctx.canvas_actions ctx in
   choose_shape actions ctx
   >>= fun (shape, action) ->
   State.create ctx shape
   >>= fun t ->
   State.process_action t action;
-  add_picker_handlers t;
+  Lwt.async (fun () -> run_color_picker t picker_ctx);
   Lwt_stream.iter_with_try actions ~f:(State.process_action t)

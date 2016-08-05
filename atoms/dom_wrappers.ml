@@ -7,11 +7,20 @@ module Button = struct
   type t = [ `left | `right | `middle | `touch | `none ]
 end
 
+let is_inside v (target : #Html.element Js.t) =
+  let x, y = Vector.coords v in
+  0. <= x && x <= (float target##.clientWidth)
+  && 0. <= y && y <= (float target##.clientHeight)
+
 module Mouse_event = struct
   type t = Dom_html.mouseEvent Js.t
 
-  let client_coords t =
-    Vector.create t##.clientX t##.clientY
+  (* CR: There is an experimental [offsetX] on mouse events, but isn't supported
+     in js_of_ocaml. Try going unsafe? *)
+  let client_coords target t =
+    Vector.create
+      (t##.clientX - target##.offsetLeft)
+      (t##.clientY - target##.offsetTop)
 
   let button t : Button.t =
     match Html.buttonPressed t with
@@ -20,12 +29,13 @@ module Mouse_event = struct
     | Html.Middle_button -> `middle
     | Html.Right_button  -> `right
 
-  let action (t : t) kind =
-    let position = client_coords t in
+  let action (target : #Html.element Js.t) (t : t) kind =
+    let position = client_coords target t in
     let button   = button t in
     let id = Pointer_id.create 1 in
     let changed_touches =
-      [ { Pointer. id; position; button } ]
+      if not (is_inside position target) then []
+      else [ { Pointer. id; position; button } ]
     in
     { Action. kind; changed_touches }
 end
@@ -34,41 +44,58 @@ end
 module Touch_event = struct
   type t = Dom_html.touchEvent Js.t
 
-  let action (t : t) kind =
+  let action (target : #Html.element Js.t) (t : t) kind =
     let changed_touches = t##.changedTouches in
     let changed_touches =
       List.init (changed_touches##.length) ~f:(fun i -> changed_touches##item i)
-      |> List.map ~f:(fun touch ->
+      |> List.filter_map ~f:(fun touch ->
         let touch = Optdef.value_exn touch in
-        let position = Vector.create touch##.clientX touch##.clientY in
+        let position =
+          Vector.create
+            (touch##.clientX - target##.offsetLeft)
+            (touch##.clientY - target##.offsetTop)
+        in
         let id = Pointer_id.create touch##.identifier in
-        { Pointer. id; position; button = `touch })
+        if not (is_inside position target) then None
+        else Some { Pointer. id; position; button = `touch })
     in
     { Action. kind; changed_touches }
 end
 
-let actions target =
+let actions (target : #Html.element Js.t) =
   let stream, write = Lwt_stream.create () in
+  ignore (target##.offsetLeft);
   let write x = write (Some x) in
   add_event_listener target Html.Event.mousedown ~f:(fun ev ->
-    write (Mouse_event.action ev `down));
+    write (Mouse_event.action target ev `down));
   add_event_listener target Html.Event.mouseup ~f:(fun ev ->
-    write (Mouse_event.action ev `up));
+    write (Mouse_event.action target ev `up));
   add_event_listener target Html.Event.mousemove ~f:(fun ev ->
-    write (Mouse_event.action ev `move));
+    write (Mouse_event.action target ev `move));
   add_event_listener target Html.Event.touchstart ~f:(fun ev ->
     Dom.preventDefault ev;
-    write (Touch_event.action ev `down));
+    write (Touch_event.action target ev `down));
   add_event_listener target Html.Event.touchend ~f:(fun ev ->
     Dom.preventDefault ev;
-    write (Touch_event.action ev `up));
+    write (Touch_event.action target ev `up));
   add_event_listener target Html.Event.touchmove ~f:(fun ev ->
     Dom.preventDefault ev;
-    write (Touch_event.action ev `move));
+    write (Touch_event.action target ev `move));
   stream
 
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
+
+  let create ~id ~width ~height =
+    let canvas = get_element_by_id id Html.CoerceTo.canvas in
+    (* CR: why the fuck is this necessary? Setting values via CSS fucks things
+       up *)
+    canvas##.width := width;
+    canvas##.height := height;
+    canvas##getContext Html._2d_
+
+  let canvas_actions t =
+    actions (t##.canvas)
 
   let width t =
     t##.canvas##.clientWidth |> float
@@ -111,6 +138,10 @@ module Ctx = struct
     t##beginPath;
     t##rect x y (float_of_int width) (float_of_int height);
     t##clip
+
+  let fill_rect t v ~width ~height =
+    let x, y = Vector.coords v in
+    t##fillRect x y width height
 
   let draw_centered_rectangle (t : t) ~width ~height =
     t##fillRect

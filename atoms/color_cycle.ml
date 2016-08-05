@@ -14,7 +14,7 @@ let const c =
 
 let to_string { colors; length; offset } =
   let colors =
-    List.map colors ~f:Color.to_string |> String.concat "; "
+    List.map colors ~f:Color.to_string |> String.concat ~sep:"; "
   in
   Printf.sprintf "{ \
      colors = %s \
@@ -52,25 +52,16 @@ let current_color t ~time =
   (*
   debug "current_color %f, %s" time (to_string t);
   *)
-  match t.colors with
-  | [] -> Color.white
-  | [ color ] -> color
-  | colors ->
-    (* Loop around smoothly. *)
-    let colors = colors @ [ List.hd colors ] in
-    let fraction_of_cycle =
-      (mod_float (time -. t.offset *. t.length) t.length) /. t.length
-    in
-    let segment_length = 1. /. (float_of_int (List.length colors - 1)) in
-    let fraction_of_segment =
-      (mod_float fraction_of_cycle segment_length) /. segment_length
-    in
-    let segment_number =
-      int_of_float (floor (fraction_of_cycle /. segment_length))
-    in
-    let c1 = List.nth colors segment_number in
-    let c2 = List.nth colors (segment_number + 1) in
-    Color.interpolate c1 c2 fraction_of_segment
+  (* Loop around smoothly. *)
+  let colors =
+    match t.colors with
+    | [] -> []
+    | (c :: _) as cs -> cs @ [ c ]
+  in
+  let fraction =
+    (mod_float (time -. t.offset *. t.length) t.length) /. t.length
+  in
+  Color.interpolate colors fraction
 
 let nth_defaulting_to_last_or_white t n =
   let rec loop n = function

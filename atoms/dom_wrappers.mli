@@ -1,24 +1,12 @@
 open Common
 open Geometry
 
-module Mouse_event : sig
-  type t = Dom_html.mouseEvent Js.t
-
-  val client_coords : t -> Vector.t
-
-  val action : t -> Action.Kind.t -> Action.t
-end
-
-module Touch_event : sig
-  type t = Dom_html.touchEvent Js.t
-
-  val action : t -> Action.Kind.t -> Action.t
-end
-
-val actions : #Html.eventTarget Js.t -> Action.t Lwt_stream.t
-
 module Ctx : sig
-  type t = Html.canvasRenderingContext2D Js.t
+  type t
+
+  val create : id:string -> width:int -> height:int -> t
+
+  val canvas_actions : t -> Action.t Lwt_stream.t
 
   val clear : t -> unit
 
@@ -29,6 +17,8 @@ module Ctx : sig
 
   val draw_horizontal_line : t -> Vector.t -> width:float -> unit
   val draw_vertical_line   : t -> Vector.t -> width:float -> unit
+
+  val fill_rect : t -> Vector.t -> width:float -> height:float -> unit
 
   val draw_centered_rectangle : t -> width:float -> height:float -> unit
 

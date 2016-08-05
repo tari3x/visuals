@@ -1,6 +1,6 @@
-open Printf
 open Js
 open Common
+open! Printf
 
 (*
 let init_called = ref false
