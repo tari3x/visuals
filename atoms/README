@@ -1,0 +1,8 @@
+Usage
+=====
+
+- make to compile from OCaml
+- sudo ./start.sh
+  (this will show you your external ip)
+- project http://<external ip>/index-server.js
+- control via http://<external ip>
