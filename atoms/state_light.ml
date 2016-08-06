@@ -25,8 +25,7 @@ let create ctx shape =
 let apply_touch_update t (update : Multitouch.Update.t) =
   List.iter update ~f:(fun (shape_id, update) ->
     match update with
-    | None ->
-      Global.delete t.global shape_id
+    | None -> Global.delete t.global shape_id
     | Some update ->
       Global.change t.global shape_id ~f:(fun shape ->
         let shape = Multitouch.Update.Single.apply update shape in

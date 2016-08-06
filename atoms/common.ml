@@ -28,12 +28,6 @@ let current_url =
 let float = float_of_int
 let int   = int_of_float
 
-let lwt_wrap f =
-  let (t, w) = Lwt.task () in
-  let cont x = Lwt.wakeup w x in
-  f cont;
-  t
-
 let pi =
   let pi = acos (- 1.0) in
   assert (pi >= 3.0 && pi <= 4.);
@@ -221,6 +215,9 @@ end
 module Time : sig
   type t
 
+  (* prints the float *)
+  val to_string : t -> string
+
   val of_seconds : float -> t
   val to_seconds : t -> float
   val now : unit -> t
@@ -228,6 +225,8 @@ module Time : sig
   module Span : sig
     type t
     val zero : t
+    val to_seconds : t -> float
+    val of_seconds : float -> t
   end
 
   val (-) : t -> t -> Span.t
@@ -235,9 +234,13 @@ module Time : sig
 end = struct
   type t = float
 
+  let to_string = string_of_float
+
   module Span = struct
     type t = float
     let zero = 0.
+    let to_seconds t = t
+    let of_seconds t = t
   end
 
   let now () = Unix.gettimeofday ()
@@ -246,6 +249,26 @@ end = struct
 
   let (-) = (-.)
   let (+) = (+.)
+end
+
+module Lwt = struct
+  include Lwt
+
+  let wrap f =
+    let (t, w) = Lwt.task () in
+    let cont x = Lwt.wakeup w x in
+    f cont;
+    t
+
+  let every ~span ~f =
+    let span = Time.Span.to_seconds span in
+    let rec loop () =
+      f ();
+      Lwt_js.sleep span
+      >>= fun () ->
+      loop ()
+    in
+    Lwt.async loop
 end
 
 (* CR: move this to [Dom_wrappers]. *)
@@ -276,7 +299,7 @@ let get_element_by_id id coerce_to =
 
 let load_image src =
   let img = Html.createImg Html.document in
-  lwt_wrap
+  Lwt.wrap
     (fun c ->
       img##.onload := Html.handler (fun _ -> c (); Js._false);
       img##.src := (string src))

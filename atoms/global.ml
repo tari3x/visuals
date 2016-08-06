@@ -3,7 +3,21 @@ open Common
 
 module Channel = Faye.Channel
 
-module Shape_info = struct
+module Shape_info : sig
+  type t
+  val create : shape:Shape.t -> owner:Client_id.t option -> t
+  val shape : t -> Shape.t
+  val owner : t -> Client_id.t option
+  val requested : t -> bool
+  val last_touched : t -> Time.t
+  val set
+    :  t
+    -> ?shape:Shape.t
+    -> ?owner:Client_id.t option
+    -> ?requested:bool
+    -> unit
+    -> t
+end = struct
   (* We only modify [shape] and [owner] in [process_message]. The only
      exception is when we add a shape. *)
   type t =
@@ -11,16 +25,31 @@ module Shape_info = struct
     ; owner : Client_id.t option
     (* Set on [request], reset on [release]. *)
     ; requested : bool
+    ; last_touched : Time.t
     }
 
   let create ~shape ~owner =
-    { shape; owner; requested = false }
+    let last_touched = Time.now () in
+    { shape; owner; requested = false; last_touched }
 
-  let _to_string { shape; owner; requested } =
-    Printf.sprintf "{ shape = %s; owner = %s; requested = %b"
+  let shape t = t.shape
+  let owner t = t.owner
+  let requested t = t.requested
+  let last_touched t = t.last_touched
+
+  let set t
+      ?(shape = t.shape)
+      ?(owner = t.owner)
+      ?(requested = t.requested) () =
+    let last_touched = Time.now () in
+    { shape; owner; requested; last_touched }
+
+  let _to_string { shape; owner; requested; last_touched } =
+    Printf.sprintf "{ shape = %s; owner = %s; requested = %b; last_touched = %s }"
       (Shape.to_string shape)
       (Option.to_string Client_id.to_string owner)
       requested
+      (Time.to_string last_touched)
 end
 
 module Client_info = struct
@@ -48,11 +77,11 @@ type t =
 
 let get t shape_id =
   Option.map (Hashtbl.maybe_find t.shapes shape_id) ~f:(fun shape ->
-    shape.shape)
+    Shape_info.shape shape)
 
 let get_exn t shape_id =
   let shape = Hashtbl.find t.shapes shape_id in
-  shape.shape
+  Shape_info.shape shape
 
 let encode_shape t shape =
   Shape.to_local shape ~viewport_scale:t.viewport_scale
@@ -63,9 +92,9 @@ let decode_shape t shape =
 let init_message t =
   let shapes =
     List.map (List.rev t.shape_ids) ~f:(fun shape_id ->
-      let { Shape_info. shape; owner; requested = _ } =
-        Hashtbl.find t.shapes shape_id
-      in
+      let shape_info = Hashtbl.find t.shapes shape_id in
+      let shape = Shape_info.shape shape_info in
+      let owner = Shape_info.owner shape_info in
       (shape_id, encode_shape t shape, owner))
   in
   Message.Init
@@ -91,8 +120,11 @@ let init t msg =
 
 let is_owner t shape_id =
   match Hashtbl.maybe_find t.shapes shape_id with
-  | Some { owner = Some client_id; _ } when client_id = t.client_id -> true
-  | _ -> false
+  | None -> false
+  | Some shape_info ->
+    match Shape_info.owner shape_info with
+    | None -> false
+    | Some client_id -> client_id = t.client_id
 
 let assign t client_id shape_id =
   let release () =
@@ -102,10 +134,10 @@ let assign t client_id shape_id =
   | None ->
     if t.client_id = client_id then release ()
   | Some shape ->
-    if t.client_id = client_id && not shape.requested
+    if t.client_id = client_id && not (Shape_info.requested shape)
     then release ()
     else begin
-      let shape = { shape with owner = Some client_id } in
+      let shape = Shape_info.set shape ~owner:(Some client_id) () in
       Hashtbl.replace t.shapes ~key:shape_id ~data:shape;
       (* This adds new shapes to [shape_ids]. *)
       t.shape_ids <- List.bring_to_front t.shape_ids shape_id;
@@ -113,6 +145,14 @@ let assign t client_id shape_id =
 
 let call_on_change t shape_id shape =
   List.iter t.on_change ~f:(fun f -> f shape_id shape)
+
+(* CR: fix the actual bug that leaves unattended shapes. *)
+let cleanup_shapes t =
+  let time = Time.now () in
+  Hashtbl.filter_map_inplace t.shapes ~f:(fun ~key:_ ~data:shape ->
+    let last_touched = Shape_info.last_touched shape in
+    let age = Time.(time - last_touched) |> Time.Span.to_seconds in
+    if age > 10. then None else (Some shape))
 
     (*
 let cleanup_clients t =
@@ -146,14 +186,14 @@ let process_message t  = function
   | Message.Request (client_id, shape_id) ->
     if t.is_server
     then change t shape_id ~f:(fun shape ->
-      match shape.owner with
+      match Shape_info.owner shape with
       | Some _ -> shape
       | None ->
         publish t (Message.Grant (client_id, shape_id));
-        { shape with owner = Some client_id })
+        Shape_info.set shape ~owner:(Some client_id) ())
   | Message.Release shape_id ->
     change t shape_id ~f:(fun shape ->
-      { shape with owner = None } )
+      Shape_info.set shape ~owner:None ())
   | Message.Grant (client_id, shape_id) ->
     assign t client_id shape_id
   | Message.Add (shape_id, client_id, shape) ->
@@ -163,7 +203,8 @@ let process_message t  = function
     then add t client_id shape_id (decode_shape t shape)
   | Message.Set (_, shape_id, shape) ->
     let shape = decode_shape t shape in
-    change t shape_id ~f:(fun shape_info -> { shape_info with shape } );
+    change t shape_id ~f:(fun shape_info ->
+      Shape_info.set shape_info ~shape ());
     call_on_change t shape_id shape
   | Message.Delete shape_id ->
     Hashtbl.remove t.shapes shape_id;
@@ -212,11 +253,14 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
     }
   in
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
-  let channel = Channel.create () in
-  if t.is_server then return t
+  if t.is_server then begin
+    Lwt.every ~span:(Time.Span.of_seconds 1.) ~f:(fun () -> cleanup_shapes t);
+    return t
+  end
   else begin
+    let channel = Channel.create () in
     publish t (Message.Request_init (t.client_id, channel));
-    lwt_wrap (fun cont ->
+    Lwt.wrap (fun cont ->
       Faye.subscribe_with_try t.faye channel ~f:(fun msg ->
         process_message t msg;
         cont ()))
@@ -231,21 +275,22 @@ let iter t ~f =
     | None ->
       (* CR: does this happen, and why? *)
       error "shape_id is not in shapes"
-    | Some shape -> f shape.shape)
+    | Some shape -> f (Shape_info.shape shape))
 
 let find t ~f =
   List.maybe_find (List.rev t.shape_ids) ~f:(fun shape_id ->
     match Hashtbl.maybe_find t.shapes shape_id with
     | None -> false
-    | Some shape -> f shape.shape)
+    | Some shape -> f (Shape_info.shape shape))
 
 let request t shape_id =
   change t shape_id ~f:(fun shape ->
     publish t (Message.Request (t.client_id, shape_id));
-    { shape with requested = true })
+    Shape_info.set shape ~requested:true ())
 
 let release t shape_id =
-  change t shape_id ~f:(fun shape -> { shape with requested = false });
+  change t shape_id ~f:(fun shape ->
+    Shape_info.set shape ~requested:true ());
   if is_owner t shape_id
   then publish t (Message.Release shape_id)
 
@@ -261,7 +306,7 @@ let change t shape_id ~f =
   then match Hashtbl.maybe_find t.shapes shape_id with
   | None -> ()
   | Some shape ->
-    let shape = f shape.shape in
+    let shape = f (Shape_info.shape shape) in
     let shape = Shape.to_local shape ~viewport_scale:t.viewport_scale in
     publish t (Message.Set (t.client_id, shape_id, shape))
 
