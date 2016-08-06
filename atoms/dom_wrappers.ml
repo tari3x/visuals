@@ -179,3 +179,6 @@ module Ctx = struct
       (c 0 2) (c 1 2)
 end
 
+let set_reload_on_resize () =
+  add_event_listener Html.window Html.Event.resize ~f:(fun _ ->
+    Html.window##.location##reload)

@@ -9,39 +9,6 @@ module State = State_light
 
 type t = State.t
 
-(*
-let set_color t color =
-  let red_slider = get_element_by_id "red-slider" Html.CoerceTo.canvas in
-  let green_slider = get_element_by_id "green-slider" Html.CoerceTo.canvas in
-  let blue_slider = get_element_by_id "blue-slider" Html.CoerceTo.canvas in
-  let set_slider_
-*)
-
-  (*
-let set_color t =
-  let get_color id =
-    let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value |> Js.to_string |> float_of_string
-  in
-  let color =
-    Color.create
-      ~r:(get_color "red-slider"  |> int_of_float)
-      ~g:(get_color "green-slider"|> int_of_float)
-      ~b:(get_color "blue-slider" |> int_of_float)
-      ~a:1.
-  in
-  let color = Color_cycle.const color in
-  State.set_color t color
-
-let add_picker_handlers t =
-  List.iter [ "red-slider"; "green-slider"; "blue-slider" ] ~f:(fun id ->
-    let input = get_element_by_id id Html.CoerceTo.input in
-    add_event_listener input Html.Event.touchmove ~f:(fun _ ->
-      set_color t);
-    add_event_listener input Html.Event.mousemove ~f:(fun _ ->
-      set_color t))
-  *)
-
 let color_for_coordinate =
   let colors =
     [ Color.red; Color.magenta; Color.blue
@@ -117,7 +84,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   Lwt.return (List.nth shapes n, action)
 
 let main () =
-  debug "initializing";
+  Dom_wrappers.set_reload_on_resize ();
   Random.self_init ();
   let picker_div = get_element_by_id "color-picker-div" Html.CoerceTo.div in
   let picker_ctx =

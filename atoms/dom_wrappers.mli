@@ -37,3 +37,4 @@ module Ctx : sig
   val transform : t -> Matrix.t -> unit
 end
 
+val set_reload_on_resize : unit -> unit
