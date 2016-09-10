@@ -15,8 +15,8 @@ module Ctx : sig
 
   val draw_circle : t -> Vector.t -> radius:float -> unit
 
-  val draw_horizontal_line : t -> Vector.t -> width:float -> unit
-  val draw_vertical_line   : t -> Vector.t -> width:float -> unit
+  val draw_horizontal_line : t -> Vector.t -> unit
+  val draw_vertical_line   : t -> Vector.t -> unit
 
   val fill_rect : t -> Vector.t -> width:float -> height:float -> unit
 
@@ -24,12 +24,27 @@ module Ctx : sig
 
   val set_fill_color : t -> Color.t -> unit
   val set_stroke_color : t -> Color.t -> unit
+  val set_line_width : t -> float -> unit
+  val set_line_join : t -> [ `round | `bevel | `miter ]  -> unit
+  val set_line_cap  : t -> [ `round | `butt  | `square ] -> unit
 
   val clip_rect : t -> Vector.t -> width:int -> height:int -> unit
 
   val set_font : t -> string -> unit
   val fill_text : t -> string -> float -> float -> unit
   val stroke_text : t -> string -> float -> float -> unit
+
+  val begin_path : t -> unit
+  val move_to : t -> Vector.t -> unit
+  val line_to : t -> Vector.t -> unit
+  val bezier_curve_to
+    :  t
+    -> control1:Vector.t
+    -> control2:Vector.t
+    -> Vector.t
+    -> unit
+  (* Preserve line width under transformations. *)
+  val stroke_without_transform : t -> unit
 
   val save : t -> unit
   val restore : t -> unit

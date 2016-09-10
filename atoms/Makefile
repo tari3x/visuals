@@ -1,6 +1,6 @@
 
 SRC = $(wildcard *.ml *.mli) 
-ML_SRC = common.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml shape.ml faye.ml message.ml multitouch.ml global.ml state_full.ml state_light.ml gui_full.ml gui_light.ml
+ML_SRC = common.ml ordered_stream.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml shape.ml faye.ml message.ml multitouch.ml global.ml state_full.ml state_light.ml gui_full.ml gui_light.ml
 OBJS = ${ML_SRC:.ml=.cmo}
 ARGS = -package js_of_ocaml -package js_of_ocaml.syntax -ppx ppx_js -linkpkg 
 OCAMLC = ocamlfind ocamlc -g -package js_of_ocaml -package lwt -ppx ppx_js

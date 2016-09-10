@@ -1,0 +1,46 @@
+Ideas
+=====
+
+- lots of reflected white light to create soft shapes
+- following a dancer with a mouse
+- big static shapes and lines that can be moved around
+- changing projective plane
+- spotlight that reveals flows underneath the wall.
+ 
+Ideas for hems
+==============
+
+- moving very fast
+  stats: 
+  https://github.com/mrdoob/stats.js/
+- driving from music
+- color
+- optimize
+- direction of shapes
+- figure out why still running when page minimized
+ 
+Libraries and Gadgets 
+=====================
+
+- three.js
+
+- A-frame: using DOM as markup for three.js
+  Apparently supports mouse detection:
+  https://aframe.io/docs/0.2.0/components/cursor.html
+
+Gadgets
+=======
+
+- Leap Motion
+
+- HTC VIVE
+
+To read
+=======
+
+- webgl lesson:
+  http://learningwebgl.com/blog/?p=370
+
+- massive webgl rendering:
+  http://www.html5rocks.com/en/tutorials/webgl/million_letters/
+  

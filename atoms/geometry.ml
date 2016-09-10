@@ -61,6 +61,12 @@ module Vector = struct
   let scale (x, y, z) ~by =
     (x *. by, y *. by, z)
 
+  let ( * ) v x =
+    scale v ~by:x
+
+  let ( / ) v x =
+    scale v ~by:(1. /. x)
+
   let to_string (x, y, _) =
     Printf.sprintf "(%f, %f)" x y
 end

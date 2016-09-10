@@ -148,15 +148,15 @@ let process_action t (action : Action.t) =
     |> apply_touch_update t
 
 let set_color t color =
-  t.template <- { t.template with color };
+  t.template <- Shape.set t.template ~color;
   match most_recent_active t with
   | None -> ()
   | Some (shape_id, shape) ->
-    let shape = { shape with color } in
+    let shape = Shape.set shape ~color in
     Global.change t.global shape_id ~f:(Fn.const shape)
 
 let set_shape_kind t kind =
-  t.template <- { t.template with kind }
+  t.template <- Shape.set t.template ~kind
 
 let toggle_transient_mode t =
   t.transient_mode <- not t.transient_mode

@@ -42,11 +42,15 @@ let run_color_picker t ctx =
   let width = Ctx.width ctx in
   let height = Ctx.height ctx in
   Ctx.canvas_actions ctx
-  |> Lwt_stream.iter_with_try ~f:(fun action ->
-    let v = Action.coords action in
-    let color = color_for_coordinate v ~width ~height in
-    let color = Color_cycle.const color in
-    State.set_color t color)
+  |> Lwt_stream.iter_with_try ~f:(fun (action : Action.t) ->
+    match action.kind, action.button with
+    | `move, `touch
+    | `down, _ ->
+      let v = Action.coords action in
+      let color = color_for_coordinate v ~width ~height in
+      let color = Color_cycle.const color in
+      State.set_color t color
+    | _ -> ())
 
 let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   (* CR: do better estimate of the toolbar width. *)
@@ -59,7 +63,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       let x = hstep * i + hstep / 2 in
       let y = height / 2 in
       let frame = Frame.translate (Vector.create x y) in
-      let shape = Shape.create ~kind ~frame ~color in
+      let shape = Shape.create ~kind ~frame ~color ~line_width:10. () in
       let margin = min 50 (hstep / 5) in
       let clip_size = min hstep height - margin in
       let clip_p =
@@ -81,7 +85,11 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   let p = Action.coords action in
   let n = int_of_float (Vector.x p) / hstep in
   Ctx.clear ctx;
-  Lwt.return (List.nth shapes n, action)
+  let shape =
+    List.nth shapes n
+    |> Shape.set ~line_width:Shape.default_line_width
+  in
+  Lwt.return (shape, action)
 
 let main () =
   Dom_wrappers.set_reload_on_resize ();

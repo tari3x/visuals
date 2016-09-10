@@ -34,6 +34,8 @@ module Vector : sig
   val (+) : t -> t -> t
 
   val scale : t -> by:float -> t
+  val ( / ) : t -> float -> t
+  val ( * ) : t -> float -> t
 
   val to_string : t -> string
 end

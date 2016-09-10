@@ -34,7 +34,8 @@ end
 
 type 'a t =
   { faye : faye Js.t
-  ; to_string : 'a -> string
+  ; to_string : ('a -> string)
+  ; buffers : (Channel.t, 'a Ordered_stream.t) Hashtbl.t
   }
 
 let constr : (js_string Js.t -> faye Js.t) constr =
@@ -45,22 +46,36 @@ let faye_url =
 
 let create ~to_string =
   let faye = new%js constr (string faye_url) in
-  { faye; to_string }
+  let buffers = Hashtbl.create () in
+  { faye; to_string; buffers }
+
+let get_buffer t channel =
+  Hashtbl.find_or_add t.buffers channel ~default:(fun () ->
+    Ordered_stream.create ~max_buffer_size:5)
 
 let publish (t : 'a t) channel msg =
+  let buffer = get_buffer t channel in
   (* debug "Publishing %s on %s" (Message.to_string msg) channel; *)
+  let msg = Ordered_stream.create_element buffer msg in
   t.faye##publish (string channel) (Json.output msg)
 
 let subscribe_with_try (t : 'a t) channel ~f =
-  let f msg =
-    let msg = (Json.unsafe_input msg) in
+  let buffer = get_buffer t channel in
+  let write_to_buffer msg =
+    let msg = Json.unsafe_input msg in
+    (* CR: remove this try once you figured out global exception handling. *)
+    try Ordered_stream.write buffer msg with
+    | e -> begin error "%s" (Printexc.to_string e); () end
+  in
+  let read_from_buffer msg =
     (* debug "Received %s on %s" (t.to_string msg) channel; *)
-    try f msg
-    with
+    try f msg with
     | Shutdown -> raise Shutdown
     | e -> begin error "%s" (Printexc.to_string e); () end
   in
   (* debug "Subscribed to %s" channel; *)
   t.faye##subscribe
     (string channel)
-    (Js.wrap_callback f)
+    (Js.wrap_callback write_to_buffer);
+  Lwt.async (fun () ->
+    Lwt_stream.iter_with_try (Ordered_stream.reader buffer) ~f:read_from_buffer)

@@ -5,7 +5,6 @@ module Channel : sig
   val create : unit -> t
 end
 
-(* CR: guarantee the order of messages per channel and client. *)
 type 'a t
 
 val create : to_string:('a -> string) -> 'a t

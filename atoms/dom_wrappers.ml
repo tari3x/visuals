@@ -22,6 +22,9 @@ module Mouse_event = struct
       (t##.clientX - target##.offsetLeft)
       (t##.clientY - target##.offsetTop)
 
+  (* At some point I made a note that the touchpad is always left on move! Not
+     only that, it is also down! But now I can't reproduce it.
+  *)
   let button t : Button.t =
     match Html.buttonPressed t with
     | Html.No_button     -> `none
@@ -35,9 +38,9 @@ module Mouse_event = struct
     let id = Pointer_id.create 1 in
     let changed_touches =
       if not (is_inside position target) then []
-      else [ { Pointer. id; position; button } ]
+      else [ { Pointer. id; position } ]
     in
-    { Action. kind; changed_touches }
+    { Action. kind; changed_touches; button }
 end
 
 (* CR: make it work with multi-touch. *)
@@ -57,9 +60,9 @@ module Touch_event = struct
         in
         let id = Pointer_id.create touch##.identifier in
         if not (is_inside position target) then None
-        else Some { Pointer. id; position; button = `touch })
+        else Some { Pointer. id; position })
     in
-    { Action. kind; changed_touches }
+    { Action. kind; changed_touches; button = `touch }
 end
 
 let actions (target : #Html.element Js.t) =
@@ -109,28 +112,105 @@ module Ctx = struct
   let draw_circle (t : t) p ~radius =
     t##beginPath;
     t##arc (Vector.x p) (Vector.y p) radius 0. (2. *. Js.math##._PI) _false;
-    t##fill;
-    (* CR: is this necessary? *)
+    t##fill
+
+  let move_to (t : t) p =
+    let x, y = Vector.coords p in
+    t##moveTo x y
+
+  let line_to (t : t) p =
+    let x, y = Vector.coords p in
+    t##lineTo x y
+
+  let bezier_curve_to (t : t) ~control1 ~control2 v =
+    let x1, y1 = Vector.coords control1 in
+    let x2, y2 = Vector.coords control2 in
+    let x, y   = Vector.coords v in
+    t##bezierCurveTo x1 y1 x2 y2 x y
+
+  let begin_path (t : t) =
     t##beginPath
 
-  let draw_horizontal_line (t : t) p ~width =
+  let set_fill_color (t : t) color =
+    t##.fillStyle := string (Color.to_string color)
+
+  let set_stroke_color (t : t) color =
+    t##.strokeStyle := string (Color.to_string color)
+
+  let set_line_width (t : t) width =
+    t##.lineWidth := width
+
+  let set_line_join (t : t) style =
+    let style =
+      match style with
+      | `round -> "round"
+      | `bevel -> "bevel"
+      | `miter -> "miter"
+    in
+    t##.lineJoin := (string style)
+
+  let set_line_cap (t : t) style =
+    let style =
+      match style with
+      | `butt -> "butt"
+      | `round -> "round"
+      | `square -> "square"
+    in
+    t##.lineCap := (string style)
+
+  let set_font t font =
+    t##.font := (string font)
+
+  let fill_text (t : t) text x y =
+    t##fillText (string text) x y
+
+  let stroke_text (t : t) text x y =
+    t##strokeText (string text) x y
+
+  let save (t : t) =
+    t##save
+
+  let restore (t : t) =
+    t##restore
+
+  let set_transform (t : t) m =
+    let m = Matrix.coeffs m in
+    let c i j = m.(i).(j) in
+    t##setTransform
+      (c 0 0) (c 1 0)
+      (c 0 1) (c 1 1)
+      (c 0 2) (c 1 2)
+
+  let transform (t : t) m =
+    let m = Matrix.coeffs m in
+    let c i j = m.(i).(j) in
+    t##transform
+      (c 0 0) (c 1 0)
+      (c 0 1) (c 1 1)
+      (c 0 2) (c 1 2)
+
+  let stroke_without_transform (t : t) =
+    save t;
+    set_transform t Matrix.ident;
+    t##stroke;
+    restore t
+
+  let draw_horizontal_line (t : t) p =
     let y = Vector.y p in
     t##save;
-    t##.lineWidth := width;
     t##beginPath;
     t##moveTo (-10_000.) y;
     t##lineTo 10_000. y;
-    t##stroke;
+    stroke_without_transform t;
     t##restore
 
-  let draw_vertical_line (t : t) p ~width =
+  let draw_vertical_line (t : t) p =
     let x = Vector.x p in
     t##save;
-    t##.lineWidth := width;
     t##beginPath;
     t##moveTo x (-10_000.);
     t##lineTo x 10_000.;
-    t##stroke;
+    stroke_without_transform t;
     t##restore
 
   let clip_rect (t : t) p ~width ~height =
@@ -148,35 +228,6 @@ module Ctx = struct
       ((-.width) /. 2.)
       ((-.height) /. 2.)
       width height
-
-  let set_fill_color (t : t) color =
-    t##.fillStyle := string (Color.to_string color)
-
-  let set_stroke_color (t : t) color =
-    t##.strokeStyle := string (Color.to_string color)
-
-  let set_font t font =
-    t##.font := (string font)
-
-  let fill_text (t : t) text x y =
-    t##fillText (string text) x y
-
-  let stroke_text (t : t) text x y =
-    t##strokeText (string text) x y
-
-  let save (t : t) =
-    t##save
-
-  let restore (t : t) =
-    t##restore
-
-  let transform (t : t) m =
-    let m = Matrix.coeffs m in
-    let c i j = m.(i).(j) in
-    t##transform
-      (c 0 0) (c 1 0)
-      (c 0 1) (c 1 1)
-      (c 0 2) (c 1 2)
 end
 
 let set_reload_on_resize () =

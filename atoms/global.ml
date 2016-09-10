@@ -146,7 +146,8 @@ let assign t client_id shape_id =
 let call_on_change t shape_id shape =
   List.iter t.on_change ~f:(fun f -> f shape_id shape)
 
-(* CR: fix the actual bug that leaves unattended shapes. *)
+(* Even with correct ordering of messages, if the client's browser suddenly
+   dies, it might not release the shape. *)
 let cleanup_shapes t =
   let time = Time.now () in
   Hashtbl.filter_map_inplace t.shapes ~f:(fun ~key:_ ~data:shape ->
@@ -253,17 +254,18 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
     }
   in
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
-  if t.is_server then begin
+  if t.is_server
+  then begin
     Lwt.every ~span:(Time.Span.of_seconds 1.) ~f:(fun () -> cleanup_shapes t);
     return t
   end
   else begin
     let channel = Channel.create () in
-    publish t (Message.Request_init (t.client_id, channel));
     Lwt.wrap (fun cont ->
       Faye.subscribe_with_try t.faye channel ~f:(fun msg ->
         process_message t msg;
-        cont ()))
+        cont ());
+      publish t (Message.Request_init (t.client_id, channel)))
     >>= fun () ->
     return t
   end

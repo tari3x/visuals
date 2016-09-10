@@ -2,10 +2,14 @@ open Geometry
 
 module Kind : sig
   type t = [ `down | `up | `move ]
+
+  val to_string : t -> string
 end
 
 module Button : sig
   type t = [ `left | `right | `middle | `touch | `none ]
+
+  val to_string : t -> string
 end
 
 module Pointer_id : sig
@@ -18,7 +22,6 @@ module Pointer : sig
   type t =
     { id : Pointer_id.t
     ; position : Vector.t
-    ; button : Button.t
     }
 
   val id : t -> Pointer_id.t
@@ -27,6 +30,7 @@ end
 type t =
   { kind : Kind.t
   ; changed_touches : Pointer.t list
+  ; button : Button.t
   }
 
 val to_string : t -> string

@@ -100,12 +100,13 @@ module Update = struct
   module Single = struct
     type t =
       { frame : Frame.t
-      ; positions : Vector.t list
+      ; touches : Vector.t list
       }
 
-    (* CR: *)
-    let apply {frame; _ } shape =
-      Shape.set_frame shape ~frame
+    let apply {frame; touches } shape =
+      shape
+      |> Shape.set ~frame
+      |> Shape.set_touches ~touches
   end
 
   type t = (Shape_id.t * Single.t option) list
@@ -119,7 +120,7 @@ let update t =
     let single =
       { Update.Single.
         frame = Group.frame group ~get_position
-      ; positions = Group.positions group ~get_position
+      ; touches = Group.positions group ~get_position
       }
     in
     results := (shape_id, Some single) :: !results);
@@ -133,12 +134,7 @@ let add t shape_id shape (pointer : Pointer.t) =
     | None -> []
     | Some group -> group.pointers
   in
-  (* CR: this needs to change. *)
-  let pointers =
-    if List.length current_pointers >= 2
-    then current_pointers
-    else current_pointers @ [ pointer.id ]
-  in
+  let pointers = current_pointers @ [ pointer.id ] in
   let group = Group.create pointers shape ~get_position in
   Hashtbl.replace t.groups ~key:shape_id ~data:group;
   update t
