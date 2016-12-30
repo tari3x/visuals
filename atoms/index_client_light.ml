@@ -1,3 +1,9 @@
+(*
+  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+  This file is distributed under a BSD license.
+  See LICENSE file for copyright notice.
+*)
+
 open Common
 
 (* XCR: after a while it stops responding after reload and rejects new clients *)
