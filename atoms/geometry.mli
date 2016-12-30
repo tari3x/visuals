@@ -81,7 +81,10 @@ module Frame : sig
 
   val equal_scale : t -> t
 
+  val translation : t -> Vector.t
   val set_translation : t -> Vector.t -> t
+
+  val scale_x : t -> float
 
   val matrix : t -> Matrix.t
 end

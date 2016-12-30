@@ -15,9 +15,15 @@ let console_error f =
 (* CR: do something about dev vs prod. *)
 let error = console_error
 
+(* Looks like this is no longer necessary? A top level
+   [Lwt.async (fun () -> failwith "FAILURE");]
+   gets caught all right.
+*)
+(*
 let () =
   Lwt.async_exception_hook := fun exn ->
     error "uncaught exn in aysnc: %s" (Printexc.to_string exn)
+*)
 
 let failwithf f =
   Printf.ksprintf failwith f
@@ -305,3 +311,4 @@ let load_image src =
       img##.src := (string src))
   >>= fun () ->
   Lwt.return img
+

@@ -62,6 +62,8 @@ type t =
   { faye : Message.t Faye.t
   ; is_server : bool
   ; client_id : Client_id.t
+  (* CR: get rid of this, or at least make sure that it is only used to order
+     shapes during rendering. *)
   ; mutable shape_ids : Shape_id.t list
   ; shapes : (Shape_id.t, Shape_info.t) Hashtbl.t
   ; max_clients : int
@@ -150,10 +152,16 @@ let call_on_change t shape_id shape =
    dies, it might not release the shape. *)
 let cleanup_shapes t =
   let time = Time.now () in
-  Hashtbl.filter_map_inplace t.shapes ~f:(fun ~key:_ ~data:shape ->
+  t.shape_ids <- List.filter t.shape_ids ~f:(fun shape_id ->
+    let shape = Hashtbl.find t.shapes shape_id in
     let last_touched = Shape_info.last_touched shape in
     let age = Time.(time - last_touched) |> Time.Span.to_seconds in
-    if age > 10. then None else (Some shape))
+    if age > 30.
+    then begin
+      Hashtbl.remove t.shapes shape_id;
+      false
+    end
+    else true)
 
     (*
 let cleanup_clients t =
@@ -271,11 +279,13 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
   end
 
 let iter t ~f =
+  t.shape_ids <- List.filter t.shape_ids ~f:(Hashtbl.mem t.shapes);
   (* CR: better reverse in other places. *)
   List.iter (List.rev t.shape_ids) ~f:(fun shape_id ->
     match Hashtbl.maybe_find t.shapes shape_id with
     | None ->
-      (* CR: does this happen, and why? *)
+      (* CR: this does happen if you don't filter, presumably because of shape
+         cleanup. *)
       error "shape_id is not in shapes"
     | Some shape -> f (Shape_info.shape shape))
 

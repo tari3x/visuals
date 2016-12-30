@@ -1,6 +1,7 @@
 # Boring file regexps:
 
 .depend
+notes.txt
 
 # C object files
 *.o

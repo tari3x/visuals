@@ -1,7 +1,15 @@
+Compilation
+===========
+
+You only need to recompile when making changes, otherwise go to "Usage".
+
+- install opam
+- opam install js_of_ocaml
+- make
+
 Usage
 =====
 
-- make to compile from OCaml
 - sudo ./start.sh
   (this will show you your external ip)
 - project http://<external ip>/index-server.js

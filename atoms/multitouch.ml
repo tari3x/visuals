@@ -28,10 +28,10 @@ module Params = struct
     let scale_delta_y =
       (scale -. 1.) *. (abs_float (cos (Angle.to_radians t2.angle)))
     in
-    let scale_x = 1. +. scale_delta_x in
-    let scale_y = 1. +. scale_delta_y in
+    let sx = 1. +. scale_delta_x in
+    let sy = 1. +. scale_delta_y in
     let move_by = Vector.(t2.center - t1.center) in
-    Frame.(scale ~scale_x ~scale_y
+    Frame.(scale ~scale_x:sx ~scale_y:sy
            *> rotate rotation
            *> translate move_by)
 end
