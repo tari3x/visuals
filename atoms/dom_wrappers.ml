@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Lwt
 open Js
 open Common
 open Geometry
@@ -95,12 +96,11 @@ let actions (target : #Html.element Js.t) =
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
 
-  let create ~id ~width ~height =
+  let create ~id =
     let canvas = get_element_by_id id Html.CoerceTo.canvas in
-    (* CR: why the fuck is this necessary? Setting values via CSS fucks things
-       up *)
-    canvas##.width := width;
-    canvas##.height := height;
+    (* Set the internal size equal to display size. *)
+    canvas##.width := canvas##.offsetWidth;
+    canvas##.height := canvas##.offsetHeight;
     canvas##getContext Html._2d_
 
   let canvas_actions t =
@@ -229,11 +229,40 @@ module Ctx = struct
     let x, y = Vector.coords v in
     t##fillRect x y width height
 
+  let fill_all t =
+    fill_rect t Vector.zero ~width:(width t) ~height:(height t)
+
   let draw_centered_rectangle (t : t) ~width ~height =
     t##fillRect
       ((-.width) /. 2.)
       ((-.height) /. 2.)
       width height
+end
+
+module Video = struct
+  type t = Html.videoElement Js.t
+
+  let create ~id =
+    get_element_by_id id Html.CoerceTo.video
+
+  let read_camera t =
+    Js.Unsafe.fun_call (Js.Unsafe.js_expr "js_read_camera")
+      [| Js.Unsafe.inject t |]
+
+  let rec get_frame ?(delay = false) (t : t) (ctx : Ctx.t) =
+    begin
+      if not delay then Lwt.return () else Lwt_js.sleep 3.
+    end
+    >>= fun () ->
+    Lwt_js_events.request_animation_frame ()
+    >>= fun () ->
+    Ctx.clear ctx;
+    match t##.readyState with
+    | Html.HAVE_ENOUGH_DATA ->
+      ctx##drawImage_fromVideoWithVideo t 0. 0.;
+      Lwt.return ()
+    | _ ->
+      get_frame t ctx ~delay:false
 end
 
 let set_reload_on_resize () =

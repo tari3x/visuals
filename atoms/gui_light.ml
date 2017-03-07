@@ -57,19 +57,9 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
 let main () =
   Dom_wrappers.set_reload_on_resize ();
   Random.self_init ();
-  let picker_div = get_element_by_id "color-picker-div" Html.CoerceTo.div in
-  let picker_ctx =
-    Ctx.create ~id:"color-picker-canvas"
-      ~width:picker_div##.clientWidth
-      ~height:picker_div##.clientHeight
-  in
+  let picker_ctx = Ctx.create ~id:"color-picker-canvas" in
   Color_picker.draw picker_ctx;
-  let canvas_div = get_element_by_id "main-canvas-div" Html.CoerceTo.div in
-  let ctx =
-    Ctx.create ~id:"main_canvas"
-      ~width:canvas_div##.clientWidth
-      ~height:canvas_div##.clientHeight
-  in
+  let ctx = Ctx.create ~id:"main_canvas" in
   let actions = Ctx.canvas_actions ctx in
   choose_shape actions ctx
   >>= fun (shape, action) ->

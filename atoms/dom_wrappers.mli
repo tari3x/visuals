@@ -10,7 +10,7 @@ open Geometry
 module Ctx : sig
   type t
 
-  val create : id:string -> width:int -> height:int -> t
+  val create : id:string -> t
 
   val canvas_actions : t -> Action.t Lwt_stream.t
 
@@ -25,6 +25,7 @@ module Ctx : sig
   val draw_vertical_line   : t -> Vector.t -> unit
 
   val fill_rect : t -> Vector.t -> width:float -> height:float -> unit
+  val fill_all : t -> unit
 
   val draw_centered_rectangle : t -> width:float -> height:float -> unit
 
@@ -56,6 +57,25 @@ module Ctx : sig
   val restore : t -> unit
 
   val transform : t -> Matrix.t -> unit
+end
+
+module Video : sig
+  type t
+
+  val create : id:string -> t
+
+  (*
+    - Doesn't work if you access the html over file://
+    - In chrome requires that you access it over https:// or localhost.
+      https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins
+
+    - To deactivate a camera:
+      echo 1-7 > /sys/bus/usb/drivers/usb/unbind
+   *)
+  val read_camera : t -> unit
+
+  (* CR-someday: maybe return the pixel array straight away? *)
+  val get_frame : ?delay:bool -> t -> Ctx.t -> unit Lwt.t
 end
 
 val set_reload_on_resize : unit -> unit

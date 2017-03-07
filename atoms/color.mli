@@ -23,6 +23,7 @@ val blue : t
 val cyan : t
 val magenta : t
 val yellow : t
+val black : t
 
 val of_hex8_string : string -> t
 

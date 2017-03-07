@@ -135,10 +135,7 @@ let add_toolbar_handlers t =
 
 let main ~is_server =
   Random.self_init ();
-  let ctx = Ctx.create ~id:"main_canvas"
-    ~width:Html.document##.body##.clientWidth
-    ~height:Html.document##.body##.clientHeight
-  in
+  let ctx = Ctx.create ~id:"main_canvas" in
   State.create ctx ~is_server
   >>= fun t ->
   if is_server then return ()

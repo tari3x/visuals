@@ -34,7 +34,9 @@ module Vector = struct
     create_float (float x) (float y)
 
   let projective_coords t = t
-  let of_projective_coords t = t
+
+  let of_projective_coords (x, y, z) =
+    ( x /. z, y /. z, 1.)
 
   let coords (x, y, _) =
     (x, y)
@@ -78,11 +80,18 @@ module Vector = struct
 end
 
 module Matrix = struct
-  type t = Math.Matrix.t
+  include Math.Matrix
 
-  let create a =
-    Array.map a ~f:Js.array
-    |> Js.array
+  let create
+      ( x1, x2, x3)
+      ( y1, y2, y3)
+      ( z1, z2, z3)
+      =
+    of_array
+      [| [| x1; x2; x3|]
+      ;  [| y1; y2; y3|]
+      ;  [| z1; z2; z3|]
+      |]
 
   let get (t : t) i j =
     t
@@ -108,14 +117,14 @@ module Matrix = struct
 
   let translate v : t =
     let (x, y) = Vector.coords v in
-    create
+    of_array
       [| [| 1.; 0.; x |]
       ;  [| 0.; 1.; y |]
       ;  [| 0.; 0.; 1. |]
       |]
 
   let scale ~scale_x:x ~scale_y:y : t =
-    create
+    of_array
       [| [| x;  0.; 0. |]
       ;  [| 0.; y;  0. |]
       ;  [| 0.; 0.; 1. |]
@@ -123,7 +132,7 @@ module Matrix = struct
 
   let rotate a : t =
     let a = Angle.to_radians a in
-    create
+    of_array
       [| [| cos a;      sin a; 0. |]
       ;  [| -. (sin a); cos a; 0. |]
       ;  [| 0.;         0.;    1. |]
@@ -142,9 +151,8 @@ module Matrix = struct
     in
     Vector.of_projective_coords ( coord 0, coord 1, coord 2 )
 
-  let coeffs t =
-    Js.to_array t
-    |> Array.map ~f:Js.to_array
+  let coeffs =
+    Math.Matrix.to_array
 end
 
 module Frame = struct

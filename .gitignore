@@ -21,6 +21,10 @@ notes.txt
 *#
 .#*
 
+# emacs
+.emacs.desktop
+.emacs.desktop.lock
+
 # Specific to Js_of_ocaml
 *.byte
 *.tmpjs

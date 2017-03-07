@@ -124,6 +124,8 @@ module Array = struct
   include ArrayLabels
 end
 
+(* CR-someday: There is no way to close the reader. Try [create_bounded] or
+   [Lwt_pipe].*)
 module Lwt_stream = struct
   include Lwt_stream
 

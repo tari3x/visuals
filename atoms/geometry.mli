@@ -26,6 +26,7 @@ module Vector : sig
   type t
 
   val create : int -> int -> t
+  val create_float : float -> float -> t
   val coords : t -> (float * float)
   val x : t -> float
   val y : t -> float
@@ -49,6 +50,12 @@ end
 module Matrix : sig
   type t
 
+  val create
+    :  float * float * float
+    -> float * float * float
+    -> float * float * float
+    -> t
+
   val to_string : t -> string
 
   val ident : t
@@ -65,8 +72,6 @@ module Matrix : sig
   val apply : t -> Vector.t -> Vector.t
 
   val coeffs : t -> float array array
-
-(* val flatten : t -> float array *)
 end
 
 module Frame : sig
