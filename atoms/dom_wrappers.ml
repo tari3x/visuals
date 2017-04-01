@@ -137,6 +137,9 @@ module Ctx = struct
   let begin_path (t : t) =
     t##beginPath
 
+  let stroke (t : t) =
+    t##stroke
+
   let set_fill_color (t : t) color =
     t##.fillStyle := string (Color.to_string color)
 

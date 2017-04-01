@@ -50,6 +50,7 @@ module Ctx : sig
     -> control2:Vector.t
     -> Vector.t
     -> unit
+  val stroke : t -> unit
   (* Preserve line width under transformations. *)
   val stroke_without_transform : t -> unit
 

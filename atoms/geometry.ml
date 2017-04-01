@@ -50,8 +50,17 @@ module Vector = struct
   let length (x, y, _) =
     hypot x y
 
-  let angle (x, y, _) =
+  let cross (x1, y1, _) (x2, y2, _) =
+    x1 *. y2 -. x2 *. y1
+
+  let dot (x1, y1, _) (x2, y2, _) =
+    x1 *. x2 +. y1 *. y2
+
+  let dir (x, y, _) =
     atan2 x y
+
+  let angle v1 v2 =
+    atan2 (cross v1 v2) (dot v1 v2)
 
   let neg (x, y, _) =
     create_float (-. x) (-. y)

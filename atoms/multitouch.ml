@@ -63,7 +63,7 @@ module Group = struct
       let v2 = Matrix.apply inverse v2 in
       let delta = Vector.(v2 - v1) in
       let distance = Vector.length delta in
-      let angle = Vector.angle delta in
+      let angle = Vector.dir delta in
       { Params. center; distance; angle  }
 
   let create pointers frame ~get_position =

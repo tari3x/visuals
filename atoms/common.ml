@@ -72,6 +72,9 @@ module Option = struct
   let to_string a_to_string = function
     | None -> "none"
     | Some a -> a_to_string a
+
+  let some_if b x =
+    if b then Some x else None
 end
 
 module List = struct
@@ -110,6 +113,16 @@ module List = struct
     in
     loop t
 
+  let find_map t ~f =
+    let rec loop = function
+      | [] -> None
+      | x :: xs ->
+        match f x with
+        | None -> loop xs
+        | Some x -> Some x
+    in
+    loop t
+
   let diff xs ys =
     filter xs ~f:(fun x ->
       not (List.mem x ys))
@@ -140,6 +153,20 @@ module Lwt_stream = struct
       with e -> begin error "%s" (Printexc.to_string e); () end
     in
     iter f t
+
+  let filter_map t ~f =
+    filter_map f t
+
+  let take t ~n =
+    let rec loop n acc =
+      if n = 0 then Lwt.return (List.rev acc)
+      else begin
+        next t
+        >>= fun x ->
+        loop (n - 1) (x :: acc)
+      end
+    in
+    loop n []
 end
 
 module String = struct

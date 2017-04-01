@@ -34,7 +34,8 @@ module Vector : sig
   val zero : t
 
   val length : t -> float
-  val angle : t -> Angle.t
+  val dir : t -> Angle.t
+  val angle : t -> t -> Angle.t
 
   val neg : t -> t
   val (-) : t -> t -> t

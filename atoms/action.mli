@@ -42,3 +42,6 @@ type t =
 val to_string : t -> string
 
 val coords : t -> Vector.t
+
+val click : t -> Vector.t option
+

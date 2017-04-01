@@ -61,3 +61,7 @@ let to_string { kind; changed_touches; button = _ } =
 let coords t =
   let p = List.hd t.changed_touches in
   p.position
+
+let click t =
+  Option.some_if (t.kind = `down) (coords t)
+

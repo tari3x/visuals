@@ -1,6 +1,6 @@
 
 SRC = $(wildcard *.ml *.mli) 
-ML_SRC = ../atoms/common.ml ../atoms/math.ml ../atoms/geometry.ml ../atoms/color.ml ../atoms/action.ml ../atoms/dom_wrappers.ml calibrate.ml index.ml
+ML_SRC = ../atoms/common.ml ../atoms/math.ml ../atoms/geometry.ml ../atoms/color.ml ../atoms/action.ml ../atoms/dom_wrappers.ml prism.ml index.ml
 OBJS = ${ML_SRC:.ml=.cmo}
 ARGS = -package js_of_ocaml -package js_of_ocaml.syntax -ppx ppx_js -linkpkg 
 OCAMLC = ocamlfind ocamlc -g -package js_of_ocaml -package lwt -ppx ppx_js -I ../atoms
