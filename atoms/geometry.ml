@@ -162,6 +162,11 @@ module Matrix = struct
 
   let coeffs =
     Math.Matrix.to_array
+
+  let suitable_for_context2d_exn t =
+    let c = get t in
+    if c 2 0 = 0. && c 2 1 = 0. && c 2 2 = 1. then ()
+    else failwithf "%s not suitable for context2d" (to_string t) ()
 end
 
 module Frame = struct

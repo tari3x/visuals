@@ -15,7 +15,7 @@ module Quad : sig
 
   val create : Vector.t -> Vector.t -> Vector.t -> Vector.t -> t
 
-  val draw : t -> ctx:Ctx.t -> color:Color.t -> unit
+  val draw_border : t -> ctx:Ctx.t -> color:Color.t -> unit
 
   val contains : t -> Vector.t -> bool
 end
@@ -30,7 +30,13 @@ type t
 
 val create : Surface.t list -> t
 
-val camera_to_canvas : t -> Vector.t -> Vector.t option
+val camera_vector_to_canvas : t -> Vector.t -> Vector.t option
 
-val draw : t -> ctx:Ctx.t -> unit
+val camera_image_to_canvas
+  :  t
+  -> image:Image_source.t
+  -> ctx:Ctx.t
+  -> pos:Vector.t
+  -> unit
 
+val draw_border : t -> ctx:Ctx.t -> unit

@@ -7,6 +7,20 @@
 open Common
 open Geometry
 
+module Image : sig
+  type t
+
+  val load : string -> t Lwt.t
+end
+
+module Image_source : sig
+  type t
+
+  val image  : Image.t                 -> t
+  val canvas : Html.canvasElement Js.t -> t
+  val video  : Html.videoElement  Js.t -> t
+end
+
 module Ctx : sig
   type t
 
@@ -53,11 +67,15 @@ module Ctx : sig
   val stroke : t -> unit
   (* Preserve line width under transformations. *)
   val stroke_without_transform : t -> unit
+  val clip : t -> unit
 
   val save : t -> unit
   val restore : t -> unit
 
-  val transform : t -> Matrix.t -> unit
+  val set_transform : t -> Matrix.t -> unit
+  val transform     : t -> Matrix.t -> unit
+
+  val draw : t -> Image_source.t -> Vector.t -> unit
 end
 
 module Video : sig

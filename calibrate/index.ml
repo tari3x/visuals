@@ -17,42 +17,9 @@ open Dom_wrappers
 
 let draw_marker ctx v =
   Ctx.set_fill_color ctx Color.white;
-  Ctx.draw_circle ctx v ~radius:5.
+  Ctx.draw_circle ctx v ~radius:10.
 
-let n = 7
-
-let main () =
-  let video = Video.create ~id:"video" in
-  Video.read_camera video;
-  let ctx = Ctx.create ~id:"canvas" in
-  (* NB! We assume that mouse click coordinates are the same as canvas
-     coordinates. *)
-  let clicks =
-    Ctx.canvas_actions ctx
-    |> Lwt_stream.filter_map ~f:Action.click
-  in
-  (* You must start with the centre. *)
-  Lwt_stream.take clicks ~n
-  >>= fun canvas_markers ->
-  List.iter canvas_markers ~f:(draw_marker ctx);
-  Video.get_frame video ctx ~delay:true
-  >>= fun () ->
-  Lwt_stream.take clicks ~n
-  >>= fun camera_markers ->
-  let s i = List.nth canvas_markers i in
-  let d i = List.nth camera_markers i in
-  let prism =
-    List.map
-      [ (0, 1, 2, 3)
-      ; (0, 3, 4, 5)
-      ; (0, 5, 6, 1)
-      ]
-      ~f:(fun (i1, i2, i3, i4) ->
-        let canvas = Prism.Quad.create (s i1) (s i2) (s i3) (s i4) in
-        let camera = Prism.Quad.create (d i1) (d i2) (d i3) (d i4) in
-        Prism.Surface.create ~canvas ~camera)
-    |> Prism.create
-  in
+let draw_rotating_grid ~prism ~ctx =
   Ctx.clear ctx;
   let rec loop angle =
     let angle = Angle.(angle + of_degrees 1.) in
@@ -64,12 +31,12 @@ let main () =
     in
     let m = Matrix.(t * r) in
     Ctx.clear ctx;
-    (* Prism.draw prism ~ctx; *)
+    (* Prism.draw_border prism ~ctx; *)
     for i = -50 to 50 do
       for j = -50 to 50 do
         Vector.create (30 * i) (30 * j)
         |> Matrix.apply m
-        |> Prism.camera_to_canvas prism
+        |> Prism.camera_vector_to_canvas prism
         |> Option.iter ~f:(Ctx.draw_circle ctx ~radius:5.)
       done
     done;
@@ -78,6 +45,75 @@ let main () =
     loop angle
   in
   loop Angle.zero
+
+let draw_image ~prism ~ctx ~pos =
+  Image.load "honeycomb.png"
+  >>= fun image ->
+  let image = Image_source.image image in
+  Prism.camera_image_to_canvas prism ~image ~ctx ~pos;
+  Prism.draw_border prism ~ctx;
+  return ()
+
+module Markers = struct
+  type t =
+    { camera : Vector.t list
+    ; canvas : Vector.t list
+    }
+
+  let get ~ctx ~video n =
+    Video.read_camera video;
+    (* NB! We assume that mouse click coordinates are the same as canvas
+       coordinates. *)
+    let clicks =
+      Ctx.canvas_actions ctx
+      |> Lwt_stream.filter_map ~f:Action.click
+    in
+    (* You must start with the centre. *)
+    Lwt_stream.take clicks ~n
+    >>= fun canvas ->
+    List.iter canvas ~f:(draw_marker ctx);
+    Video.get_frame video ctx ~delay:true
+    >>= fun () ->
+    Lwt_stream.take clicks ~n
+    >>= fun camera ->
+    return { canvas; camera }
+
+  let to_prism t indices =
+    let s i = List.nth t.canvas i in
+    let d i = List.nth t.camera i in
+    List.map indices ~f:(fun (i1, i2, i3, i4) ->
+      let canvas = Prism.Quad.create (s i1) (s i2) (s i3) (s i4) in
+      let camera = Prism.Quad.create (d i1) (d i2) (d i3) (d i4) in
+      Prism.Surface.create ~canvas ~camera)
+    |> Prism.create
+end
+
+let corner_prism ~video ~ctx =
+  Markers.get ~video ~ctx 7
+  >>= fun markers ->
+  let prism =
+    Markers.to_prism markers
+      [ (0, 1, 2, 3)
+      ; (0, 3, 4, 5)
+      ; (0, 5, 6, 1)
+      ]
+  in
+  return (prism, List.nth markers.camera 0)
+
+let flat_prism ~video ~ctx =
+  Markers.get ~video ~ctx 4
+  >>= fun markers ->
+  let prism =
+    Markers.to_prism markers [ (0, 1, 2, 3) ]
+  in
+  return (prism, List.nth markers.camera 0)
+
+let main () =
+  let video = Video.create ~id:"video" in
+  let ctx = Ctx.create ~id:"canvas" in
+  flat_prism ~video ~ctx
+  >>= fun (prism, pos) ->
+  draw_image ~prism ~ctx ~pos
 ;;
 
 top_level main

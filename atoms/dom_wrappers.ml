@@ -93,6 +93,31 @@ let actions (target : #Html.element Js.t) =
     write (Touch_event.action target ev `move));
   stream
 
+module Image = struct
+  type t = Html.imageElement  Js.t
+
+  let load src =
+    let img = Html.createImg Html.document in
+    Lwt.wrap
+      (fun c ->
+        img##.onload := Html.handler (fun _ -> c (); Js._false);
+        img##.src := (string src))
+    >>= fun () ->
+    Lwt.return img
+end
+
+module Image_source = struct
+  type t =
+  [ `image  of Image.t
+  | `canvas of Html.canvasElement Js.t
+  | `video  of Html.videoElement  Js.t
+  ]
+
+  let image  x = `image x
+  let canvas x = `canvas x
+  let video  x = `video x
+end
+
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
 
@@ -140,6 +165,9 @@ module Ctx = struct
   let stroke (t : t) =
     t##stroke
 
+  let clip (t : t) =
+    t##clip
+
   let set_fill_color (t : t) color =
     t##.fillStyle := string (Color.to_string color)
 
@@ -183,6 +211,7 @@ module Ctx = struct
     t##restore
 
   let set_transform (t : t) m =
+    Matrix.suitable_for_context2d_exn m;
     let m = Matrix.coeffs m in
     let c i j = m.(i).(j) in
     t##setTransform
@@ -191,6 +220,7 @@ module Ctx = struct
       (c 0 2) (c 1 2)
 
   let transform (t : t) m =
+    Matrix.suitable_for_context2d_exn m;
     let m = Matrix.coeffs m in
     let c i j = m.(i).(j) in
     t##transform
@@ -240,6 +270,13 @@ module Ctx = struct
       ((-.width) /. 2.)
       ((-.height) /. 2.)
       width height
+
+  let draw (t : t) image p =
+    let x, y = Vector.coords p in
+    match image with
+    | `image  image  -> t##drawImage                    image  x y
+    | `canvas canvas -> t##drawImage_fromCanvas         canvas x y
+    | `video  video  -> t##drawImage_fromVideoWithVideo video  x y
 end
 
 module Video = struct

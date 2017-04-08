@@ -23,22 +23,24 @@ module Quad = struct
         Angle.to_radians (Vector.angle v1 v2) :: angles (v2 :: vs)
     in
     let angle =
-      List.map [u0; u1; u2; u3; u0] ~f:(fun u ->
-        Vector.(u - v))
+      List.map [u0; u1; u2; u3; u0] ~f:(fun u -> Vector.(u - v))
       |> angles
       |> List.fold_left ~init:0. ~f:(+.)
     in
     abs_float(angle) > 1.
 
-  let draw (u0, u1, u2, u3) ~ctx ~color =
-    Ctx.set_line_width ctx 1.;
-    Ctx.set_stroke_color ctx color;
+  let path (u0, u1, u2, u3) ctx =
     Ctx.begin_path ctx;
     Ctx.move_to ctx u0;
     Ctx.line_to ctx u1;
     Ctx.line_to ctx u2;
     Ctx.line_to ctx u3;
-    Ctx.line_to ctx u0;
+    Ctx.line_to ctx u0
+
+  let draw_border t ~ctx ~color =
+    Ctx.set_line_width ctx 1.;
+    Ctx.set_stroke_color ctx color;
+    path t ctx;
     Ctx.stroke ctx
 end
 
@@ -78,8 +80,8 @@ module Surface = struct
       |> Math.Vector.to_array
     in
     let camera_to_canvas =
-      (* transposed compared to the paper since we multiply the vectors from
-         another side. *)
+      (* transposed compared to the paper since we multiply vectors from another
+         side. *)
       Matrix.create
         ( x.(0), x.(1), x.(2) )
         ( x.(3), x.(4), x.(5) )
@@ -88,13 +90,29 @@ module Surface = struct
     in
     { canvas; camera; camera_to_canvas }
 
-  let camera_to_canvas t v =
+  let camera_vector_to_canvas t v =
     let v = Matrix.apply t.camera_to_canvas v in
     Option.some_if (Quad.contains t.canvas v) v
 
-  let draw t ~ctx =
-    (* Quad.draw t.camera ~ctx ~color:Color.green; *)
-    Quad.draw t.canvas ~ctx ~color:Color.red
+  let camera_image_to_canvas t ~image:_ ~ctx ~pos =
+    Ctx.save ctx;
+    (*
+    Quad.path t.canvas ctx;
+    Ctx.clip ctx;
+    *)
+    Ctx.set_transform ctx t.camera_to_canvas;
+    (* Ctx.draw ctx image pos;
+    Ctx.set_fill_color ctx Color.green;
+       Ctx.draw_circle ctx pos ~radius:10.;  *)
+    Quad.draw_border t.camera ~ctx ~color:Color.blue;
+    (* Quad.draw_border t.canvas ~ctx ~color:Color.yellow; *)
+    Ctx.restore ctx;
+    Ctx.set_fill_color ctx Color.red;
+    Ctx.draw_circle ctx (Matrix.apply t.camera_to_canvas pos) ~radius:10.
+
+  let draw_border t ~ctx =
+    Quad.draw_border t.camera ~ctx ~color:Color.green;
+    Quad.draw_border t.canvas ~ctx ~color:Color.red
 end
 
 type t = Surface.t list
@@ -102,9 +120,12 @@ type t = Surface.t list
 let create t =
   t
 
-let camera_to_canvas t v =
+let camera_vector_to_canvas t v =
   List.find_map t ~f:(fun surface ->
-    Surface.camera_to_canvas surface v)
+    Surface.camera_vector_to_canvas surface v)
 
-let draw t ~ctx =
-  List.iter t ~f:(Surface.draw ~ctx)
+let camera_image_to_canvas t ~image ~ctx ~pos =
+  List.iter t ~f:(Surface.camera_image_to_canvas ~image ~ctx ~pos)
+
+let draw_border t ~ctx =
+  List.iter t ~f:(Surface.draw_border ~ctx)

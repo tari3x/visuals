@@ -338,12 +338,3 @@ let get_element_by_id id coerce_to =
        coerce_to)
     (fun () -> failwithf "can't find element %s" id)
 
-let load_image src =
-  let img = Html.createImg Html.document in
-  Lwt.wrap
-    (fun c ->
-      img##.onload := Html.handler (fun _ -> c (); Js._false);
-      img##.src := (string src))
-  >>= fun () ->
-  Lwt.return img
-

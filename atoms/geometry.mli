@@ -73,6 +73,8 @@ module Matrix : sig
   val apply : t -> Vector.t -> Vector.t
 
   val coeffs : t -> float array array
+
+  val suitable_for_context2d_exn : t -> unit
 end
 
 module Frame : sig
