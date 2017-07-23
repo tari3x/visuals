@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 open Dom_wrappers
 open Geometry
@@ -26,7 +27,7 @@ let draw ctx =
   let cell_size_float = float cell_size in
   for i = 0 to (int width) do
     for j = 0 to (int height) do
-      if i mod cell_size = 0 && j mod cell_size = 0
+      if Caml.(i mod cell_size) = 0 && Caml.(j mod cell_size) = 0
       then begin
         let v = Vector.create i j in
         let color = color_for_coordinate v ~width ~height in

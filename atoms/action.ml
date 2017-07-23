@@ -4,17 +4,22 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 open Geometry
 open Printf
 
 module Kind = struct
   type t = [ `down | `up | `move ]
+  [@@deriving compare]
 
   let to_string = function
     | `down -> "down"
     | `up   -> "up"
     | `move -> "move"
+
+  let equal =
+    [%compare.equal: t]
 end
 
 module Button = struct
@@ -29,7 +34,8 @@ module Button = struct
 end
 
 module Pointer_id = struct
-  type t = string
+  include String
+
   let create id =
     Printf.sprintf "pointer%d" id
 end
@@ -59,5 +65,5 @@ let to_string { kind; changed_touches; button = _ } =
     (String.concat ~sep:" " (List.map changed_touches ~f:Pointer.to_string))
 
 let coords t =
-  let p = List.hd t.changed_touches in
+  let p = List.hd_exn t.changed_touches in
   p.position

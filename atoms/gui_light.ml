@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Common
 open Dom_wrappers
@@ -17,8 +18,8 @@ type t = State.t
 
 let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   (* CR: do better estimate of the toolbar width. *)
-  let width = Ctx.width ctx |> int_of_float in
-  let height = Ctx.height ctx |> int_of_float in
+  let width = Ctx.width ctx |> Int.of_float in
+  let height = Ctx.height ctx |> Int.of_float in
   let hstep = width / List.length Shape.Kind.examples in
   let color = Color_cycle.random_constant () in
   let shapes =
@@ -36,20 +37,21 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       in
       Ctx.save ctx;
       Ctx.clip_rect ctx clip_p ~width:clip_size ~height:clip_size;
-      let shape = Shape.scale_to_fit shape (float_of_int clip_size) in
+      let shape = Shape.scale_to_fit shape (Float.of_int clip_size) in
       (* CR: need late time *)
       Shape.render shape ctx ~time:100.;
       Ctx.restore ctx;
       shape
     )
   in
-  Lwt_stream.find actions ~f:(fun action -> action.kind = `down)
+  Lwt_stream.find actions ~f:(fun action ->
+    Action.Kind.equal action.kind `down)
   >>= fun action ->
   let p = Action.coords action in
-  let n = int_of_float (Vector.x p) / hstep in
+  let n = Int.of_float (Vector.x p) / hstep in
   Ctx.clear ctx;
   let shape =
-    List.nth shapes n
+    List.nth_exn shapes n
     |> Shape.set ~line_width:Shape.default_line_width
   in
   Lwt.return (shape, action)

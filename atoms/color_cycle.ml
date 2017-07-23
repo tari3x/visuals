@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 
 type t =
@@ -65,7 +66,7 @@ let current_color t ~time =
     | (c :: _) as cs -> cs @ [ c ]
   in
   let fraction =
-    (mod_float (time -. t.offset *. t.length) t.length) /. t.length
+    (Float.mod_float (time -. t.offset *. t.length) t.length) /. t.length
   in
   Color.interpolate colors fraction
 

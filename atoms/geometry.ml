@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 
 module Angle = struct
@@ -46,10 +47,10 @@ module Vector = struct
     create_float 0. 0.
 
   let length (x, y, _) =
-    hypot x y
+    Float.hypot x y
 
   let angle (x, y, _) =
-    atan2 x y
+    Float.atan2 x y
 
   let neg (x, y, _) =
     create_float (-. x) (-. y)
@@ -122,6 +123,7 @@ module Matrix = struct
       |]
 
   let rotate a : t =
+    let open Float in
     let a = Angle.to_radians a in
     create
       [| [| cos a;      sin a; 0. |]
@@ -201,7 +203,7 @@ module Frame = struct
     }
 
   let equal_scale t =
-    let scale = max t.scale_x t.scale_y in
+    let scale = Float.max t.scale_x t.scale_y in
     { t with
       scale_x = scale
       ; scale_y = scale

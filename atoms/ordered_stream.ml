@@ -4,8 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
-open Common
+open Base
 open! Printf
+open Common
 
 module Id = Id(struct let name = "Ordered_stream_id" end)
 
@@ -52,7 +53,7 @@ module Buffer = struct
       List.map buffer ~f:Element.to_string
       |> String.concat ~sep:"; "
     in
-    let next_receive = Option.to_string string_of_int next_receive in
+    let next_receive = Option.to_string Int.to_string next_receive in
     sprintf "{ buffer = [ %s ]; next_receive = %s }"
       buffer next_receive
 
@@ -101,7 +102,7 @@ end
 
 type 'a t =
   { id : Id.t
-  ; buffers : (Id.t, 'a Buffer.t) Hashtbl.t
+  ; buffers : 'a Buffer.t Hashtbl.M(Id).t
   ; mutable next_send : int
   ; reader : 'a Lwt_stream.t
   ; write : ('a option -> unit)
@@ -112,7 +113,7 @@ let create ~max_buffer_size =
   let id = Id.create () in
   let reader, write = Lwt_stream.create () in
   { id
-  ; buffers = Hashtbl.create ()
+  ; buffers = Hashtbl.create (module Id) ()
   ; next_send = 0
   ; reader
   ; write

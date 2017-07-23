@@ -4,6 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
+(* CR: lines and cross lines get scaled down *)
+
+open Base
 open! Common
 open Geometry
 open Dom_wrappers
@@ -51,8 +54,8 @@ module Kind = struct
     match List.map vs ~f with
     | [] -> 0.
     | x :: xs ->
-      let max = List.fold_left xs ~init:x ~f:max in
-      let min = List.fold_left xs ~init:x ~f:min in
+      let max = List.fold_left xs ~init:x ~f:Float.max in
+      let min = List.fold_left xs ~init:x ~f:Float.min in
       max -. min
 
   let width ~line_width = function
@@ -138,16 +141,17 @@ module Kind = struct
     | Bezier vs -> render_bezier ctx vs
 
   let rec touched_by t p =
+    let open Float in
     let (x, y) = Vector.coords p in
     match t with
     | Rectangle ->
-      abs_float x <= (rect_width /. 2.) && abs_float y <= (rect_height /. 2.)
+      abs x <= (rect_width /. 2.) && abs y <= (rect_height /. 2.)
     | Circle ->
       Vector.length p <= circle_radius
     | Horizontal_line ->
-      abs_float x <= line_touch_width
+      abs x <= line_touch_width
     | Vertical_line ->
-      abs_float y <= line_touch_width
+      abs y <= line_touch_width
     | Cross_line ->
       touched_by Horizontal_line p || touched_by Vertical_line p
     | Zigzag _ -> false
@@ -209,7 +213,8 @@ end = struct
         Frame.equal_scale frame
       | Horizontal_line
       | Vertical_line
-      | Cross_line
+      | Cross_line ->
+        Frame.remove_scale frame
       | Zigzag _
       | Bezier _
       | Rectangle -> frame
@@ -249,6 +254,7 @@ let render t ctx ~time =
   Kind.render (kind t) ctx;
   Ctx.restore ctx
 
+(* CR-someday: should this be like [set_frame]? *)
 let touched_by t p =
   let frame =
     match (kind t) with
@@ -291,8 +297,10 @@ let set_touches t ~touches =
 
 let scale_to_fit t size =
   let line_width = line_width t in
-  let current_size = max (width (kind t)) (height (kind t)) ~line_width in
-  let s = min 1.0 (size /. current_size) in
+  let current_size =
+    Float.max (width (kind t) ~line_width) (height (kind t) ~line_width)
+  in
+  let s = Float.min 1.0 (size /. current_size) in
   let frame = Frame.((frame t) *> scale ~scale_x:s ~scale_y:s) in
   set t ~frame
 

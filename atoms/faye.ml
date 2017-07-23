@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Js
 open Common
 open! Printf
@@ -26,7 +27,8 @@ let init () =
 *)
 
 module Channel = struct
-  type t = string
+  include String
+
   let global = "/global"
   let create () =
     Printf.sprintf "/%d" (Random.int 100_000_000)
@@ -41,7 +43,7 @@ end
 type 'a t =
   { faye : faye Js.t
   ; to_string : ('a -> string)
-  ; buffers : (Channel.t, 'a Ordered_stream.t) Hashtbl.t
+  ; buffers : 'a Ordered_stream.t Hashtbl.M(Channel).t
   }
 
 let constr : (js_string Js.t -> faye Js.t) constr =
@@ -52,7 +54,7 @@ let faye_url =
 
 let create ~to_string =
   let faye = new%js constr (string faye_url) in
-  let buffers = Hashtbl.create () in
+  let buffers = Hashtbl.create (module Channel) () in
   { faye; to_string; buffers }
 
 let get_buffer t channel =

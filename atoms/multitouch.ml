@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 open Geometry
 open Action
@@ -29,10 +30,10 @@ module Params = struct
     let scale = t2.distance /. t1.distance in
     (* Why [sin] here? It just works. *)
     let scale_delta_x =
-      (scale -. 1.) *. (abs_float (sin (Angle.to_radians t2.angle)))
+      (scale -. 1.) *. (Float.abs (Float.sin (Angle.to_radians t2.angle)))
     in
     let scale_delta_y =
-      (scale -. 1.) *. (abs_float (cos (Angle.to_radians t2.angle)))
+      (scale -. 1.) *. (Float.abs (Float.cos (Angle.to_radians t2.angle)))
     in
     let sx = 1. +. scale_delta_x in
     let sy = 1. +. scale_delta_y in
@@ -51,8 +52,8 @@ module Group = struct
     ; pointers : Pointer_id.t list
     }
 
-  let params pointers frame ~get_position =
-    let positions = List.map pointers ~f:get_position in
+  let params pointers frame ~get_position_exn =
+    let positions = List.map pointers ~f:get_position_exn in
     match positions with
     | []    -> Params.of_one_pointer Vector.zero (* Should never happen *)
     | [ v ] -> Params.of_one_pointer v
@@ -66,38 +67,38 @@ module Group = struct
       let angle = Vector.angle delta in
       { Params. center; distance; angle  }
 
-  let create pointers frame ~get_position =
+  let create pointers frame ~get_position_exn =
     { initial_frame = frame
-    ; initial_params = params pointers frame ~get_position
+    ; initial_params = params pointers frame ~get_position_exn
     ; pointers
     }
 
-  let frame t ~get_position =
-    let current = params t.pointers t.initial_frame ~get_position in
+  let frame t ~get_position_exn =
+    let current = params t.pointers t.initial_frame ~get_position_exn in
     let frame_diff =
       Params.frame_diff ~initial:t.initial_params ~current
     in
     Frame.(t.initial_frame *> frame_diff)
 
-  let positions t ~get_position =
-    List.map t.pointers ~f:get_position
+  let positions t ~get_position_exn =
+    List.map t.pointers ~f:get_position_exn
 end
 
 type t =
-  { groups : (Shape_id.t, Group.t) Hashtbl.t
-  ; positions : (Pointer_id.t, Vector.t) Hashtbl.t
+  { groups : Group.t Hashtbl.M(Shape_id).t
+  ; positions : Vector.t Hashtbl.M(Pointer_id).t
   }
 
 let create () =
-  let groups = Hashtbl.create () in
-  let positions = Hashtbl.create () in
+  let groups = Hashtbl.create (module Shape_id) () in
+  let positions = Hashtbl.create (module Pointer_id) () in
   { groups; positions }
 
 let active t =
   Hashtbl.keys t.groups
 
-let get_position t =
-  Hashtbl.find t.positions
+let get_position_exn t =
+  Hashtbl.find_exn t.positions
 
 let is_touching t shape_id =
   Hashtbl.mem t.groups shape_id
@@ -120,51 +121,53 @@ end
 
 (* This does not include deleted shapes. *)
 let update t =
-  let get_position = get_position t in
+  let get_position_exn = get_position_exn t in
   let results = ref [] in
-  Hashtbl.iter t.groups ~f:(fun ~key:shape_id ~data:group ->
+  Hashtbl.iteri t.groups ~f:(fun ~key:shape_id ~data:group ->
     let single =
       { Update.Single.
-        frame = Group.frame group ~get_position
-      ; touches = Group.positions group ~get_position
+        frame = Group.frame group ~get_position_exn
+      ; touches = Group.positions group ~get_position_exn
       }
     in
     results := (shape_id, Some single) :: !results);
   !results
 
 let add t shape_id shape (pointer : Pointer.t) =
-  let get_position = get_position t in
-  Hashtbl.replace t.positions ~key:pointer.id ~data:pointer.position;
+  let get_position_exn = get_position_exn t in
+  Hashtbl.set t.positions ~key:pointer.id ~data:pointer.position;
   let current_pointers =
-    match Hashtbl.maybe_find t.groups shape_id with
+    match Hashtbl.find t.groups shape_id with
     | None -> []
     | Some group -> group.pointers
   in
   let pointers = current_pointers @ [ pointer.id ] in
-  let group = Group.create pointers shape ~get_position in
-  Hashtbl.replace t.groups ~key:shape_id ~data:group;
+  let group = Group.create pointers shape ~get_position_exn in
+  Hashtbl.set t.groups ~key:shape_id ~data:group;
   update t
 
 let move t pointers =
   List.iter pointers ~f:(fun (pointer : Pointer.t) ->
-    Hashtbl.replace t.positions ~key:pointer.id ~data:pointer.position);
+    Hashtbl.set t.positions ~key:pointer.id ~data:pointer.position);
   update t
 
 let remove t pointers_to_remove =
   let pointers_to_remove = List.map pointers_to_remove ~f:Pointer.id in
-  let get_position = get_position t in
+  let get_position_exn = get_position_exn t in
   let deleted_shapes = ref [] in
   (* Don't delete the pointers yet, since we use the prior pointer state to
      recompute the shapes. *)
-  Hashtbl.filter_map_inplace t.groups ~f:(fun ~key:shape_id ~data:group ->
-    let pointers = List.diff group.pointers pointers_to_remove in
+  Hashtbl.filter_mapi_inplace t.groups ~f:(fun ~key:shape_id ~data:group ->
+    let pointers =
+      List.diff group.pointers pointers_to_remove ~equal:Pointer_id.equal
+    in
     match pointers with
     | [] ->
       deleted_shapes := shape_id :: !deleted_shapes;
       None
     | pointers ->
-      let frame = Group.frame group ~get_position in
-      let group = Group.create pointers frame ~get_position in
+      let frame = Group.frame group ~get_position_exn in
+      let group = Group.create pointers frame ~get_position_exn in
       Some group);
   List.iter pointers_to_remove ~f:(Hashtbl.remove t.positions);
   List.map !deleted_shapes ~f:(fun shape_id -> (shape_id, None))

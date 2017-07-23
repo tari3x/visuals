@@ -4,12 +4,16 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Geometry
 
 module Kind : sig
   type t = [ `down | `up | `move ]
+  [@@deriving compare]
 
   val to_string : t -> string
+
+  val equal : t -> t -> bool
 end
 
 module Button : sig
@@ -19,7 +23,7 @@ module Button : sig
 end
 
 module Pointer_id : sig
-  type t
+  include Identifiable.S
   val create : int -> t
 end
 

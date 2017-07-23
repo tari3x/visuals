@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Common
 open Dom_wrappers
@@ -18,7 +19,7 @@ let handle_canvas_actions t ctx =
 
 let range_max id =
   let input = get_element_by_id id Html.CoerceTo.input in
-  Js.Unsafe.get input "max" |> Js.to_string |> float_of_string
+  Js.Unsafe.get input "max" |> Js.to_string |> Float.of_string
 
 let get_color_cycle color_cycle =
   let set_color id color : unit =
@@ -27,7 +28,7 @@ let get_color_cycle color_cycle =
   in
   let set_value id value =
     let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value := Js.string (string_of_int (int_of_float value))
+    input##.value := Js.string (Int.to_string (Int.of_float value))
   in
   let { Color_cycle. colors = _; length; offset } = color_cycle in
   let max_offset = range_max "cycle-offset" in
@@ -45,7 +46,7 @@ let set_color_cycle t =
   in
   let range_value id =
     let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value |> Js.to_string |> float_of_string
+    input##.value |> Js.to_string |> Float.of_string
   in
   let length = range_value "cycle-length" in
   let offset = range_value "cycle-offset" in
@@ -66,26 +67,26 @@ let set_color_cycle t =
 let get_simple_color color_cycle =
   let set_color id color =
     let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value := Js.string (string_of_int (int_of_float color))
+    input##.value := Js.string (Int.to_string (Int.of_float color))
   in
   let max_alpha = range_max "alpha" in
   let color = Color_cycle.nth_defaulting_to_last_or_white color_cycle 0 in
-  set_color "red"   (Color.r color |> float_of_int);
-  set_color "green" (Color.g color |> float_of_int);
-  set_color "blue"  (Color.b color |> float_of_int);
+  set_color "red"   (Color.r color |> Float.of_int);
+  set_color "green" (Color.g color |> Float.of_int);
+  set_color "blue"  (Color.b color |> Float.of_int);
   set_color "alpha" (Color.a color *. max_alpha)
 
 let set_simple_color t =
   let get_color id =
     let input = get_element_by_id id Html.CoerceTo.input in
-    input##.value |> Js.to_string |> float_of_string
+    input##.value |> Js.to_string |> Float.of_string
   in
   let max_alpha = range_max "alpha" in
   let color =
     Color.create
-      ~r:(get_color "red"  |> int_of_float)
-      ~g:(get_color "green"|> int_of_float)
-      ~b:(get_color "blue" |> int_of_float)
+      ~r:(get_color "red"  |> Int.of_float)
+      ~g:(get_color "green"|> Int.of_float)
+      ~b:(get_color "blue" |> Int.of_float)
       ~a:(get_color "alpha" /. max_alpha)
   in
   let color = Color_cycle.const color in
