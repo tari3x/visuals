@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Common
 open Dom_wrappers
@@ -38,7 +39,7 @@ let render_tracers t ~time =
   t.tracers <-
     List.filter t.tracers ~f:(fun (time0, shape) ->
       let alpha = (1. -. (time -. time0)) /. 5. in
-      if alpha < 0.02 then false
+      if Float.(alpha < 0.02) then false
       else begin
         let shape = Shape.set_alpha shape ~alpha in
         Shape.render shape t.ctx ~time;

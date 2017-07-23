@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Common
 
@@ -71,9 +72,9 @@ type t =
   (* CR: get rid of this, or at least make sure that it is only used to order
      shapes during rendering. *)
   ; mutable shape_ids : Shape_id.t list
-  ; shapes : (Shape_id.t, Shape_info.t) Hashtbl.t
+  ; shapes : Shape_info.t Hashtbl.M(Shape_id).t
   ; max_clients : int
-  ; clients : (Client_id.t, Client_info.t) Hashtbl.t
+  ; clients : Client_info.t Hashtbl.M(Client_id).t
   ; mutable server_offset : Time.Span.t
   ; viewport_width  : float
   ; viewport_height : float
@@ -84,11 +85,11 @@ type t =
   }
 
 let get t shape_id =
-  Option.map (Hashtbl.maybe_find t.shapes shape_id) ~f:(fun shape ->
+  Option.map (Hashtbl.find t.shapes shape_id) ~f:(fun shape ->
     Shape_info.shape shape)
 
 let get_exn t shape_id =
-  let shape = Hashtbl.find t.shapes shape_id in
+  let shape = Hashtbl.find_exn t.shapes shape_id in
   Shape_info.shape shape
 
 let encode_shape t shape =
@@ -100,7 +101,7 @@ let decode_shape t shape =
 let init_message t =
   let shapes =
     List.map (List.rev t.shape_ids) ~f:(fun shape_id ->
-      let shape_info = Hashtbl.find t.shapes shape_id in
+      let shape_info = Hashtbl.find_exn t.shapes shape_id in
       let shape = Shape_info.shape shape_info in
       let owner = Shape_info.owner shape_info in
       (shape_id, encode_shape t shape, owner))
@@ -117,38 +118,38 @@ let init t msg =
   let scale_x = t.viewport_width /. width in
   let scale_y = t.viewport_height /. height in
   (* Make sure to set viewport scale before decoding the shapes. *)
-  t.viewport_scale <- min (min scale_x scale_y) 1.0;
+  t.viewport_scale <- Float.min (Float.min scale_x scale_y) 1.0;
   List.iter shapes ~f:(fun (shape_id, shape, owner) ->
     let shape = decode_shape t shape in
     t.shape_ids <- shape_id :: t.shape_ids;
     let shape_info = Shape_info.create ~shape ~owner in
-    Hashtbl.add t.shapes shape_id shape_info);
+    Hashtbl.set t.shapes ~key:shape_id ~data:shape_info);
   t.shape_ids <- List.rev t.shape_ids;
   t.server_offset <- Time.(time - now ())
 
 let is_owner t shape_id =
-  match Hashtbl.maybe_find t.shapes shape_id with
+  match Hashtbl.find t.shapes shape_id with
   | None -> false
   | Some shape_info ->
     match Shape_info.owner shape_info with
     | None -> false
-    | Some client_id -> client_id = t.client_id
+    | Some client_id -> Client_id.equal client_id t.client_id
 
 let assign t client_id shape_id =
   let release () =
     Faye.publish t.faye Channel.global (Message.Release shape_id)
   in
-  match Hashtbl.maybe_find t.shapes shape_id with
+  match Hashtbl.find t.shapes shape_id with
   | None ->
-    if t.client_id = client_id then release ()
+    if Client_id.equal t.client_id client_id then release ()
   | Some shape ->
-    if t.client_id = client_id && not (Shape_info.requested shape)
+    if Client_id.equal t.client_id client_id && not (Shape_info.requested shape)
     then release ()
     else begin
       let shape = Shape_info.set shape ~owner:(Some client_id) () in
-      Hashtbl.replace t.shapes ~key:shape_id ~data:shape;
+      Hashtbl.set t.shapes ~key:shape_id ~data:shape;
       (* This adds new shapes to [shape_ids]. *)
-      t.shape_ids <- List.bring_to_front t.shape_ids shape_id;
+      t.shape_ids <- List.bring_to_front t.shape_ids shape_id ~equal:Shape_id.equal;
     end
 
 let call_on_change t shape_id shape =
@@ -159,10 +160,10 @@ let call_on_change t shape_id shape =
 let cleanup_shapes t =
   let time = Time.now () in
   t.shape_ids <- List.filter t.shape_ids ~f:(fun shape_id ->
-    let shape = Hashtbl.find t.shapes shape_id in
+    let shape = Hashtbl.find_exn t.shapes shape_id in
     let last_touched = Shape_info.last_touched shape in
     let age = Time.(time - last_touched) |> Time.Span.to_seconds in
-    if age > 30.
+    if Float.(age > 30.)
     then begin
       Hashtbl.remove t.shapes shape_id;
       false
@@ -178,18 +179,18 @@ let cleanup_clients t =
     *)
 
 let change t shape_id ~f =
-  match Hashtbl.maybe_find t.shapes shape_id with
+  match Hashtbl.find t.shapes shape_id with
   | None -> error "shape not found in change"; ()
   | Some shape ->
-    Hashtbl.replace t.shapes ~key:shape_id ~data:(f shape)
+    Hashtbl.set t.shapes ~key:shape_id ~data:(f shape)
 
 let publish t msg =
   Faye.publish t.faye Channel.global msg
 
 let add t client_id shape_id shape =
   let shape_info = Shape_info.create ~shape ~owner:(Some client_id) in
-  Hashtbl.replace t.shapes ~key:shape_id ~data:shape_info;
-  t.shape_ids <- List.bring_to_front t.shape_ids shape_id;
+  Hashtbl.set t.shapes ~key:shape_id ~data:shape_info;
+  t.shape_ids <- List.bring_to_front t.shape_ids shape_id ~equal:Shape_id.equal;
   call_on_change t shape_id shape
 
     (*
@@ -214,7 +215,7 @@ let process_message t  = function
   | Message.Add (shape_id, client_id, shape) ->
     (* Add is called immediately by the owner, to reduce the chance of a race
        condition. *)
-    if client_id <> t.client_id
+    if Client_id.(client_id <> t.client_id)
     then add t client_id shape_id (decode_shape t shape)
   | Message.Set (_, shape_id, shape) ->
     let shape = decode_shape t shape in
@@ -223,7 +224,7 @@ let process_message t  = function
     call_on_change t shape_id shape
   | Message.Delete shape_id ->
     Hashtbl.remove t.shapes shape_id;
-    t.shape_ids <- List.delete t.shape_ids shape_id
+    t.shape_ids <- List.delete t.shape_ids shape_id ~equal:Shape_id.equal
   | Message.Request_init (_, channel) ->
     if t.is_server
     then Faye.publish t.faye channel (init_message t)
@@ -257,14 +258,14 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
     ; is_server
     ; client_id = Client_id.create ()
     ; shape_ids = []
-    ; shapes = Hashtbl.create ()
+    ; shapes = Hashtbl.create (module Shape_id) ()
     ; server_offset = Time.Span.zero
     ; viewport_width
     ; viewport_height
     ; viewport_scale = 1.
     ; on_change = []
     ; max_clients
-    ; clients = Hashtbl.create ()
+    ; clients = Hashtbl.create (module Client_id) ()
     }
   in
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
@@ -288,7 +289,7 @@ let iter t ~f =
   t.shape_ids <- List.filter t.shape_ids ~f:(Hashtbl.mem t.shapes);
   (* CR: better reverse in other places. *)
   List.iter (List.rev t.shape_ids) ~f:(fun shape_id ->
-    match Hashtbl.maybe_find t.shapes shape_id with
+    match Hashtbl.find t.shapes shape_id with
     | None ->
       (* CR: this does happen if you don't filter, presumably because of shape
          cleanup. *)
@@ -296,8 +297,8 @@ let iter t ~f =
     | Some shape -> f (Shape_info.shape shape))
 
 let find t ~f =
-  List.maybe_find (List.rev t.shape_ids) ~f:(fun shape_id ->
-    match Hashtbl.maybe_find t.shapes shape_id with
+  List.find (List.rev t.shape_ids) ~f:(fun shape_id ->
+    match Hashtbl.find t.shapes shape_id with
     | None -> false
     | Some shape -> f (Shape_info.shape shape))
 
@@ -321,7 +322,7 @@ let add t shape =
 
 let change t shape_id ~f =
   if is_owner t shape_id
-  then match Hashtbl.maybe_find t.shapes shape_id with
+  then match Hashtbl.find t.shapes shape_id with
   | None -> ()
   | Some shape ->
     let shape = f (Shape_info.shape shape) in

@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 
 module Angle = struct
@@ -48,7 +49,7 @@ module Vector = struct
     create_float 0. 0.
 
   let length (x, y, _) =
-    hypot x y
+    Float.hypot x y
 
   let cross (x1, y1, _) (x2, y2, _) =
     x1 *. y2 -. x2 *. y1
@@ -57,10 +58,10 @@ module Vector = struct
     x1 *. x2 +. y1 *. y2
 
   let dir (x, y, _) =
-    atan2 x y
+    Float.atan2 x y
 
   let angle v1 v2 =
-    atan2 (cross v1 v2) (dot v1 v2)
+    Float.atan2 (cross v1 v2) (dot v1 v2)
 
   let neg (x, y, _) =
     create_float (-. x) (-. y)
@@ -140,6 +141,7 @@ module Matrix = struct
       |]
 
   let rotate a : t =
+    let open Float in
     let a = Angle.to_radians a in
     of_array
       [| [| cos a;      sin a; 0. |]
@@ -165,7 +167,10 @@ module Matrix = struct
 
   let suitable_for_context2d_exn t =
     let c = get t in
-    if c 2 0 = 0. && c 2 1 = 0. && c 2 2 = 1. then ()
+    if Float.equal (c 2 0) 0.
+      && Float.equal (c 2 1) 0.
+      && Float.equal (c 2 2) 1.
+    then ()
     else failwithf "%s not suitable for context2d" (to_string t) ()
 end
 
@@ -223,7 +228,7 @@ module Frame = struct
     }
 
   let equal_scale t =
-    let scale = max t.scale_x t.scale_y in
+    let scale = Float.max t.scale_x t.scale_y in
     { t with
       scale_x = scale
       ; scale_y = scale

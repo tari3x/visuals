@@ -6,8 +6,6 @@
 
 open Common
 
-(* XCR: after a while it stops responding after reload and rejects new clients *)
-
 (* CR: on some phones touch doesn't work *)
 
 (* CR; on Chris' phone it keeps reloading in landscape mode.

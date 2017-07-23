@@ -4,8 +4,8 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Js
-open Common
 
 let _ =
   (* Choose 'matrix' (default) or 'array' *)

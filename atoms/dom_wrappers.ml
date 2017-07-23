@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Js
 open Common
@@ -15,6 +16,7 @@ module Button = struct
 end
 
 let is_inside v (target : #Html.element Js.t) =
+  let open Float in
   let x, y = Vector.coords v in
   0. <= x && x <= (float target##.clientWidth)
   && 0. <= y && y <= (float target##.clientHeight)
@@ -255,7 +257,7 @@ module Ctx = struct
   let clip_rect (t : t) p ~width ~height =
     let (x, y) = Vector.coords p in
     t##beginPath;
-    t##rect x y (float_of_int width) (float_of_int height);
+    t##rect x y (Float.of_int width) (Float.of_int height);
     t##clip
 
   let fill_rect t v ~width ~height =

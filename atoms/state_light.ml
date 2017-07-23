@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Common
 open Dom_wrappers
@@ -44,10 +45,10 @@ let process_action t (action : Action.t) =
   | `move ->
     begin
       Multitouch.move t.touches action.changed_touches
-       |> apply_touch_update t
+      |> apply_touch_update t
     end
   | `down ->
-    let touch = List.hd action.changed_touches in
+    let touch = List.hd_exn action.changed_touches in
     begin match Multitouch.active t.touches with
     | [] ->
       let shape = Shape.set_translation t.shape touch.position in
