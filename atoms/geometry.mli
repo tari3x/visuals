@@ -57,6 +57,9 @@ module Matrix : sig
     -> float * float * float
     -> t
 
+  (* 0-based, row-major *)
+  val get : t -> int -> int -> float
+
   val to_string : t -> string
 
   val ident : t
@@ -73,6 +76,8 @@ module Matrix : sig
   val apply : t -> Vector.t -> Vector.t
 
   val coeffs : t -> float array array
+
+  val transpose_exn : t -> t
 
   val suitable_for_context2d_exn : t -> unit
 end

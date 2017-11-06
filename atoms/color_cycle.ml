@@ -42,7 +42,6 @@ let random () =
 
 let random_constant () =
   let color = Color.random () in
-  debug "%s" (Color.to_string color);
   let color1 = color in
   let color2 = color in
   let color3 = color in

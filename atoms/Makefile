@@ -1,6 +1,3 @@
-
-# CR-someday: use jbuilder like bmillwood/figgie
-
 SRC = $(wildcard *.ml *.mli) 
 ML_SRC = common.ml ordered_stream.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml shape.ml faye.ml message.ml multitouch.ml global.ml state_full.ml state_light.ml gui_full.ml color_picker.ml gui_light.ml
 OBJS = ${ML_SRC:.ml=.cmo}
@@ -25,7 +22,7 @@ external/faye/client.js:
 	$(OCAMLC) $(OCAMLC_FLAGS) -c $<
 
 clean::
-	rm -f *.cm[io] *.byte index.js index_server.js *.map .depend
+	rm -f *.cm[io] *.byte index_client_full.js index_client_light.js  main.js client.js index.js index_server.js *.map .depend
 
 # Dependencies
 .depend: $(SRC) 

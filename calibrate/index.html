@@ -15,8 +15,11 @@
       }
       #video {
           position: absolute;
-          /* CR: no visible: false? */
-          top: -2000px; 
+          /* This is so that video is not visible,
+             and also to avoid it stretching the page.
+             visible: false doesn't help.  */
+          top: -2000px;
+          left: -2000px;
           cursor: crosshair;
       }
       #canvas {
@@ -26,7 +29,7 @@
           width: 100%;
           height: 100%;
           z-index: 100;
-      }dom
+      }
     </style>
   </head>
   <body>
@@ -37,6 +40,7 @@
             onResize="resize()"></canvas>
     
     <script src="external/math.min.js"></script>
+    <script src="external/three.js"></script>
     <script src="index.js"></script>
   </body>
 </html>

@@ -8,9 +8,16 @@ open Common
 open Geometry
 
 module Image : sig
-  type t
+  type t = Html.imageElement Js.t
 
   val load : string -> t Lwt.t
+end
+
+module Canvas : sig
+  type t = Html.canvasElement Js.t
+
+  val width : t -> float
+  val height : t -> float
 end
 
 module Image_source : sig
@@ -25,6 +32,8 @@ module Ctx : sig
   type t
 
   val create : id:string -> t
+
+  val canvas : t -> Canvas.t
 
   val canvas_actions : t -> Action.t Lwt_stream.t
 
@@ -79,22 +88,25 @@ module Ctx : sig
 end
 
 module Video : sig
-  type t
+  type t = Html.videoElement Js.t
 
   val create : id:string -> t
 
   (*
     - Doesn't work if you access the html over file://
     - In chrome requires that you access it over https:// or localhost.
-      https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins
+    https://sites.google.com/a/chromium.org/dev/Home/chromium-security/deprecating-powerful-features-on-insecure-origins
 
     - To deactivate a camera:
-      echo 1-7 > /sys/bus/usb/drivers/usb/unbind
-   *)
+    echo 1-7 > /sys/bus/usb/drivers/usb/unbind
+  *)
   val read_camera : t -> unit
 
   (* CR-someday: maybe return the pixel array straight away? *)
   val get_frame : ?delay:bool -> t -> Ctx.t -> unit Lwt.t
+
+  val load : ?loop:bool -> string -> t
 end
 
 val set_reload_on_resize : unit -> unit
+

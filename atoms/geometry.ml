@@ -172,6 +172,11 @@ module Matrix = struct
       && Float.equal (c 2 2) 1.
     then ()
     else failwithf "%s not suitable for context2d" (to_string t) ()
+
+  let transpose_exn t =
+    to_array t
+    |> Array.transpose_exn
+    |> of_array
 end
 
 module Frame = struct

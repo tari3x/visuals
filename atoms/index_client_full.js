@@ -10812,7 +10812,7 @@
            of_array=
             function(a)
              {return caml_js_from_array(map$0(a,caml_js_from_array))},
-           coeffs=
+           to_array=
             function(t){return map$0(caml_js_to_array(t),caml_js_to_array)},
            inv=function(m){return math.inv(m)},
            zero$5=0,
@@ -11013,7 +11013,7 @@
             function(t)
              {t.save();
               suitable_for_context2d_exn(m);
-              var m$0=coeffs(m);
+              var m$0=to_array(m);
               function c(i,j)
                {return caml_check_bound(caml_check_bound(m$0,i)[i + 1],j)
                         [j + 1]}
@@ -11251,7 +11251,7 @@
               ctx.lineCap = "round";
               var m$0=matrix(t$0[2]);
               suitable_for_context2d_exn(m$0);
-              var m=coeffs(m$0);
+              var m=to_array(m$0);
               function c$0(i,j)
                {return caml_check_bound(caml_check_bound(m,i)[i + 1],j)[j + 1]}
               var

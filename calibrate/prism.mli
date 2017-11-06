@@ -32,11 +32,13 @@ val create : Surface.t list -> t
 
 val camera_vector_to_canvas : t -> Vector.t -> Vector.t option
 
-val camera_image_to_canvas
+(* CR: change name, you aren't actually drawing. Make it just return the
+   object. *)
+val draw_camera_image_on_canvas
   :  t
-  -> image:Image_source.t
-  -> ctx:Ctx.t
-  -> pos:Vector.t
+  -> texture:Three.Texture.t
+  -> scene:Three.Scene.t
+  -> canvas:Canvas.t
   -> unit
 
 val draw_border : t -> ctx:Ctx.t -> unit

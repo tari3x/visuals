@@ -96,16 +96,16 @@ let actions (target : #Html.element Js.t) =
   stream
 
 module Image = struct
-  type t = Html.imageElement  Js.t
+  type t = Html.imageElement Js.t
 
   let load src =
-    let img = Html.createImg Html.document in
+    let t = Html.createImg Html.document in
     Lwt.wrap
       (fun c ->
-        img##.onload := Html.handler (fun _ -> c (); Js._false);
-        img##.src := (string src))
+        t##.onload := Html.handler (fun _ -> c (); Js._false);
+        t##.src := (string src))
     >>= fun () ->
-    Lwt.return img
+    Lwt.return t
 end
 
 module Image_source = struct
@@ -120,6 +120,16 @@ module Image_source = struct
   let video  x = `video x
 end
 
+module Canvas = struct
+  type t = Html.canvasElement Js.t
+
+  let width t =
+    Float.of_int t##.width
+
+  let height t =
+    Float.of_int t##.height
+end
+
 module Ctx = struct
   type t = Html.canvasRenderingContext2D Js.t
 
@@ -129,6 +139,9 @@ module Ctx = struct
     canvas##.width := canvas##.offsetWidth;
     canvas##.height := canvas##.offsetHeight;
     canvas##getContext Html._2d_
+
+  let canvas t =
+    t##.canvas
 
   let canvas_actions t =
     actions (t##.canvas)
@@ -305,6 +318,16 @@ module Video = struct
       Lwt.return ()
     | _ ->
       get_frame t ctx ~delay:false
+
+  (* CR-someday: wait for the canplay event? *)
+  let load ?(loop = false) src =
+    let t = Html.createVideo Html.document in
+    t##.src := (Js.string src);
+    t##.loop := Js.bool loop;
+    (* t##load; *)
+    t##play;
+    (* t##.autoplay := Js._true; *)
+    t
 end
 
 let set_reload_on_resize () =

@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 open Geometry
 open Dom_wrappers
@@ -25,9 +26,9 @@ module Quad = struct
     let angle =
       List.map [u0; u1; u2; u3; u0] ~f:(fun u -> Vector.(u - v))
       |> angles
-      |> List.fold_left ~init:0. ~f:(+.)
+      |> List.fold ~init:0. ~f:(+.)
     in
-    abs_float(angle) > 1.
+    Float.(abs angle > 1.)
 
   let path (u0, u1, u2, u3) ctx =
     Ctx.begin_path ctx;
@@ -42,6 +43,36 @@ module Quad = struct
     Ctx.set_stroke_color ctx color;
     path t ctx;
     Ctx.stroke ctx
+
+  let geometry (u0, u1, u2, u3) ~canvas =
+    let open Three_wrappers in
+    let uvm = Matrix.scale
+      ~scale_x:(1. /. (Canvas.width canvas))
+      ~scale_y:(1. /. (Canvas.height canvas))
+    in
+    let uv0 = Matrix.apply uvm u0 in
+    let uv1 = Matrix.apply uvm u1 in
+    let uv2 = Matrix.apply uvm u2 in
+    let uv3 = Matrix.apply uvm u3 in
+    let vertices = Array.map [| u0; u1; u2; u3 |] ~f:Vector3.of_vector in
+    Geometry.create ()
+      ~vertices
+      ~faces:[| Face.create (0, 1, 2) ~uvs:(uv0, uv1, uv2)
+             ;  Face.create (2, 3, 0) ~uvs:(uv2, uv3, uv0)
+             |]
+
+  let mesh t ~texture ?color ~canvas () =
+    let open Three in
+    let open Three_wrappers in
+    let geometry = geometry t ~canvas in
+    let material = MeshBasicMaterial.create ~map:texture ?color () in
+    material##.side := Material.Side.double_side;
+    (*
+       material##.wireframe := Js._true;
+       material##.transparent := Js._true;
+    *)
+    let obj = Mesh.create geometry (material :> Three.Material.t) in
+    (obj :> Object3D.t)
 end
 
 module Surface = struct
@@ -53,8 +84,8 @@ module Surface = struct
 
   let create ~canvas ~camera =
     let open Vector in
-    let (v0, v1, v2, v3) = canvas in
-    let (u0, u1, u2, u3) = camera in
+    let (v0, v1, v2, v3) = camera in
+    let (u0, u1, u2, u3) = canvas in
     (* "Fundamentals of Texture Mapping and Image Warping",
        "Inferring Projective Mappings" *)
     let a =
@@ -86,7 +117,6 @@ module Surface = struct
         ( x.(0), x.(1), x.(2) )
         ( x.(3), x.(4), x.(5) )
         ( x.(6), x.(7), 1. )
-      |> Matrix.inv
     in
     { canvas; camera; camera_to_canvas }
 
@@ -94,21 +124,23 @@ module Surface = struct
     let v = Matrix.apply t.camera_to_canvas v in
     Option.some_if (Quad.contains t.canvas v) v
 
-  let camera_image_to_canvas t ~image:_ ~ctx ~pos =
-    Ctx.save ctx;
+  let draw_camera_image_on_canvas t ~texture ~(scene : Three.Scene.t) ~canvas =
+    let open Three_wrappers in
     (*
-    Quad.path t.canvas ctx;
-    Ctx.clip ctx;
+       let camera_quad = Quad.mesh t.camera ~texture ~color:Color.green ~canvas in
+       scene##add camera_quad;
+       let canvas_quad = Quad.mesh t.canvas ~texture ~color:Color.red ~canvas in
+       scene##add canvas_quad;
     *)
-    Ctx.set_transform ctx t.camera_to_canvas;
-    (* Ctx.draw ctx image pos;
-    Ctx.set_fill_color ctx Color.green;
-       Ctx.draw_circle ctx pos ~radius:10.;  *)
-    Quad.draw_border t.camera ~ctx ~color:Color.blue;
-    (* Quad.draw_border t.canvas ~ctx ~color:Color.yellow; *)
-    Ctx.restore ctx;
-    Ctx.set_fill_color ctx Color.red;
-    Ctx.draw_circle ctx (Matrix.apply t.camera_to_canvas pos) ~radius:10.
+    let camera_on_canvas_quad = Quad.mesh t.camera ~texture ~canvas () in
+    (* obj##applyMatrix (Matrix4.of_matrix t.camera_to_canvas); *)
+    (* debug_table t.camera_to_canvas; *)
+    (*
+       let m = Matrix4.of_matrix t.camera_to_canvas in
+       debug_table (m##.elements);
+    *)
+    Object3D.set_matrix camera_on_canvas_quad (Matrix4.of_matrix t.camera_to_canvas);
+    scene##add camera_on_canvas_quad
 
   let draw_border t ~ctx =
     Quad.draw_border t.camera ~ctx ~color:Color.green;
@@ -124,8 +156,8 @@ let camera_vector_to_canvas t v =
   List.find_map t ~f:(fun surface ->
     Surface.camera_vector_to_canvas surface v)
 
-let camera_image_to_canvas t ~image ~ctx ~pos =
-  List.iter t ~f:(Surface.camera_image_to_canvas ~image ~ctx ~pos)
+let draw_camera_image_on_canvas t ~texture ~scene ~canvas =
+  List.iter t ~f:(Surface.draw_camera_image_on_canvas ~texture ~scene ~canvas)
 
 let draw_border t ~ctx =
   List.iter t ~f:(Surface.draw_border ~ctx)

@@ -18,6 +18,9 @@ let (=) : int -> int -> bool = (=)
 let max : int -> int -> int = max
 let min : int -> int -> int = min
 
+let debug_table x : unit =
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "console.table")
+    [| Js.Unsafe.inject x |]
 let debug f = Printf.ksprintf (fun s -> Firebug.console##(log (Js.string s))) f
 let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s))) f
 let console_error f =
