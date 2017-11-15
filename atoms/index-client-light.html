@@ -54,7 +54,8 @@
       }
 
       .canvas {
-          position: absolute;
+          /* This leads to being 100% of the screen, not of the container: */
+          /* position: absolute; */
           width: 100%;
           height: 100%;
       }
@@ -142,33 +143,33 @@
       <div id="color-picker-div">
         <canvas class="canvas" id="color-picker-canvas"></canvas>
         <!--
-        <div class="color-slider">
-          <canvas class="canvas" id="red-slider"></canvas>
-        </div>
-        <div class="color-slider">
-          <canvas class="canvas" id="green-slider"></canvas>
-        </div>
-        <div class="color-slider">
-          <canvas class="canvas" id="blue-slider"></canvas>
-        </div>
-        -->
+            <div class="color-slider">
+              <canvas class="canvas" id="red-slider"></canvas>
+            </div>
+            <div class="color-slider">
+              <canvas class="canvas" id="green-slider"></canvas>
+            </div>
+            <div class="color-slider">
+              <canvas class="canvas" id="blue-slider"></canvas>
+            </div>
+            -->
         <!--
-        <input class="color-slider" type="range" id="red-slider"   orient="vertical" min="0" max="255">
-        <input class="color-slider" type="range" id="green-slider" orient="vertical" min="0" max="255">
-        <input class="color-slider" type="range" id="blue-slider"
-               orient="vertical" min="0" max="255">
-        -->
+            <input class="color-slider" type="range" id="red-slider"   orient="vertical" min="0" max="255">
+            <input class="color-slider" type="range" id="green-slider" orient="vertical" min="0" max="255">
+            <input class="color-slider" type="range" id="blue-slider"
+                   orient="vertical" min="0" max="255">
+            -->
       </div>
     </div>
     
     <!--
-    <script>
-      // avoid caching
-      document.write('<script src="index_client_light.js?dev='
-                     + Math.floor(Math.random() * 100)
-                     + '"\><\/script>');
-      </script>
-      -->
-      <script src="index_client_light.js"></script>
+        <script>
+          // avoid caching
+          document.write('<script src="index_client_light.js?dev='
+                         + Math.floor(Math.random() * 100)
+                         + '"\><\/script>');
+          </script>
+          -->
+    <script src="index_client_light.js"></script>
   </body>
 </html>
