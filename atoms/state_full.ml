@@ -16,13 +16,13 @@ open Dom_wrappers
 type t =
   { is_server : bool
   ; ctx : Ctx.t
-  ; global : Global.t
+  ; global : Shape.t Global.t
   ; touches : Multitouch.t
-  ; mutable template : Shape.t
-  ; mutable on_shape_active : (Shape.t -> unit) list
+  ; mutable template : Shape.t Box.t
+  ; mutable on_box_active : (Shape.t Box.t -> unit) list
   ; mutable transient_mode : bool
-  ; mutable tracers : (float * Shape.t) list
-  ; mutable most_recent : Shape_id.t
+  ; mutable tracers : (float * Shape.t Box.t) list
+  ; mutable most_recent : Box_id.t
   }
 
 (* CR: you want to not necessarily hold this for getting the color. *)
@@ -37,12 +37,12 @@ let most_recent_active t =
 
 let render_tracers t ~time =
   t.tracers <-
-    List.filter t.tracers ~f:(fun (time0, shape) ->
+    List.filter t.tracers ~f:(fun (time0, box) ->
       let alpha = (1. -. (time -. time0)) /. 5. in
       if Float.(alpha < 0.02) then false
       else begin
-        let shape = Shape.set_alpha shape ~alpha in
-        Shape.render shape t.ctx ~time;
+        let box = Box.set_alpha box ~alpha in
+        Shape.render box t.ctx ~time;
         true
       end)
 
@@ -59,8 +59,8 @@ let rec render_loop t =
   >>= fun () ->
   let time = Global.now_on_server t.global |> Time.to_seconds in
   Ctx.clear t.ctx;
-  Global.iter t.global ~f:(fun shape ->
-    Shape.render shape t.ctx ~time);
+  Global.iter t.global ~f:(fun box ->
+    Shape.render box t.ctx ~time);
   if t.is_server
   then begin
     render_tracers t ~time;
@@ -68,16 +68,16 @@ let rec render_loop t =
   end;
   render_loop t
 
-let touch_shape t shape_id shape =
+let touch_box t box_id box =
   (* CR: this shouldn't be updated on move. *)
-  t.most_recent <- shape_id;
-  t.template <- shape
+  t.most_recent <- box_id;
+  t.template <- box
 
-let on_shape_active t ~f =
-  t.on_shape_active <- f :: t.on_shape_active
+let on_box_active t ~f =
+  t.on_box_active <- f :: t.on_box_active
 
-let call_on_shape_active t shape =
-  List.iter t.on_shape_active ~f:(fun f -> f shape)
+let call_on_box_active t box =
+  List.iter t.on_box_active ~f:(fun f -> f box)
 
 (* CR-someday: I'm not sure I have to actually wait for the window to load,
    but I suspect I do. *)
@@ -87,38 +87,39 @@ let create ctx ~is_server =
     ~viewport_height:(Ctx.height ctx)
     ~is_server
     ~max_clients:6
+    ~sexp_of_a:Shape.sexp_of_t
   >>= fun global ->
   let t =
     { ctx
     ; global
     ; is_server
     (* Start with a bit of lies, never lie after that. *)
-    ; most_recent = Shape_id.create ()
+    ; most_recent = Box_id.create ()
     ; touches = Multitouch.create ()
-    ; template = Shape.default
-    ; on_shape_active = []
+    ; template = Box.default Shape.default
+    ; on_box_active = []
     ; transient_mode = false
     ; tracers = []
     }
   in
   if t.is_server
-  then Global.on_change t.global ~f:(fun _shape_id shape ->
-    t.tracers <- (Time.now() |> Time.to_seconds, shape) :: t.tracers;);
+  then Global.on_change t.global ~f:(fun _box_id box ->
+    t.tracers <- (Time.now() |> Time.to_seconds, box) :: t.tracers;);
   Lwt.async (fun () -> render_loop t);
   Lwt.return t
 
 let apply_touch_update t (update : Multitouch.Update.t) =
-  List.iter update ~f:(fun (shape_id, update) ->
+  List.iter update ~f:(fun (box_id, update) ->
     match update with
     | None ->
       if t.transient_mode
-      then Global.delete  t.global shape_id
-      else Global.release t.global shape_id
+      then Global.delete  t.global box_id
+      else Global.release t.global box_id
     | Some update ->
-      Global.change t.global shape_id ~f:(fun shape ->
-        let shape = Multitouch.Update.Single.apply update shape in
-        touch_shape t shape_id shape;
-        shape))
+      Global.change t.global box_id ~f:(fun box ->
+        let box = Multitouch.Update.Single.apply update box in
+        touch_box t box_id box;
+        box))
 
 let process_action t (action : Action.t) =
   match action.kind with
@@ -129,41 +130,41 @@ let process_action t (action : Action.t) =
     end
   | `down ->
     List.iter action.changed_touches ~f:(fun (touch : Action.Pointer.t) ->
-      let shape_id =
-        Global.find t.global ~f:(fun shape ->
-          Shape.touched_by shape touch.position)
+      let box_id =
+        Global.find t.global ~f:(fun box ->
+          Shape.touched_by box touch.position)
       in
-      match shape_id with
-      | Some shape_id ->
-        let shape = Global.get_exn t.global shape_id in
-        Multitouch.add t.touches shape_id (Shape.frame shape) touch
+      match box_id with
+      | Some box_id ->
+        let box = Global.get_exn t.global box_id in
+        Multitouch.add t.touches box_id (Box.frame box) touch
         |> apply_touch_update t;
-        call_on_shape_active t shape;
-        Global.request t.global shape_id;
+        call_on_box_active t box;
+        Global.request t.global box_id;
       | None ->
         match most_recent_active t with
-        | Some (shape_id, shape) ->
-          Multitouch.add t.touches shape_id (Shape.frame shape) touch
+        | Some (box_id, box) ->
+          Multitouch.add t.touches box_id (Box.frame box) touch
           |> apply_touch_update t;
         | None ->
-          let shape = Shape.set_translation t.template touch.position in
-          let shape_id = Global.add t.global shape in
-          Multitouch.add t.touches shape_id (Shape.frame shape) touch
+          let box = Box.set_translation t.template touch.position in
+          let box_id = Global.add t.global box in
+          Multitouch.add t.touches box_id (Box.frame box) touch
           |> apply_touch_update t)
   | `up ->
     Multitouch.remove t.touches action.changed_touches
     |> apply_touch_update t
 
 let set_color t color =
-  t.template <- Shape.set t.template ~color;
+  t.template <- Box.set t.template ~color;
   match most_recent_active t with
   | None -> ()
-  | Some (shape_id, shape) ->
-    let shape = Shape.set shape ~color in
-    Global.change t.global shape_id ~f:(Fn.const shape)
+  | Some (box_id, box) ->
+    let box = Box.set box ~color in
+    Global.change t.global box_id ~f:(Fn.const box)
 
-let set_shape_kind t kind =
-  t.template <- Shape.set t.template ~kind
+let set_shape t shape =
+  t.template <- Box.set t.template ~kind:shape
 
 let toggle_transient_mode t =
   t.transient_mode <- not t.transient_mode

@@ -10,53 +10,55 @@ open Common
 
 module Channel = Faye.Channel
 
-module Shape_info : sig
-  type t
-  val create : shape:Shape.t -> owner:Client_id.t option -> t
-  val shape : t -> Shape.t
-  val owner : t -> Client_id.t option
-  val requested : t -> bool
-  val last_touched : t -> Time.t
+module Box_info : sig
+  type 'a t
+  val create : box:'a Box.t -> owner:Client_id.t option -> 'a t
+  val box : 'a t -> 'a Box.t
+  val owner : _ t -> Client_id.t option
+  val requested : _ t -> bool
+  val last_touched : _ t -> Time.t
   val set
-    :  t
-    -> ?shape:Shape.t
+    :  'a t
+    -> ?box:'a Box.t
     -> ?owner:Client_id.t option
     -> ?requested:bool
     -> unit
-    -> t
+    -> 'a t
 end = struct
-  (* We only modify [shape] and [owner] in [process_message]. The only
-     exception is when we add a shape. *)
-  type t =
-    { shape : Shape.t
+  (* We only modify [box] and [owner] in [process_message]. The only
+     exception is when we add a box. *)
+  type 'a t =
+    { box : 'a Box.t
     ; owner : Client_id.t option
     (* Set on [request], reset on [release]. *)
     ; requested : bool
     ; last_touched : Time.t
     }
 
-  let create ~shape ~owner =
+  let create ~box ~owner =
     let last_touched = Time.now () in
-    { shape; owner; requested = false; last_touched }
+    { box; owner; requested = false; last_touched }
 
-  let shape t = t.shape
+  let box t = t.box
   let owner t = t.owner
   let requested t = t.requested
   let last_touched t = t.last_touched
 
   let set t
-      ?(shape = t.shape)
+      ?(box = t.box)
       ?(owner = t.owner)
       ?(requested = t.requested) () =
     let last_touched = Time.now () in
-    { shape; owner; requested; last_touched }
+    { box; owner; requested; last_touched }
 
-  let _to_string { shape; owner; requested; last_touched } =
-    Printf.sprintf "{ shape = %s; owner = %s; requested = %b; last_touched = %s }"
-      (Shape.to_string shape)
+(*
+  let _to_string { box; owner; requested; last_touched } =
+    Printf.sprintf "{ box = %s; owner = %s; requested = %b; last_touched = %s }"
+      (Box.to_string box)
       (Option.to_string Client_id.to_string owner)
       requested
       (Time.to_string last_touched)
+*)
 end
 
 module Client_info = struct
@@ -65,14 +67,14 @@ module Client_info = struct
     }
 end
 
-type t =
-  { faye : Message.t Faye.t
+type 'a t =
+  { faye : 'a Message.t Faye.t
   ; is_server : bool
   ; client_id : Client_id.t
   (* CR: get rid of this, or at least make sure that it is only used to order
-     shapes during rendering. *)
-  ; mutable shape_ids : Shape_id.t list
-  ; shapes : Shape_info.t Hashtbl.M(Shape_id).t
+     boxs during rendering. *)
+  ; mutable box_ids : Box_id.t list
+  ; boxes : 'a Box_info.t Hashtbl.M(Box_id).t
   ; max_clients : int
   ; clients : Client_info.t Hashtbl.M(Client_id).t
   ; mutable server_offset : Time.Span.t
@@ -81,91 +83,92 @@ type t =
   (* Multiply server coordinate by this number (<= 1) to get client
      coordinate. *)
   ; mutable viewport_scale : float
-  ; mutable on_change : (Shape_id.t -> Shape.t -> unit) list
+  ; mutable on_change : (Box_id.t -> 'a Box.t -> unit) list
+  ; sexp_of_a : ('a -> Sexp.t)
   }
 
-let get t shape_id =
-  Option.map (Hashtbl.find t.shapes shape_id) ~f:(fun shape ->
-    Shape_info.shape shape)
+let get t box_id =
+  Option.map (Hashtbl.find t.boxes box_id) ~f:(fun box ->
+    Box_info.box box)
 
-let get_exn t shape_id =
-  let shape = Hashtbl.find_exn t.shapes shape_id in
-  Shape_info.shape shape
+let get_exn t box_id =
+  let box = Hashtbl.find_exn t.boxes box_id in
+  Box_info.box box
 
-let encode_shape t shape =
-  Shape.to_local shape ~viewport_scale:t.viewport_scale
+let encode_box t box =
+  Box.to_local box ~viewport_scale:t.viewport_scale
 
-let decode_shape t shape =
-  Shape.of_local shape ~viewport_scale:t.viewport_scale
+let decode_box t box =
+  Box.of_local box ~viewport_scale:t.viewport_scale
 
 let init_message t =
-  let shapes =
-    List.map (List.rev t.shape_ids) ~f:(fun shape_id ->
-      let shape_info = Hashtbl.find_exn t.shapes shape_id in
-      let shape = Shape_info.shape shape_info in
-      let owner = Shape_info.owner shape_info in
-      (shape_id, encode_shape t shape, owner))
+  let boxes =
+    List.map (List.rev t.box_ids) ~f:(fun box_id ->
+      let box_info = Hashtbl.find_exn t.boxes box_id in
+      let box = Box_info.box box_info in
+      let owner = Box_info.owner box_info in
+      (box_id, encode_box t box, owner))
   in
   Message.Init
-    { shapes
+    { boxes
     ; width = t.viewport_width
     ; height = t.viewport_height
     ; time = Time.now ()
     }
 
 let init t msg =
-  let { Message.Init. shapes; width; height; time } = msg in
+  let { Message.Init. boxes; width; height; time } = msg in
   let scale_x = t.viewport_width /. width in
   let scale_y = t.viewport_height /. height in
-  (* Make sure to set viewport scale before decoding the shapes. *)
+  (* Make sure to set viewport scale before decoding the boxes. *)
   t.viewport_scale <- Float.min (Float.min scale_x scale_y) 1.0;
-  List.iter shapes ~f:(fun (shape_id, shape, owner) ->
-    let shape = decode_shape t shape in
-    t.shape_ids <- shape_id :: t.shape_ids;
-    let shape_info = Shape_info.create ~shape ~owner in
-    Hashtbl.set t.shapes ~key:shape_id ~data:shape_info);
-  t.shape_ids <- List.rev t.shape_ids;
+  List.iter boxes ~f:(fun (box_id, box, owner) ->
+    let box = decode_box t box in
+    t.box_ids <- box_id :: t.box_ids;
+    let box_info = Box_info.create ~box ~owner in
+    Hashtbl.set t.boxes ~key:box_id ~data:box_info);
+  t.box_ids <- List.rev t.box_ids;
   t.server_offset <- Time.(time - now ())
 
-let is_owner t shape_id =
-  match Hashtbl.find t.shapes shape_id with
+let is_owner t box_id =
+  match Hashtbl.find t.boxes box_id with
   | None -> false
-  | Some shape_info ->
-    match Shape_info.owner shape_info with
+  | Some box_info ->
+    match Box_info.owner box_info with
     | None -> false
     | Some client_id -> Client_id.equal client_id t.client_id
 
-let assign t client_id shape_id =
+let assign t client_id box_id =
   let release () =
-    Faye.publish t.faye Channel.global (Message.Release shape_id)
+    Faye.publish t.faye Channel.global (Message.Release box_id)
   in
-  match Hashtbl.find t.shapes shape_id with
+  match Hashtbl.find t.boxes box_id with
   | None ->
     if Client_id.equal t.client_id client_id then release ()
-  | Some shape ->
-    if Client_id.equal t.client_id client_id && not (Shape_info.requested shape)
+  | Some box ->
+    if Client_id.equal t.client_id client_id && not (Box_info.requested box)
     then release ()
     else begin
-      let shape = Shape_info.set shape ~owner:(Some client_id) () in
-      Hashtbl.set t.shapes ~key:shape_id ~data:shape;
-      (* This adds new shapes to [shape_ids]. *)
-      t.shape_ids <- List.bring_to_front t.shape_ids shape_id ~equal:Shape_id.equal;
+      let box = Box_info.set box ~owner:(Some client_id) () in
+      Hashtbl.set t.boxes ~key:box_id ~data:box;
+      (* This adds new boxes to [box_ids]. *)
+      t.box_ids <- List.bring_to_front t.box_ids box_id ~equal:Box_id.equal;
     end
 
-let call_on_change t shape_id shape =
-  List.iter t.on_change ~f:(fun f -> f shape_id shape)
+let call_on_change t box_id box =
+  List.iter t.on_change ~f:(fun f -> f box_id box)
 
 (* Even with correct ordering of messages, if the client's browser suddenly
-   dies, it might not release the shape. *)
-let cleanup_shapes t =
+   dies, it might not release the box. *)
+let cleanup_boxes t =
   let time = Time.now () in
-  t.shape_ids <- List.filter t.shape_ids ~f:(fun shape_id ->
-    let shape = Hashtbl.find_exn t.shapes shape_id in
-    let last_touched = Shape_info.last_touched shape in
+  t.box_ids <- List.filter t.box_ids ~f:(fun box_id ->
+    let box = Hashtbl.find_exn t.boxes box_id in
+    let last_touched = Box_info.last_touched box in
     let age = Time.(time - last_touched) |> Time.Span.to_seconds in
     if Float.(age > 30.)
     then begin
-      Hashtbl.remove t.shapes shape_id;
+      Hashtbl.remove t.boxes box_id;
       false
     end
     else true)
@@ -178,53 +181,53 @@ let cleanup_clients t =
     if now -. last_active > 20. then None else (Some client_info))
     *)
 
-let change t shape_id ~f =
-  match Hashtbl.find t.shapes shape_id with
-  | None -> error "shape not found in change"; ()
-  | Some shape ->
-    Hashtbl.set t.shapes ~key:shape_id ~data:(f shape)
+let change t box_id ~f =
+  match Hashtbl.find t.boxes box_id with
+  | None -> error "box not found in change"; ()
+  | Some box ->
+    Hashtbl.set t.boxes ~key:box_id ~data:(f box)
 
 let publish t msg =
   Faye.publish t.faye Channel.global msg
 
-let add t client_id shape_id shape =
-  let shape_info = Shape_info.create ~shape ~owner:(Some client_id) in
-  Hashtbl.set t.shapes ~key:shape_id ~data:shape_info;
-  t.shape_ids <- List.bring_to_front t.shape_ids shape_id ~equal:Shape_id.equal;
-  call_on_change t shape_id shape
+let add t client_id box_id box =
+  let box_info = Box_info.create ~box ~owner:(Some client_id) in
+  Hashtbl.set t.boxes ~key:box_id ~data:box_info;
+  t.box_ids <- List.bring_to_front t.box_ids box_id ~equal:Box_id.equal;
+  call_on_change t box_id box
 
     (*
 let reject_because_max_clients t client_id =
   bla
     *)
 
-let process_message t  = function
-  | Message.Request (client_id, shape_id) ->
+let process_message t = function
+  | Message.Request (client_id, box_id) ->
     if t.is_server
-    then change t shape_id ~f:(fun shape ->
-      match Shape_info.owner shape with
-      | Some _ -> shape
+    then change t box_id ~f:(fun box ->
+      match Box_info.owner box with
+      | Some _ -> box
       | None ->
-        publish t (Message.Grant (client_id, shape_id));
-        Shape_info.set shape ~owner:(Some client_id) ())
-  | Message.Release shape_id ->
-    change t shape_id ~f:(fun shape ->
-      Shape_info.set shape ~owner:None ())
-  | Message.Grant (client_id, shape_id) ->
-    assign t client_id shape_id
-  | Message.Add (shape_id, client_id, shape) ->
+        publish t (Message.Grant (client_id, box_id));
+        Box_info.set box ~owner:(Some client_id) ())
+  | Message.Release box_id ->
+    change t box_id ~f:(fun box ->
+      Box_info.set box ~owner:None ())
+  | Message.Grant (client_id, box_id) ->
+    assign t client_id box_id
+  | Message.Add (client_id, box_id, box) ->
     (* Add is called immediately by the owner, to reduce the chance of a race
        condition. *)
     if Client_id.(client_id <> t.client_id)
-    then add t client_id shape_id (decode_shape t shape)
-  | Message.Set (_, shape_id, shape) ->
-    let shape = decode_shape t shape in
-    change t shape_id ~f:(fun shape_info ->
-      Shape_info.set shape_info ~shape ());
-    call_on_change t shape_id shape
-  | Message.Delete shape_id ->
-    Hashtbl.remove t.shapes shape_id;
-    t.shape_ids <- List.delete t.shape_ids shape_id ~equal:Shape_id.equal
+    then add t client_id box_id (decode_box t box)
+  | Message.Set (_, box_id, box) ->
+    let box = decode_box t box in
+    change t box_id ~f:(fun box_info ->
+      Box_info.set box_info ~box ());
+    call_on_change t box_id box
+  | Message.Delete box_id ->
+    Hashtbl.remove t.boxes box_id;
+    t.box_ids <- List.delete t.box_ids box_id ~equal:Box_id.equal
   | Message.Request_init (_, channel) ->
     if t.is_server
     then Faye.publish t.faye channel (init_message t)
@@ -249,16 +252,22 @@ let process_message t msg =
       end);
   end;
   *)
+  (*
+  debug !"processing messages %{Sexp}"
+    (Message.sexp_of_t t.sexp_of_a msg);
+  *)
   process_message t msg
 
-let create ~viewport_width ~viewport_height ~is_server ~max_clients =
-  let faye = Faye.create ~to_string:Message.to_string in
+let create ~viewport_width ~viewport_height ~is_server ~max_clients ~sexp_of_a =
+  let faye =
+    Faye.create ~sexp_of_a:(Message.sexp_of_t sexp_of_a)
+  in
   let t =
     { faye
     ; is_server
     ; client_id = Client_id.create ()
-    ; shape_ids = []
-    ; shapes = Hashtbl.create (module Shape_id) ()
+    ; box_ids = []
+    ; boxes = Hashtbl.create (module Box_id) ()
     ; server_offset = Time.Span.zero
     ; viewport_width
     ; viewport_height
@@ -266,12 +275,14 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
     ; on_change = []
     ; max_clients
     ; clients = Hashtbl.create (module Client_id) ()
+    ; sexp_of_a
     }
   in
+  (* debug !"starting with client_id %{Client_id}" t.client_id; *)
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
   if t.is_server
   then begin
-    Lwt.every ~span:(Time.Span.of_seconds 1.) ~f:(fun () -> cleanup_shapes t);
+    Lwt.every ~span:(Time.Span.of_seconds 1.) ~f:(fun () -> cleanup_boxes t);
     return t
   end
   else begin
@@ -286,52 +297,52 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients =
   end
 
 let iter t ~f =
-  t.shape_ids <- List.filter t.shape_ids ~f:(Hashtbl.mem t.shapes);
+  t.box_ids <- List.filter t.box_ids ~f:(Hashtbl.mem t.boxes);
   (* CR: better reverse in other places. *)
-  List.iter (List.rev t.shape_ids) ~f:(fun shape_id ->
-    match Hashtbl.find t.shapes shape_id with
+  List.iter (List.rev t.box_ids) ~f:(fun box_id ->
+    match Hashtbl.find t.boxes box_id with
     | None ->
-      (* CR: this does happen if you don't filter, presumably because of shape
+      (* CR: this does happen if you don't filter, presumably because of box
          cleanup. *)
-      error "shape_id is not in shapes"
-    | Some shape -> f (Shape_info.shape shape))
+      error "box_id is not in boxes"
+    | Some box -> f (Box_info.box box))
 
 let find t ~f =
-  List.find (List.rev t.shape_ids) ~f:(fun shape_id ->
-    match Hashtbl.find t.shapes shape_id with
+  List.find (List.rev t.box_ids) ~f:(fun box_id ->
+    match Hashtbl.find t.boxes box_id with
     | None -> false
-    | Some shape -> f (Shape_info.shape shape))
+    | Some box -> f (Box_info.box box))
 
-let request t shape_id =
-  change t shape_id ~f:(fun shape ->
-    publish t (Message.Request (t.client_id, shape_id));
-    Shape_info.set shape ~requested:true ())
+let request t box_id =
+  change t box_id ~f:(fun box ->
+    publish t (Message.Request (t.client_id, box_id));
+    Box_info.set box ~requested:true ())
 
-let release t shape_id =
-  change t shape_id ~f:(fun shape ->
-    Shape_info.set shape ~requested:true ());
-  if is_owner t shape_id
-  then publish t (Message.Release shape_id)
+let release t box_id =
+  change t box_id ~f:(fun box ->
+    Box_info.set box ~requested:true ());
+  if is_owner t box_id
+  then publish t (Message.Release box_id)
 
-let add t shape =
-  let shape_id = Shape_id.create () in
-  add t t.client_id shape_id shape;
-  let shape = encode_shape t shape in
-  publish t (Message.Add (shape_id, t.client_id, shape));
-  shape_id
+let add t box =
+  let box_id = Box_id.create () in
+  add t t.client_id box_id box;
+  let box = encode_box t box in
+  publish t (Message.Add (t.client_id, box_id, box));
+  box_id
 
-let change t shape_id ~f =
-  if is_owner t shape_id
-  then match Hashtbl.find t.shapes shape_id with
+let change t box_id ~f =
+  if is_owner t box_id
+  then match Hashtbl.find t.boxes box_id with
   | None -> ()
-  | Some shape ->
-    let shape = f (Shape_info.shape shape) in
-    let shape = Shape.to_local shape ~viewport_scale:t.viewport_scale in
-    publish t (Message.Set (t.client_id, shape_id, shape))
+  | Some box ->
+    let box = f (Box_info.box box) in
+    let box = Box.to_local box ~viewport_scale:t.viewport_scale in
+    publish t (Message.Set (t.client_id, box_id, box))
 
-let delete t shape_id =
-  if is_owner t shape_id
-  then publish t (Message.Delete shape_id)
+let delete t box_id =
+  if is_owner t box_id
+  then publish t (Message.Delete box_id)
 
 let now_on_server t =
   Time.(now () + t.server_offset)

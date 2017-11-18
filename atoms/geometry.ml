@@ -8,7 +8,7 @@ open Base
 open Common
 
 module Angle = struct
-  type t = float
+  type t = float [@@deriving sexp]
 
   let to_string t =
     Printf.sprintf "%f rad" t
@@ -27,6 +27,7 @@ end
 
 module Vector = struct
   type t = (float * float * float)
+  [@@deriving sexp]
 
   let create_float x y =
     (x, y, 1.)
@@ -185,7 +186,7 @@ module Frame = struct
     ; scale_y : float
     ; rotation : Angle.t
     ; translation : Vector.t
-    }
+    } [@@deriving sexp]
 
   let ( *> ) t1 t2 =
     { scale_x = t1.scale_x *. t2.scale_x

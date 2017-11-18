@@ -4,9 +4,10 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Common
 
-type t
+type 'a t
 
 val create
   :  viewport_width:float
@@ -14,21 +15,22 @@ val create
   -> is_server:bool
   (* CR: fold this into [is_server] *)
   -> max_clients:int
-  -> t Lwt.t
+  -> sexp_of_a:('a -> Sexp.t)
+  -> 'a t Lwt.t
 
-val iter : t -> f:(Shape.t -> unit) -> unit
-val find : t -> f:(Shape.t -> bool) -> Shape_id.t option
+val iter : 'a t -> f:('a Box.t -> unit) -> unit
+val find : 'a t -> f:('a Box.t -> bool) -> Box_id.t option
 
-val get     : t -> Shape_id.t -> Shape.t option
-val get_exn : t -> Shape_id.t -> Shape.t
+val get     : 'a t -> Box_id.t -> 'a Box.t option
+val get_exn : 'a t -> Box_id.t -> 'a Box.t
 
-val request : t -> Shape_id.t -> unit
-val release : t -> Shape_id.t -> unit
+val request : _ t -> Box_id.t -> unit
+val release : _ t -> Box_id.t -> unit
 
-val add : t -> Shape.t -> Shape_id.t
-val change : t -> Shape_id.t -> f:(Shape.t -> Shape.t) -> unit
-val delete : t -> Shape_id.t -> unit
+val add : 'a t -> 'a Box.t -> Box_id.t
+val change : 'a t -> Box_id.t -> f:('a Box.t -> 'a Box.t) -> unit
+val delete : _  t -> Box_id.t -> unit
 
-val on_change : t -> f:(Shape_id.t -> Shape.t -> unit) -> unit
+val on_change : 'a t -> f:(Box_id.t -> 'a Box.t -> unit) -> unit
 
-val now_on_server : t -> Time.t
+val now_on_server : _ t -> Time.t

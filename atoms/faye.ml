@@ -42,7 +42,7 @@ end
 
 type 'a t =
   { faye : faye Js.t
-  ; to_string : ('a -> string)
+  ; sexp_of_a : ('a -> Sexp.t)
   ; buffers : 'a Ordered_stream.t Hashtbl.M(Channel).t
   }
 
@@ -52,10 +52,10 @@ let constr : (js_string Js.t -> faye Js.t) constr =
 let faye_url =
   sprintf "http://%s:8000/faye" (to_string (Html.window##.location##.hostname))
 
-let create ~to_string =
+let create ~sexp_of_a =
   let faye = new%js constr (string faye_url) in
   let buffers = Hashtbl.create (module Channel) () in
-  { faye; to_string; buffers }
+  { faye; sexp_of_a; buffers }
 
 let get_buffer t channel =
   Hashtbl.find_or_add t.buffers channel ~default:(fun () ->
@@ -74,7 +74,7 @@ let subscribe_with_try (t : 'a t) channel ~f =
     Ordered_stream.write buffer msg
   in
   let read_from_buffer msg =
-    (* debug "Received %s on %s" (t.to_string msg) channel; *)
+    (* debug !"Received %{Message} on %{Channel" msg_string channel; *)
     f msg
   in
   (* debug "Subscribed to %s" channel; *)

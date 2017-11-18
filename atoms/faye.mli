@@ -4,16 +4,17 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 
 module Channel : sig
-  type t
+  type t [@@deriving sexp]
   val global : t
   val create : unit -> t
 end
 
 type 'a t
 
-val create : to_string:('a -> string) -> 'a t
+val create : sexp_of_a:('a -> Sexp.t) -> 'a t
 
 val publish : 'a t -> Channel.t -> 'a -> unit
 

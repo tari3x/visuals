@@ -4,24 +4,24 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
 open Lwt
 open Common
 open Dom_wrappers
 
-type t =
+type 'a t =
   { ctx : Ctx.t
-  ; global : Global.t
+  ; global : 'a Global.t
   ; touches : Multitouch.t
-  ; mutable shape : Shape.t
+  ; mutable shape : 'a Box.t
   }
 
-let create ctx shape =
+let create ctx shape ~sexp_of_a =
   Global.create
     ~viewport_width:(Ctx.width ctx)
     ~viewport_height:(Ctx.height ctx)
     ~is_server:false
     ~max_clients:2
+    ~sexp_of_a
   >>= fun global ->
   Lwt.return { ctx
              ; global
@@ -51,15 +51,15 @@ let process_action t (action : Action.t) =
     let touch = List.hd_exn action.changed_touches in
     begin match Multitouch.active t.touches with
     | [] ->
-      let shape = Shape.set_translation t.shape touch.position in
+      let shape = Box.set_translation t.shape touch.position in
       let shape_id = Global.add t.global shape in
-      Multitouch.add t.touches shape_id (Shape.frame shape) touch
+      Multitouch.add t.touches shape_id (Box.frame shape) touch
       |> apply_touch_update t
     | shape_ids ->
       List.iter shape_ids ~f:(fun shape_id ->
         let shape = Global.get_exn t.global shape_id in
         (* CR-someday: this is a bit weird. *)
-        Multitouch.add t.touches shape_id (Shape.frame shape) touch
+        Multitouch.add t.touches shape_id (Box.frame shape) touch
         |> apply_touch_update t)
     end
   | `up ->
@@ -67,6 +67,6 @@ let process_action t (action : Action.t) =
     |> apply_touch_update t
 
 let set_color t color =
-  t.shape <- Shape.set t.shape ~color;
+  t.shape <- Box.set t.shape ~color;
   List.iter (Multitouch.active t.touches) ~f:(fun shape_id ->
-    Global.change t.global shape_id ~f:(Shape.set ~color))
+    Global.change t.global shape_id ~f:(Box.set ~color))

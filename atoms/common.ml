@@ -130,9 +130,11 @@ module type Id = sig
   val to_string : t -> string
 end
 
-
 module Id(M: sig val name : string end) : Id = struct
   include String
+
+  let () =
+    Random.self_init ()
 
   let create () =
     Printf.sprintf "%s%d"
@@ -141,7 +143,7 @@ module Id(M: sig val name : string end) : Id = struct
 end
 
 module Client_id = Id(struct let name = "Client_id" end)
-module Shape_id  = Id(struct let name = "Shape_id" end)
+module Box_id    = Id(struct let name = "Box_id" end)
 
 module Fn = struct
   let flip f x y =
@@ -151,7 +153,7 @@ module Fn = struct
 end
 
 module Time : sig
-  type t
+  type t [@@deriving sexp]
 
   (* prints the float *)
   val to_string : t -> string
@@ -170,7 +172,7 @@ module Time : sig
   val (-) : t -> t -> Span.t
   val (+) : t -> Span.t -> t
 end = struct
-  type t = float
+  type t = float [@@deriving sexp]
 
   let to_string = Float.to_string
 

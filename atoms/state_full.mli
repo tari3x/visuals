@@ -16,10 +16,10 @@ val process_action : t -> Action.t -> unit
 
 val set_color : t -> Color_cycle.t -> unit
 
-val on_shape_active : t -> f:(Shape.t -> unit) -> unit
+val on_box_active : t -> f:(Shape.t Box.t -> unit) -> unit
 
-val most_recent : t -> Shape.t option
+val most_recent : t -> Shape.t Box.t option
 
-val set_shape_kind : t -> Shape.Kind.t -> unit
+val set_shape : t -> Shape.t -> unit
 
 val toggle_transient_mode : t -> unit

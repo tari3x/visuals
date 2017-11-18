@@ -23,7 +23,7 @@ module Angle : sig
 end
 
 module Vector : sig
-  type t
+  type t [@@deriving sexp]
 
   val create : int -> int -> t
   val create_float : float -> float -> t
@@ -83,7 +83,7 @@ module Matrix : sig
 end
 
 module Frame : sig
-  type t
+  type t [@@deriving sexp]
 
   val to_string : t -> string
 

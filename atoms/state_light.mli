@@ -4,12 +4,17 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Dom_wrappers
 
-type t
+type 'a t
 
-val create : Ctx.t -> Shape.t -> t Lwt.t
+val create
+  :   Ctx.t
+  -> 'a Box.t
+  -> sexp_of_a:('a -> Sexp.t)
+  -> 'a t Lwt.t
 
-val process_action : t -> Action.t -> unit
+val process_action : _ t -> Action.t -> unit
 
-val set_color : t -> Color_cycle.t -> unit
+val set_color : _ t -> Color_cycle.t -> unit

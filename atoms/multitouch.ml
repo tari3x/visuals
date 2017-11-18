@@ -43,7 +43,7 @@ module Params = struct
            *> translate move_by)
 end
 
-(* One group of pointers per shape. *)
+(* One group of pointers per box. *)
 module Group = struct
   type t =
     { initial_frame : Frame.t
@@ -85,12 +85,12 @@ module Group = struct
 end
 
 type t =
-  { groups : Group.t Hashtbl.M(Shape_id).t
+  { groups : Group.t Hashtbl.M(Box_id).t
   ; positions : Vector.t Hashtbl.M(Pointer_id).t
   }
 
 let create () =
-  let groups = Hashtbl.create (module Shape_id) () in
+  let groups = Hashtbl.create (module Box_id) () in
   let positions = Hashtbl.create (module Pointer_id) () in
   { groups; positions }
 
@@ -100,8 +100,8 @@ let active t =
 let get_position_exn t =
   Hashtbl.find_exn t.positions
 
-let is_touching t shape_id =
-  Hashtbl.mem t.groups shape_id
+let is_touching t box_id =
+  Hashtbl.mem t.groups box_id
 
 module Update = struct
   module Single = struct
@@ -110,40 +110,40 @@ module Update = struct
       ; touches : Vector.t list
       }
 
-    let apply {frame; touches } shape =
-      shape
-      |> Shape.set ~frame
-      |> Shape.set_touches ~touches
+    let apply {frame; touches } box =
+      box
+      |> Box.set ~frame
+      |> Box.set_touches ~touches ~coordinates:`canvas
   end
 
-  type t = (Shape_id.t * Single.t option) list
+  type t = (Box_id.t * Single.t option) list
 end
 
-(* This does not include deleted shapes. *)
+(* This does not include deleted boxs. *)
 let update t =
   let get_position_exn = get_position_exn t in
   let results = ref [] in
-  Hashtbl.iteri t.groups ~f:(fun ~key:shape_id ~data:group ->
+  Hashtbl.iteri t.groups ~f:(fun ~key:box_id ~data:group ->
     let single =
       { Update.Single.
         frame = Group.frame group ~get_position_exn
       ; touches = Group.positions group ~get_position_exn
       }
     in
-    results := (shape_id, Some single) :: !results);
+    results := (box_id, Some single) :: !results);
   !results
 
-let add t shape_id shape (pointer : Pointer.t) =
+let add t box_id box (pointer : Pointer.t) =
   let get_position_exn = get_position_exn t in
   Hashtbl.set t.positions ~key:pointer.id ~data:pointer.position;
   let current_pointers =
-    match Hashtbl.find t.groups shape_id with
+    match Hashtbl.find t.groups box_id with
     | None -> []
     | Some group -> group.pointers
   in
   let pointers = current_pointers @ [ pointer.id ] in
-  let group = Group.create pointers shape ~get_position_exn in
-  Hashtbl.set t.groups ~key:shape_id ~data:group;
+  let group = Group.create pointers box ~get_position_exn in
+  Hashtbl.set t.groups ~key:box_id ~data:group;
   update t
 
 let move t pointers =
@@ -154,20 +154,20 @@ let move t pointers =
 let remove t pointers_to_remove =
   let pointers_to_remove = List.map pointers_to_remove ~f:Pointer.id in
   let get_position_exn = get_position_exn t in
-  let deleted_shapes = ref [] in
+  let deleted_boxs = ref [] in
   (* Don't delete the pointers yet, since we use the prior pointer state to
-     recompute the shapes. *)
-  Hashtbl.filter_mapi_inplace t.groups ~f:(fun ~key:shape_id ~data:group ->
+     recompute the boxs. *)
+  Hashtbl.filter_mapi_inplace t.groups ~f:(fun ~key:box_id ~data:group ->
     let pointers =
       List.diff group.pointers pointers_to_remove ~equal:Pointer_id.equal
     in
     match pointers with
     | [] ->
-      deleted_shapes := shape_id :: !deleted_shapes;
+      deleted_boxs := box_id :: !deleted_boxs;
       None
     | pointers ->
       let frame = Group.frame group ~get_position_exn in
       let group = Group.create pointers frame ~get_position_exn in
       Some group);
   List.iter pointers_to_remove ~f:(Hashtbl.remove t.positions);
-  List.map !deleted_shapes ~f:(fun shape_id -> (shape_id, None))
+  List.map !deleted_boxs ~f:(fun box_id -> (box_id, None))

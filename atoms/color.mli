@@ -5,7 +5,7 @@
 *)
 
 
-type t
+type t [@@deriving sexp]
 
 val create : r:int -> g:int -> b:int -> a:float -> t
 

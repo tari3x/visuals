@@ -14,11 +14,15 @@ open Dom_wrappers
    - figure out why there is a scroll bar at the bottom
    - correct the shape of circles? Set transform on context?
    - we don't seem to be taking up the whole area lit by the projector.
+   - the vidoe is larger than the projector, change resolution or someothing.
 *)
 
-(* CR: it's not cool that three.js tries to invert the modelViewMatrix to get
-   the normal matrix, read more:
-   https://stackoverflow.com/questions/13654401/why-transforming-normals-with-the-transpose-of-the-inverse-of-the-modelview-matr
+(* CR: is it dropping when determinant is negative or something? *)
+(* CR: capture a bad example (sexp?) *)
+(* CR: trace calls to webgl *)
+(* CR: can we restrict m_11 to be positive? *)
+(* CR: how does the convexity of points come in?
+   Multiplying directly gives the right quad!
 *)
 
 let apply_canvas_style (element : Html.element Js.t) =
@@ -29,7 +33,7 @@ let apply_canvas_style (element : Html.element Js.t) =
 
 let draw_marker ctx v =
   Ctx.set_fill_color ctx Color.white;
-  Ctx.draw_circle ctx v ~radius:10.
+  Ctx.draw_circle ctx v ~radius:3.
 
 let draw_rotating_grid ~prism ~ctx =
   Ctx.clear ctx;
@@ -92,19 +96,15 @@ let test_draw_honeycomb () =
   let uv1 = Vector.create_float 0. 1. in
   let uv2 = Vector.create_float 1. 0. in
   let uv3 = Vector.create_float 1. 1. in
-  let _white = Color.create 1. 1. 1. in
-  let blue  = Color.create 0. 0. 1. in
-  let red   = Color.create 1. 0. 0. in
-  let green = Color.create 0. 1. 0. in
   let geometry =
     Geometry.create ()
       ~vertices
-      ~faces:[| Face.create (0, 1, 2) ~uvs:(uv0, uv1, uv2) ~color:blue
-             ;  Face.create (1, 3, 2) ~uvs:(uv1, uv3, uv2) ~color:green
+      ~faces:[| Face.create (0, 1, 2) ~uvs:(uv0, uv1, uv2) ~color:Color.blue
+             ;  Face.create (1, 3, 2) ~uvs:(uv1, uv3, uv2) ~color:Color.green
              |]
   in
   let material =
-    MeshBasicMaterial.create ~color:red ~map:texture ()
+    MeshBasicMaterial.create ~color:Color.red ~map:texture ()
   in
   material##.side := Material.Side.double_side;
   Firebug.console##log material;
@@ -142,18 +142,19 @@ module Markers = struct
     in
     { camera; canvas = camera }
 
+  (* CR: what's the story with non-convex? *)
   let trapezoid ~delta =
     let v = Vector.create in
-    let quad delta =
-      [ v (100 - delta) 100
-      ; v 100 200
-      ; v 200 200
-      ; v (200 + delta) 100
+    let quad ~delta ~blup =
+      [ v (210 + delta) 60
+      ; v (100 - delta) 100
+      ; v (300 + delta) (100 - blup)
+      ; v (300 - delta) 60
       ]
       |> List.map ~f:(Vector.scale ~by:4.)
     in
-    let camera = quad delta in
-    let canvas = quad (- delta) in
+    let camera = quad ~blup:10 ~delta:(- delta) in
+    let canvas = quad ~blup:0 ~delta in
     { camera; canvas }
 
   let get ~ctx ?video n =
@@ -208,7 +209,7 @@ let flat_prism ?video ~ctx () =
   return (prism, List.nth markers.camera 0)
 
 let test_prism () =
-  let markers = Markers.trapezoid ~delta:40 in
+  let markers = Markers.trapezoid ~delta:30 in
   let prism =
     Markers.to_prism markers [ (0, 1, 2, 3) ]
   in
@@ -218,10 +219,10 @@ let main () =
   let open Three_wrappers in
   (* test_draw_honeycomb () *)
   let ctx = Ctx.create ~id:"canvas" in
-  let _video = Video.create ~id:"video" in
+  let video = Video.create ~id:"video" in
   (* test_prism () *)
-  (* flat_prism (* ~video *) ~ctx () *)
-  corner_prism (* ~video *) ~ctx ()
+  flat_prism (* ~video *) ~ctx ()
+  (* corner_prism (* ~video *) ~ctx () *)
   >>= fun (prism, pos) ->
   Dom.removeChild Html.document##.body (Ctx.canvas ctx);
   (* CR: your video is not great, perspective is already distorted. *)

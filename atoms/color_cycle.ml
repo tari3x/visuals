@@ -11,7 +11,7 @@ type t =
   { colors : Color.t list
   ; length : float
   ; offset : float
-  }
+  } [@@deriving sexp]
 
 let const c =
   { colors = [ c ]

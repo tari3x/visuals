@@ -12,7 +12,7 @@ type t =
   ; g : int
   ; b : int
   ; a : float
-  }
+  } [@@deriving sexp]
 
 let create ~r ~g ~b ~a =
   { r; g; b; a }

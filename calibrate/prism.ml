@@ -15,6 +15,10 @@ module Quad = struct
   let create v1 v2 v3 v4 =
     (v1, v2, v3, v4)
 
+  let transform (v1, v2, v3, v4) ~by:m =
+    let f v = Matrix.apply m v in
+    (f v1, f v2, f v3, f v4)
+
   (* There is a canvas function for this, but setting it up would take more
      code. *)
   let contains (u0, u1, u2, u3) v =
@@ -61,16 +65,14 @@ module Quad = struct
              ;  Face.create (2, 3, 0) ~uvs:(uv2, uv3, uv0)
              |]
 
-  let mesh t ~texture ?color ~canvas () =
+  let mesh ~texture ?color ~canvas t =
     let open Three in
     let open Three_wrappers in
     let geometry = geometry t ~canvas in
     let material = MeshBasicMaterial.create ~map:texture ?color () in
     material##.side := Material.Side.double_side;
-    (*
-       material##.wireframe := Js._true;
-       material##.transparent := Js._true;
-    *)
+    material##.wireframe := Js._true;
+    material##.transparent := Js._true;
     let obj = Mesh.create geometry (material :> Three.Material.t) in
     (obj :> Object3D.t)
 end
@@ -126,21 +128,28 @@ module Surface = struct
 
   let draw_camera_image_on_canvas t ~texture ~(scene : Three.Scene.t) ~canvas =
     let open Three_wrappers in
-    (*
-       let camera_quad = Quad.mesh t.camera ~texture ~color:Color.green ~canvas in
-       scene##add camera_quad;
-       let canvas_quad = Quad.mesh t.canvas ~texture ~color:Color.red ~canvas in
-       scene##add canvas_quad;
-    *)
-    let camera_on_canvas_quad = Quad.mesh t.camera ~texture ~canvas () in
+    let camera_mesh =
+      Quad.mesh t.camera ~texture ~color:Color.green ~canvas
+    in
+    scene##add camera_mesh;
+    let canvas_mesh =
+      Quad.mesh t.canvas ~texture ~color:Color.red ~canvas
+    in
+    scene##add canvas_mesh;
+    let camera_on_canvas_direct_mesh =
+      Quad.transform t.camera ~by:t.camera_to_canvas
+      |> Quad.mesh ~texture ~color:Color.blue ~canvas
+    in
+    scene##add camera_on_canvas_direct_mesh;
+    let camera_on_canvas_mesh = Quad.mesh t.camera ~texture ~canvas in
     (* obj##applyMatrix (Matrix4.of_matrix t.camera_to_canvas); *)
-    (* debug_table t.camera_to_canvas; *)
+    debug_table t.camera_to_canvas;
     (*
        let m = Matrix4.of_matrix t.camera_to_canvas in
        debug_table (m##.elements);
     *)
-    Object3D.set_matrix camera_on_canvas_quad (Matrix4.of_matrix t.camera_to_canvas);
-    scene##add camera_on_canvas_quad
+    Object3D.set_matrix camera_on_canvas_mesh (Matrix4.of_matrix t.camera_to_canvas);
+    scene##add camera_on_canvas_mesh
 
   let draw_border t ~ctx =
     Quad.draw_border t.camera ~ctx ~color:Color.green;

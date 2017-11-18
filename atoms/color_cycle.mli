@@ -11,7 +11,7 @@ type t =
   ; length : float
   (* 0 <= offset <= 1 is the fraction of the cycle. *)
   ; offset : float
-  }
+  } [@@deriving sexp]
 
 val const : Color.t -> t
 

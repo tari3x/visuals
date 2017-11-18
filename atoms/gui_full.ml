@@ -102,10 +102,10 @@ let add_cycle_handlers t =
     set_color_cycle t);
   add_event_listener get_button Html.Event.touchstart ~f:(fun _ ->
     Option.iter (State.most_recent t) ~f:(fun shape ->
-      get_color_cycle (Shape.color shape)));
+      get_color_cycle (Box.color shape)));
   add_event_listener get_button Html.Event.click ~f:(fun _ ->
     Option.iter (State.most_recent t) ~f:(fun shape ->
-      get_color_cycle (Shape.color shape)))
+      get_color_cycle (Box.color shape)))
 
 let add_picker_handlers t =
   List.iter [ "red"; "green"; "blue"; "alpha" ] ~f:(fun id ->
@@ -114,19 +114,19 @@ let add_picker_handlers t =
       set_simple_color t);
     add_event_listener input Html.Event.mousemove ~f:(fun _ ->
       set_simple_color t));
-  State.on_shape_active t ~f:(fun shape ->
-    get_simple_color (Shape.color shape))
+  State.on_box_active t ~f:(fun shape ->
+    get_simple_color (Box.color shape))
 
 let add_choice_handlers t =
   let add_listener id ~f =
     let elt = get_element_by_id id Html.CoerceTo.button in
     add_event_listener elt Html.Event.touchstart ~f:(fun _ -> f ())
   in
-  add_listener "R" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Rectangle);
-  add_listener "C" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Circle);
-  add_listener "H" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Horizontal_line);
-  add_listener "V" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Vertical_line);
-  add_listener "X" ~f:(fun () -> State.set_shape_kind t Shape.Kind.Cross_line);
+  add_listener "R" ~f:(fun () -> State.set_shape t Shape.Rectangle);
+  add_listener "C" ~f:(fun () -> State.set_shape t Shape.Circle);
+  add_listener "H" ~f:(fun () -> State.set_shape t Shape.Horizontal_line);
+  add_listener "V" ~f:(fun () -> State.set_shape t Shape.Vertical_line);
+  add_listener "X" ~f:(fun () -> State.set_shape t Shape.Cross_line);
   add_listener "T" ~f:(fun () -> State.toggle_transient_mode t)
 
 let add_toolbar_handlers t =
