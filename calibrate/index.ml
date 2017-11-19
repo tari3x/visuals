@@ -5,6 +5,7 @@
 *)
 
 open Lwt
+open Util
 open Common
 open Geometry
 open Dom_wrappers

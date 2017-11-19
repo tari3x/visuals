@@ -6,6 +6,7 @@
 
 open Base
 open Lwt
+open Util
 open Common
 
 module Channel = Faye.Channel

@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Util
 open Common
 
 module Init = struct

@@ -4,8 +4,10 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
 open Geometry
 open Dom_wrappers
+open Remote
 
 (* CR: change [Gui_full] to hide this definition. *)
 type t =

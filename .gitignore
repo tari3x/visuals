@@ -1,7 +1,12 @@
 # Boring file regexps:
 
+galaxy-remote
+
 .depend
 notes.txt
+_build
+
+.merlin
 
 # C object files
 *.o

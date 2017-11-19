@@ -1,0 +1,17 @@
+(executables (
+  (names (index_server index_client_light index_client_full))
+  (libraries (
+    base
+    lwt
+    js_of_ocaml
+    js_of_ocaml-lwt
+    remote
+  ))
+  (js_of_ocaml (
+    (flags (+weak.js))
+  ))
+  (preprocess (pps (
+    ppx_jane
+    js_of_ocaml-ppx
+  )))
+))

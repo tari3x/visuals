@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
 open Dom_wrappers
 
 val draw : Ctx.t -> unit

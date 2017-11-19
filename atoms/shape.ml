@@ -5,8 +5,10 @@
 *)
 
 open Base
+open Util
 open Geometry
 open Dom_wrappers
+open Remote
 
 (* CR: lines and cross lines get scaled down *)
 

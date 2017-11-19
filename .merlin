@@ -1,9 +1,0 @@
-S .
-PKG js_of_ocaml 
-EXT js
-
-PKG ppx_tools
-PKG compiler-libs
-PKG ppx_tools.metaquot
-
-REC

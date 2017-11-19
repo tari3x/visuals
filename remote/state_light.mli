@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Util
 open Dom_wrappers
 
 type 'a t

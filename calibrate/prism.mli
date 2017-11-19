@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
 open Geometry
 open Dom_wrappers
 

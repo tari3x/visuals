@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
 open Common
 
 module Init : sig

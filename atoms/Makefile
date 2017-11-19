@@ -1,13 +1,17 @@
-SRC = $(wildcard *.ml *.mli) 
-ML_SRC = common.ml ordered_stream.ml math.ml geometry.ml color.ml color_cycle.ml action.ml dom_wrappers.ml box.ml shape.ml faye.ml message.ml multitouch.ml global.ml state_full.ml state_light.ml gui_full.ml color_picker.ml gui_light.ml
-OBJS = ${ML_SRC:.ml=.cmo}
-OCAMLC = ocamlfind ocamlc -g -package js_of_ocaml -package js_of_ocaml-ppx -package js_of_ocaml-lwt -package lwt -package base -package ppx_jane
 OCAMLC_FLAGS = -w +a-4-40-41-42-44-45-48 
 
-all: index_client_light.js index_client_full.js index_server.js index.html external start.sh stop.sh external/faye/client.js 
+JS = index_client_light.js index_client_full.js index_server.js
+
+all: build $(JS) index.html external start.sh stop.sh external/faye/client.js
+
+build:
+	jbuilder build ${JS:.js=.bc.js}
+
+%.js: FORCE
+	cp ../_build/default/atoms/$*.bc.js $@
 
 index.html: index-client-light.html
-	cp $^ $@
+	ln -s $^ $@
 
 external:
 	ln -s ../external .
@@ -21,23 +25,7 @@ stop.sh:
 external/faye/client.js:
 	cp external/faye/node_modules/faye/browser/faye-browser-min.js $@
 
-%.js: %.byte
-	js_of_ocaml +base/runtime.js +weak.js --source-map $< --pretty
+clean:
+	jbuilder clean
 
-%.byte: $(OBJS) %.cmo
-	$(OCAMLC) -linkpkg -o $@ $(EXTRA_LIBS) $^
-
-%.cmo: %.ml
-	$(OCAMLC) $(OCAMLC_FLAGS) -c $<
-
-%.cmi: %.mli 
-	$(OCAMLC) $(OCAMLC_FLAGS) -c $<
-
-clean::
-	rm -f *.cm[io] *.byte index_client_full.js index_client_light.js main.js client.js index.js index_server.js *.map .depend
-
-# Dependencies
-.depend: $(SRC) 
-	ocamldep *.mli *.ml > .depend
-
--include .depend
+FORCE:

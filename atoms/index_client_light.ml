@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
 open Common
 
 (* CR: on some phones touch doesn't work *)

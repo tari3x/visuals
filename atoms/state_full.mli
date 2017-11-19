@@ -4,6 +4,8 @@
   See LICENSE file for copyright notice.
 *)
 
+open Util
+open Remote
 open Dom_wrappers
 
 (* CR: no support for Bezier in this one. *)

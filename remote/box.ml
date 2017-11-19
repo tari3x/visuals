@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Util
 open! Common
 open Geometry
 

@@ -6,6 +6,7 @@
 
 open Base
 open! Printf
+open Util
 open Common
 
 module Id = Id(struct let name = "Ordered_stream_id" end)
