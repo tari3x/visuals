@@ -67,8 +67,7 @@ let rec render renderer scene camera =
   Lwt_js_events.request_animation_frame ()
   >>= fun () ->
   renderer##render scene camera;
-  return ()
-(* render renderer scene camera *)
+  render renderer scene camera
 
 let test_draw_honeycomb () =
   let open Three in
@@ -220,7 +219,7 @@ let main () =
   let open Three_wrappers in
   (* test_draw_honeycomb () *)
   let ctx = Ctx.create ~id:"canvas" in
-  let video = Video.create ~id:"video" in
+  let _video = Video.create ~id:"video" in
   (* test_prism () *)
   flat_prism (* ~video *) ~ctx ()
   (* corner_prism (* ~video *) ~ctx () *)

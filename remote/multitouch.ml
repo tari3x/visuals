@@ -120,7 +120,7 @@ module Update = struct
   type t = (Box_id.t * Single.t option) list
 end
 
-(* This does not include deleted boxs. *)
+(* This does not include deleted boxes. *)
 let update t =
   let get_position_exn = get_position_exn t in
   let results = ref [] in
@@ -155,20 +155,20 @@ let move t pointers =
 let remove t pointers_to_remove =
   let pointers_to_remove = List.map pointers_to_remove ~f:Pointer.id in
   let get_position_exn = get_position_exn t in
-  let deleted_boxs = ref [] in
+  let deleted_boxes = ref [] in
   (* Don't delete the pointers yet, since we use the prior pointer state to
-     recompute the boxs. *)
+     recompute the boxes. *)
   Hashtbl.filter_mapi_inplace t.groups ~f:(fun ~key:box_id ~data:group ->
     let pointers =
       List.diff group.pointers pointers_to_remove ~equal:Pointer_id.equal
     in
     match pointers with
     | [] ->
-      deleted_boxs := box_id :: !deleted_boxs;
+      deleted_boxes := box_id :: !deleted_boxes;
       None
     | pointers ->
       let frame = Group.frame group ~get_position_exn in
       let group = Group.create pointers frame ~get_position_exn in
       Some group);
   List.iter pointers_to_remove ~f:(Hashtbl.remove t.positions);
-  List.map !deleted_boxs ~f:(fun box_id -> (box_id, None))
+  List.map !deleted_boxes ~f:(fun box_id -> (box_id, None))

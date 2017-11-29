@@ -97,7 +97,7 @@ let render box ctx ~time =
   let { Box.
         kind = t
       ; frame
-      ; color
+      ; color_cycle
       ; line_width
       ; touches
       } = box
@@ -115,7 +115,7 @@ let render box ctx ~time =
     | Rectangle -> frame
   in
   Ctx.save ctx;
-  let current_color = Color_cycle.current_color color ~time in
+  let current_color = Color_cycle.current_color color_cycle ~time in
   Ctx.set_fill_color ctx current_color;
   Ctx.set_stroke_color ctx current_color;
   Ctx.set_line_width ctx line_width;
@@ -146,7 +146,7 @@ let touched_by box p =
   let { Box.
         kind = t
       ; frame
-      ; color = _
+      ; color_cycle = _
       ; line_width = _
       ; touches = _
       } = box
@@ -196,7 +196,7 @@ let height ~line_width ~touches= function
 let scale_to_fit box size =
   let line_width = Box.line_width box in
   let t = Box.kind box in
-  let touches = Box.touches box in
+  let touches = Box.touches box ~coordinates:`internal in
   let current_size =
     Float.max (width t ~line_width ~touches) (height t ~line_width ~touches)
   in

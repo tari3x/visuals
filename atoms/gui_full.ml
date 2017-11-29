@@ -104,10 +104,10 @@ let add_cycle_handlers t =
     set_color_cycle t);
   add_event_listener get_button Html.Event.touchstart ~f:(fun _ ->
     Option.iter (State.most_recent t) ~f:(fun shape ->
-      get_color_cycle (Box.color shape)));
+      get_color_cycle (Box.color_cycle shape)));
   add_event_listener get_button Html.Event.click ~f:(fun _ ->
     Option.iter (State.most_recent t) ~f:(fun shape ->
-      get_color_cycle (Box.color shape)))
+      get_color_cycle (Box.color_cycle shape)))
 
 let add_picker_handlers t =
   List.iter [ "red"; "green"; "blue"; "alpha" ] ~f:(fun id ->
@@ -117,7 +117,7 @@ let add_picker_handlers t =
     add_event_listener input Html.Event.mousemove ~f:(fun _ ->
       set_simple_color t));
   State.on_box_active t ~f:(fun shape ->
-    get_simple_color (Box.color shape))
+    get_simple_color (Box.color_cycle shape))
 
 let add_choice_handlers t =
   let add_listener id ~f =

@@ -86,6 +86,9 @@ module Vector = struct
   let ( / ) v x =
     scale v ~by:(1. /. x)
 
+  let normalize t =
+    t / length t
+
   let to_string (x, y, _) =
     Printf.sprintf "(%f, %f)" x y
 end

@@ -157,12 +157,12 @@ let process_action t (action : Action.t) =
     Multitouch.remove t.touches action.changed_touches
     |> apply_touch_update t
 
-let set_color t color =
-  t.template <- Box.set t.template ~color;
+let set_color t color_cycle =
+  t.template <- Box.set t.template ~color_cycle;
   match most_recent_active t with
   | None -> ()
   | Some (box_id, box) ->
-    let box = Box.set box ~color in
+    let box = Box.set box ~color_cycle in
     Global.change t.global box_id ~f:(Fn.const box)
 
 let set_shape t shape =

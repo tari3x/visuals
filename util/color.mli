@@ -32,6 +32,9 @@ val random : unit -> t
 (* Defaults to white if list is empty *)
 val interpolate : t list -> float -> t
 
+(* scale proportionally such that at least one coordinate will be max.  *)
+val maximize : t -> t
+
 val set_alpha : t -> alpha:float -> t
 val scale : t -> float -> t
 

@@ -34,7 +34,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   let width = Ctx.width ctx |> Int.of_float in
   let height = Ctx.height ctx |> Int.of_float in
   let hstep = width / List.length shapes in
-  let color = Color_cycle.random_constant () in
+  let color_cycle = Color_cycle.random_constant () in
   let touches =
     let p1 = Vector.create (-50) (50) in
     let p2 = Vector.create 0   (-50) in
@@ -47,7 +47,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       let y = height / 2 in
       let frame = Frame.translate (Vector.create x y) in
       let shape =
-        Box.create ~kind ~frame ~color ~line_width:10. ()
+        Box.create ~kind ~frame ~color_cycle ~line_width:10. ()
         |> Box.set_touches ~touches ~coordinates:`internal
       in
       let margin = min 50 (hstep / 5) in

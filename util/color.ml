@@ -108,3 +108,12 @@ let scale t scale =
     { r; g; b; a }
   end
 
+let maximize t =
+  let max_component =
+    List.max_elt ~cmp:Int.compare [ t.r; t.g; t.b ]
+    |> Option.value_exn
+    |> float
+  in
+  let s = Float.(255. / max_component) in
+  scale t s
+

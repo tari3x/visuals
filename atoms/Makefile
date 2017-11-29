@@ -2,16 +2,19 @@ OCAMLC_FLAGS = -w +a-4-40-41-42-44-45-48
 
 JS = index_client_light.js index_client_full.js index_server.js
 
-all: build $(JS) index.html external start.sh stop.sh external/faye/client.js
+all: build $(JS) index.html index-server.html external start.sh stop.sh external/faye/client.js
 
 build:
-	jbuilder build ${JS:.js=.bc.js}
+	jbuilder build ${JS:.js=.bc.js} --dev
 
 %.js: FORCE
 	cp ../_build/default/atoms/$*.bc.js $@
 
-index.html: index-client-light.html
-	ln -s $^ $@
+index.html: 
+	ln -s ../html/index-client-light.html $@
+
+index-server.html:
+	ln -s ../html/$@
 
 external:
 	ln -s ../external .

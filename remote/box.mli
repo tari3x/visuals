@@ -9,10 +9,12 @@ open Geometry
 
 val default_line_width : float
 
+type coordinates = [ `internal | `canvas ]
+
 type 'a t = private
   { kind : 'a
   ; frame : Frame.t
-  ; color : Color_cycle.t
+  ; color_cycle : Color_cycle.t
   ; line_width : float
   (* in the internal coordinate system of the box *)
   ; touches : Vector.t list
@@ -20,12 +22,15 @@ type 'a t = private
 
 val default : 'a -> 'a t
 
+val touches : _ t -> coordinates:coordinates -> Vector.t list
+val color : _ t -> Color.t
+
 (* val to_string : _ t -> string  *)
 
 val create
   :  kind:'a
   -> ?frame:Frame.t
-  -> ?color:Color_cycle.t
+  -> ?color_cycle:Color_cycle.t
   -> ?line_width:float
   -> unit
   -> 'a t
@@ -33,14 +38,14 @@ val create
 val set
   :  ?kind:'a
   -> ?frame:Frame.t
-  -> ?color:Color_cycle.t
+  -> ?color_cycle:Color_cycle.t
   -> ?line_width:float
   -> 'a t
   -> 'a t
 
 val set_touches
   : 'a t
-  -> coordinates:[ `internal | `canvas ]
+  -> coordinates:coordinates
   -> touches:Vector.t list
   -> 'a t
 

@@ -10,16 +10,20 @@ open Common
 open Dom_wrappers
 open Geometry
 
+let colors =
+  [ Color.red; Color.magenta; Color.blue
+  ; Color.cyan; Color.green; Color.yellow
+  ; Color.red ]
+
 let color_for_coordinate =
-  let colors =
-    [ Color.red; Color.magenta; Color.blue
-    ; Color.cyan; Color.green; Color.yellow
-    ; Color.red ]
-  in
+  let open Float in
   fun ~width ~height v ->
     let (x, y) = Vector.coords v in
-    let color = Color.interpolate colors (y /. height) in
-    Color.scale color (x /. width)
+    let color = Color.interpolate colors (y / height) in
+    let scaling_width = width * 0.5 in
+    if x > scaling_width
+    then color
+    else Color.scale color (x / scaling_width)
 
 let draw ctx =
   let width = Ctx.width ctx in
@@ -49,6 +53,5 @@ let run t ctx =
     | `down, _ ->
       let v = Action.coords action in
       let color = color_for_coordinate v ~width ~height in
-      let color = Color_cycle.const color in
       State_light.set_color t color
     | _ -> ())

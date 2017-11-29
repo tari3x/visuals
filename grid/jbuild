@@ -1,0 +1,18 @@
+(executables (
+  (names (index index_rain index_server))
+  (libraries (
+    base
+    lwt
+    js_of_ocaml
+    js_of_ocaml-lwt
+    util
+    remote
+  ))
+  (js_of_ocaml (
+    (flags (+weak.js))
+  ))
+  (preprocess (pps (
+    ppx_jane
+    js_of_ocaml-ppx
+  )))
+))

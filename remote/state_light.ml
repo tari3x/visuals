@@ -68,6 +68,7 @@ let process_action t (action : Action.t) =
     |> apply_touch_update t
 
 let set_color t color =
-  t.shape <- Box.set t.shape ~color;
+  let color_cycle = Color_cycle.const color in
+  t.shape <- Box.set t.shape ~color_cycle;
   List.iter (Multitouch.active t.touches) ~f:(fun shape_id ->
-    Global.change t.global shape_id ~f:(Box.set ~color))
+    Global.change t.global shape_id ~f:(Box.set ~color_cycle))

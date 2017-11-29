@@ -152,6 +152,7 @@ module Fn = struct
   let const c _ = c
 end
 
+(* [Base] doesn't contain [Time] it seems. *)
 module Time : sig
   type t [@@deriving sexp]
 

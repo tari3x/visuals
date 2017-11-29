@@ -18,4 +18,4 @@ val create
 
 val process_action : _ t -> Action.t -> unit
 
-val set_color : _ t -> Color_cycle.t -> unit
+val set_color : _ t -> Color.t -> unit

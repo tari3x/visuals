@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    
+    <title>Server</title>
+    
+    <meta charset="utf-8">
+
+    <style media="screen">
+      * { margin: 0; padding: 0;
+          /* ; cursor: none */
+        }
+
+      body, html {
+          width: 100%;
+          height:100%;
+          background: black;
+      }
+
+      .canvas {
+          width: 100%;
+          height: 100%;
+      }
+      
+      #main_canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+      }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1,
+                                   minimum-scale=1, maximum-scale=1,
+                                   user-scalable=no">
+  </head>
+  <body> <!-- oncontextmenu="return false;" -->
+    <canvas class="canvas" id="main_canvas"></canvas>
+
+    <script type="text/javascript" 
+            src="external/faye/client.js">
+    </script>
+    
+    <script src="external/math.min.js"></script>
+    <script src="external/three.js"></script>
+    <script src="index_server.js"></script>
+  </body>
+</html>

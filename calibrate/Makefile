@@ -5,7 +5,7 @@ JS = index.js
 all: build $(JS) external start.sh stop.sh
 
 build:
-	jbuilder build ${JS:.js=.bc.js}
+	jbuilder build ${JS:.js=.bc.js} --dev
 
 %.js: FORCE
 	cp ../_build/default/calibrate/$*.bc.js $@
