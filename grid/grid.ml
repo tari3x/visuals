@@ -130,6 +130,7 @@ let rec rain_loop t =
   let open Float in
   begin
     if Time.(now () - t.last_human_touch |> Span.to_seconds) > 10.
+      (* CR-someday: 0.1? *)
       && Random.float 0.1 < t.start_raining_probability
     then begin
       let base_color = Color.random () |> Color.maximize in
