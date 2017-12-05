@@ -10,6 +10,11 @@ open Common
 open Dom_wrappers
 open Remote
 
+let start_color =
+  if Config.drawing_mode
+  then Color.white
+  else Color.black
+
 module L = Lwt_stream
 
 module State = State_light
@@ -22,8 +27,11 @@ let main shape =
   let picker_ctx = Ctx.create ~id:"color-picker-canvas" in
   Color_picker.draw picker_ctx;
   let ctx = Ctx.create ~id:"main_canvas" in
+  let grid = Grid.create ~ctx ~rows:3 ~cols:7 ~color:start_color () in
+  Grid.render grid;
   let actions = Ctx.canvas_actions ctx in
   State.create ctx shape ~sexp_of_a:Grid.Ctl.sexp_of_t
   >>= fun t ->
   Lwt.async (fun () -> Color_picker.run t picker_ctx);
   Lwt_stream.iter_with_try actions ~f:(State.process_action t)
+

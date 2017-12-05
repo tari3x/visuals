@@ -10,6 +10,11 @@ open Common
 open Dom_wrappers
 open Geometry
 
+let black_strip_width =
+  if Config.drawing_mode
+  then 30.
+  else 0.
+
 let colors =
   [ Color.red; Color.magenta; Color.blue
   ; Color.cyan; Color.green; Color.yellow
@@ -21,7 +26,9 @@ let color_for_coordinate =
     let (x, y) = Vector.coords v in
     let color = Color.interpolate colors (y / height) in
     let scaling_width = width * 0.5 in
-    if x > scaling_width
+    if x < black_strip_width
+    then Color.black
+    else if x > scaling_width
     then color
     else Color.scale color (x / scaling_width)
 

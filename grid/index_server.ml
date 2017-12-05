@@ -9,9 +9,14 @@ open Util
 open Common
 open Dom_wrappers
 
+let start_color =
+  if Config.drawing_mode
+  then Color.black
+  else Color.white
+
 let get_clicks ctx =
-    (* NB! We assume that mouse click coordinates are the same as canvas
-       coordinates. *)
+  (* NB! We assume that mouse click coordinates are the same as canvas
+     coordinates. *)
   let clicks =
     Ctx.canvas_actions ctx
     |> Lwt_stream.filter_map ~f:Action.click
@@ -23,7 +28,9 @@ let main () =
   get_clicks ctx
   >>= fun clicks ->
   let corners = Prism.Quad.of_list_exn clicks in
-  let grid = Grid.create ~ctx ~cols:7 ~rows:3 ~corners in
+  let grid =
+    Grid.create ~ctx ~cols:7 ~rows:3 ~corners ~color:start_color ()
+  in
   Server_state.start grid ~ctx
 ;;
 

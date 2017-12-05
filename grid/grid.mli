@@ -21,7 +21,9 @@ val create
   :  ctx:Ctx.t
   -> rows:int
   -> cols:int
-  -> corners:Prism.Quad.t
+  -> ?corners:Prism.Quad.t
+  -> color:Color.t
+  -> unit
   -> t
 
 val ctl : t -> Ctl.t Box.t -> unit

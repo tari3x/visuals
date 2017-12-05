@@ -16,6 +16,10 @@ let line_width = 18.
 let shorten_by = 7.
 let max_start_raining_probability = 0.2
 let max_keep_raining_probability = 1.
+let segment_life_span =
+  if Config.drawing_mode
+  then Float.infty
+  else 3.
 
 module Ctl = struct
   type t =
@@ -33,12 +37,12 @@ module Segment = struct
     ; mutable color : Color.t
     } [@@deriving sexp]
 
-  let create v1 v2 ~kind =
+  let create v1 v2 ~kind ~color =
     { kind
     ; v1
     ; v2
     ; last_touched = Some (Time.now ())
-    ; color = Color.white
+    ; color
     }
 
   let distance t ~point =
@@ -80,7 +84,7 @@ module Segment = struct
     | None -> ()
     | Some t0 ->
       let delta = Time.(now () - t0) |> Time.Span.to_seconds in
-      let alpha = 1. - (delta / 3.) in
+      let alpha = 1. - (delta / segment_life_span) in
       if alpha < 0.
       then t.last_touched <- None
       else begin
@@ -142,7 +146,7 @@ let rec rain_loop t =
   rain_loop t
 
 (* camera in this context means "native" or source coordinates. *)
-let create ~ctx ~rows ~cols ~corners =
+let create ~ctx ~rows ~cols ?corners ~color () =
   let wmargin = Ctx.width ctx *. 0.1 in
   let hmargin = Ctx.height ctx *. 0.1 in
   let width = Ctx.width ctx -. 2. *. wmargin in
@@ -158,8 +162,9 @@ let create ~ctx ~rows ~cols ~corners =
     let v4 = tr 0. h  in
     Prism.Quad.create v1 v2 v3 v4
   in
+  let canvas = Option.value corners ~default:camera in
   let perspective =
-    Prism.Surface.create ~canvas:corners ~camera
+    Prism.Surface.create ~canvas ~camera
     |> Prism.Surface.camera_to_canvas
   in
   let segments =
@@ -176,7 +181,7 @@ let create ~ctx ~rows ~cols ~corners =
       in
       if row' > rows || col' > cols
       then None
-      else Some (Segment.create (point row col) (point row' col') ~kind)
+      else Some (Segment.create (point row col) (point row' col') ~kind ~color)
     in
     let make ~kind =
       List.init (rows + 1) ~f:(fun row ->

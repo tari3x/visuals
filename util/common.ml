@@ -60,6 +60,11 @@ let pi =
   assert (Float.(>=) pi 3.0 && Float.(<=) pi 4.);
   pi
 
+module Float = struct
+  include Float
+  let infty = 10000000000000000000000000.
+end
+
 module Optdef = struct
   include Optdef
 

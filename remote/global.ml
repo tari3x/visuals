@@ -11,6 +11,11 @@ open Common
 
 module Channel = Faye.Channel
 
+let max_box_age =
+  if Config.drawing_mode
+  then Float.infty
+  else 30.
+
 module Box_info : sig
   type 'a t
   val create : box:'a Box.t -> owner:Client_id.t option -> 'a t
@@ -167,7 +172,7 @@ let cleanup_boxes t =
     let box = Hashtbl.find_exn t.boxes box_id in
     let last_touched = Box_info.last_touched box in
     let age = Time.(time - last_touched) |> Time.Span.to_seconds in
-    if Float.(age > 30.)
+    if Float.(age > max_box_age)
     then begin
       Hashtbl.remove t.boxes box_id;
       false
