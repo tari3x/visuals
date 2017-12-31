@@ -85,6 +85,13 @@ module Option = struct
     if b then Some x else None
 end
 
+module Sequence = struct
+  include Sequence
+
+  let max_elt_exn xs ~cmp =
+    max_elt xs ~cmp |> Option.value_exn
+end
+
 module List = struct
   include List
 
