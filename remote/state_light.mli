@@ -5,8 +5,7 @@
 *)
 
 open Base
-open Util
-open Dom_wrappers
+open Std_internal
 
 type 'a t
 

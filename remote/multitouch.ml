@@ -5,10 +5,10 @@
 *)
 
 open Base
-open Util
-open Common
-open Geometry
-open Action
+open Std_internal
+
+module Pointer    = Action.Pointer
+module Pointer_id = Action.Pointer_id
 
 module Params = struct
   type t =

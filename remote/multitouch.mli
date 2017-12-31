@@ -4,10 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Common
-open Action
-open Geometry
+open Std_internal
+
+module Pointer = Action.Pointer
 
 type t
 

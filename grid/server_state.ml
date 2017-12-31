@@ -5,10 +5,7 @@
 *)
 
 open Lwt
-open Util
-open Common
-open Dom_wrappers
-open Remote
+open Std_internal
 
 type t =
   { grid : Grid.t
@@ -17,7 +14,7 @@ type t =
 
 let rec render_loop t =
   (* Lwt_js_events.request_animation_frame () *)
-  Lwt_js.sleep 0.05
+  Lwt_js.sleep 0.01
   >>= fun () ->
   Global.iter t.global ~f:(Grid.ctl t.grid);
   Grid.render t.grid;

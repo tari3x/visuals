@@ -5,9 +5,7 @@
 *)
 
 open Base
-open! Printf
-open Util
-open Common
+open Std_internal
 
 module Id = Id(struct let name = "Ordered_stream_id" end)
 
@@ -98,7 +96,7 @@ module Buffer = struct
     t.buffer_size <- t.buffer_size + 1;
     t.buffer <- flush t t.buffer;
     if t.buffer_size > t.max_buffer_size
-    then failwithf "max buffer size %d exceeded" t.max_buffer_size
+    then failwithf "max buffer size %d exceeded" t.max_buffer_size ()
 end
 
 type 'a t =

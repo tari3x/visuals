@@ -5,9 +5,7 @@
 *)
 
 open Base
-open Util
-open! Common
-open Geometry
+open Std_internal
 
 let default_line_width = 40.
 

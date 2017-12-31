@@ -5,8 +5,7 @@
 *)
 
 open Base
-open Util
-open Common
+open Std_internal
 
 module Init = struct
   type 'a t =

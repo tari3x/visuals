@@ -4,9 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Dom_wrappers
-open Remote
+open Std_internal
 
 module Ctl : sig
   type t =
@@ -19,6 +17,9 @@ type t
 
 val create
   :  ctx:Ctx.t
+  (* CR-someday: sound must be made optional if you want to display grid on the
+     client .*)
+  -> sound:Sound.t
   -> rows:int
   -> cols:int
   -> ?corners:Prism.Quad.t

@@ -6,11 +6,7 @@
 
 open Base
 open Lwt
-open Util
-open Remote
-open Common
-open Dom_wrappers
-open Geometry
+open Std_internal
 
 module L = Lwt_stream
 
@@ -30,7 +26,7 @@ let shapes =
   ]
 
 let choose_shape (actions : Action.t Lwt_stream.t) ctx =
-  (* CR: do better estimate of the toolbar width. *)
+  (* CR-someday: do better estimate of the toolbar width. *)
   let width = Ctx.width ctx |> Int.of_float in
   let height = Ctx.height ctx |> Int.of_float in
   let hstep = width / List.length shapes in
@@ -60,7 +56,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       Ctx.save ctx;
       Ctx.clip_rect ctx clip_p ~width:clip_size ~height:clip_size;
       let shape = Shape.scale_to_fit shape (Float.of_int clip_size) in
-      (* CR: need late time *)
+      (* CR-someday: need late time *)
       Shape.render shape ctx ~time:100.;
       Ctx.restore ctx;
       shape
@@ -79,7 +75,7 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
   Lwt.return (shape, action)
 
 let main () =
-  Dom_wrappers.set_reload_on_resize ();
+  Window.set_reload_on_resize ();
   Random.self_init ();
   let picker_ctx = Ctx.create ~id:"color-picker-canvas" in
   Color_picker.draw picker_ctx;

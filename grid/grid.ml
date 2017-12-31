@@ -6,11 +6,7 @@
 
 open Base
 open Lwt
-open Util
-open Common
-open Geometry
-open Dom_wrappers
-open Remote
+open Std_internal
 
 let line_width = 18.
 let shorten_by = 7.
@@ -68,7 +64,7 @@ module Segment = struct
 
   let touch t ~color =
     let color =
-      Color.interpolate [t.color; color] 0.5
+      Color.interpolate [t.color; color] ~arg:0.5
     in
     t.color <- color;
     t.last_touched <- Some (Time.now ())
@@ -78,13 +74,20 @@ module Segment = struct
     let delta = (normalize (t.v2 - t.v1)) * shorten_by in
     t.v1 + delta, t.v2 - delta
 
-  let render t ~perspective ~ctx =
+  let render t ~perspective ~ctx ~sound:_ =
     let open Float in
     match t.last_touched with
     | None -> ()
     | Some t0 ->
       let delta = Time.(now () - t0) |> Time.Span.to_seconds in
       let alpha = 1. - (delta / segment_life_span) in
+      (* Flash *)
+      let alpha =
+        if alpha > 1. - (1. / segment_life_span) / 10.
+        then 1.
+        else alpha * 0.7
+      in
+      (* let alpha = alpha *. Sound.volume sound in *)
       if alpha < 0.
       then t.last_touched <- None
       else begin
@@ -103,6 +106,7 @@ end
 
 type t =
   { ctx : Ctx.t
+  ; sound : Sound.t
   ; rows : int
   ; cols : int
   ; top_left : Vector.t
@@ -119,7 +123,7 @@ let rec rain t ~base_color =
   let open Float in
   let segment = List.random_element_exn t.segments in
   let color =
-    Color.interpolate [ base_color; Color.random () ] 0.1
+    Color.interpolate [ base_color; Color.random () ] ~arg:0.1
   in
   Segment.touch segment ~color;
   if Random.float 1. > t.keep_raining_probability
@@ -130,23 +134,28 @@ let rec rain t ~base_color =
     rain t ~base_color
   end
 
-let rec rain_loop t =
+let human_playing t =
+  let open Float in
+  Time.(now () - t.last_human_touch |> Span.to_seconds) > 10.
+
+let start_rain t =
+  let base_color = Color.random () |> Color.maximize in
+  Lwt.async (fun () -> rain t ~base_color)
+
+let rec _rain_loop t =
   let open Float in
   begin
-    if Time.(now () - t.last_human_touch |> Span.to_seconds) > 10.
+    if not (human_playing t)
       (* CR-someday: 0.1? *)
       && Random.float 0.1 < t.start_raining_probability
-    then begin
-      let base_color = Color.random () |> Color.maximize in
-      Lwt.async (fun () -> rain t ~base_color)
-    end
+    then start_rain t
   end;
   Lwt_js.sleep 1.
   >>= fun () ->
-  rain_loop t
+  _rain_loop t
 
 (* camera in this context means "native" or source coordinates. *)
-let create ~ctx ~rows ~cols ?corners ~color () =
+let create ~ctx ~sound ~rows ~cols ?corners ~color () =
   let wmargin = Ctx.width ctx *. 0.1 in
   let hmargin = Ctx.height ctx *. 0.1 in
   let width = Ctx.width ctx -. 2. *. wmargin in
@@ -196,6 +205,7 @@ let create ~ctx ~rows ~cols ?corners ~color () =
     { rows
     ; cols
     ; ctx
+    ; sound
     ; top_left
     ; width
     ; height
@@ -203,10 +213,16 @@ let create ~ctx ~rows ~cols ?corners ~color () =
     ; segments
     ; last_human_touch = Time.now ()
     ; start_raining_probability = 0.
-    ; keep_raining_probability  = 0.
+    ; keep_raining_probability  = 0.75
     }
   in
-  Lwt.async (fun () -> rain_loop t);
+  Sound.on_beat sound ~f:(fun () ->
+    start_rain t
+    (* if not (human_playing t) then start_rain t *)
+  );
+  (*
+     Lwt.async (fun () -> rain_loop t);
+  *)
   t
 
 let ctl t box =
@@ -241,4 +257,4 @@ let ctl t box =
 let render t =
   let perspective = t.perspective in
   Ctx.clear t.ctx;
-  List.iter t.segments ~f:(Segment.render ~perspective ~ctx:t.ctx)
+  List.iter t.segments ~f:(Segment.render ~perspective ~ctx:t.ctx ~sound:t.sound)

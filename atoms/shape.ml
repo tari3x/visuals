@@ -5,10 +5,7 @@
 *)
 
 open Base
-open Util
-open Geometry
-open Dom_wrappers
-open Remote
+open Std_internal
 
 (* CR: lines and cross lines get scaled down *)
 

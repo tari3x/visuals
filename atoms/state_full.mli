@@ -4,9 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Remote
-open Dom_wrappers
+open Std_internal
 
 (* CR: no support for Bezier in this one. *)
 

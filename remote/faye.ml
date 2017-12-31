@@ -6,9 +6,8 @@
 
 open Base
 open Js
-open Util
-open Common
 open! Printf
+open Std_internal
 
 (*
 let init_called = ref false

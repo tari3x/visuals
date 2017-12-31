@@ -6,10 +6,7 @@
 
 open Base
 open Lwt
-open Util
-open Remote
-open Common
-open Dom_wrappers
+open Std_internal
 
 module State = State_full
 

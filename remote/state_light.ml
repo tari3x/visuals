@@ -5,9 +5,7 @@
 *)
 
 open Lwt
-open Util
-open Common
-open Dom_wrappers
+open Std_internal
 
 type 'a t =
   { ctx : Ctx.t

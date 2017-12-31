@@ -4,8 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Geometry
+open Std_internal
 
 val default_line_width : float
 

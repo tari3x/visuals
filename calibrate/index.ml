@@ -5,10 +5,7 @@
 *)
 
 open Lwt
-open Util
-open Common
-open Geometry
-open Dom_wrappers
+open Std_internal
 
 (* TODO:
    - make the center of the prism the center of rotation

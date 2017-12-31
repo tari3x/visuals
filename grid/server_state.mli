@@ -4,7 +4,6 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Dom_wrappers
+open Std_internal
 
 val start : Grid.t -> ctx:Ctx.t -> unit Lwt.t

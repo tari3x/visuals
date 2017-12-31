@@ -27,14 +27,32 @@
           top: 0;
           left: 0;
       }
+
+      #debug_canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+      }
+      
+      #audio {
+          z-index: 10000
+      }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1,
                                    minimum-scale=1, maximum-scale=1,
                                    user-scalable=no">
   </head>
   <body> <!-- oncontextmenu="return false;" -->
+    <!--
+    <audio id="audio"
+           src="data/track.mp3"
+           controls
+           autoplay>
+    </audio>
+    -->
     <canvas class="canvas" id="main_canvas"></canvas>
-
+    <!--
+    -->
     <script type="text/javascript" 
             src="external/faye/client.js">
     </script>

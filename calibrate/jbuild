@@ -5,7 +5,7 @@
     lwt
     js_of_ocaml
     js_of_ocaml-lwt
-    remote
+    visuals
   ))
   (js_of_ocaml (
     (flags (+weak.js))

@@ -5,9 +5,7 @@
 *)
 
 open Lwt
-open Util
-open Common
-open Dom_wrappers
+open Std_internal
 
 let start_color =
   if Config.drawing_mode
@@ -24,12 +22,16 @@ let get_clicks ctx =
   Lwt_stream.take clicks ~n:4
 
 let main () =
+  Sound.create_from_mic ()
+  >>= fun sound ->
   let ctx = Ctx.create ~id:"main_canvas" in
+  if Config.debug_sound
+  then Sound.set_debug sound (Some ctx);
   get_clicks ctx
   >>= fun clicks ->
   let corners = Prism.Quad.of_list_exn clicks in
   let grid =
-    Grid.create ~ctx ~cols:7 ~rows:3 ~corners ~color:start_color ()
+    Grid.create ~ctx ~sound ~cols:7 ~rows:3 ~corners ~color:start_color ()
   in
   Server_state.start grid ~ctx
 ;;

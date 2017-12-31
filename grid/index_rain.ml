@@ -4,9 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Util
-open Common
-open Remote
+open Std_internal
 
 ;;
 
