@@ -4,12 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
-let drawing_mode = false
+type t
 
-let debug_sound = false
+val of_hertz : float -> t
 
-let screen_grid = true
-
-let bot_active_at_start = true
-
-let grid_kind : [ `grid | `free ] = `free
+val hertz : t -> float
+val mel : t -> float

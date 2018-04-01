@@ -18,3 +18,5 @@ module Three_wrappers = Three_wrappers
 module Prism = Prism
 
 module Sound = Sound
+
+module Svg = Svg

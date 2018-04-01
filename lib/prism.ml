@@ -11,6 +11,7 @@ open Dom_wrappers
 
 module Quad = struct
   type t = Vector.t * Vector.t * Vector.t * Vector.t
+  [@@deriving sexp]
 
   let create v1 v2 v3 v4 =
     (v1, v2, v3, v4)

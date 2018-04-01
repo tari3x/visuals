@@ -14,7 +14,7 @@ open Dom_wrappers
    to something more abstract. *)
 
 module Quad : sig
-  type t
+  type t [@@deriving sexp]
 
   val create : Vector.t -> Vector.t -> Vector.t -> Vector.t -> t
 

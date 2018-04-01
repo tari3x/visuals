@@ -8,14 +8,15 @@ open Base
 open Lwt
 open Std_internal
 
-let line_width = 18.
+let line_width = 4. (* 18. *)
 let shorten_by = 7.
-let max_start_raining_probability = 0.2
 let max_keep_raining_probability = 1.
 let segment_life_span =
   if Config.drawing_mode
   then Float.infty
   else 3.
+
+let human_playing_timeout = Time.Span.of_sec 10.
 
 module Ctl = struct
   type t =
@@ -25,12 +26,17 @@ module Ctl = struct
 end
 
 module Segment = struct
+  module Kind = struct
+    type t = [ `vertical | `horizontal | `free ] [@@deriving sexp]
+  end
+
   type t =
-    { kind : [ `vertical | `horizontal ]
+    { kind : Kind.t
     ; v1 : Vector.t
     ; v2 : Vector.t
     ; mutable last_touched : Time.t option
     ; mutable color : Color.t
+    ; mutable flash : bool
     } [@@deriving sexp]
 
   let create v1 v2 ~kind ~color =
@@ -39,6 +45,7 @@ module Segment = struct
     ; v2
     ; last_touched = Some (Time.now ())
     ; color
+    ; flash = false
     }
 
   let distance t ~point =
@@ -61,12 +68,14 @@ module Segment = struct
       if between y y1 y2 then abs (x - x1) else infty
     | `horizontal ->
       if between x x1 x2 then abs (y - y1) else infty
+    | `free -> infty
 
-  let touch t ~color =
+  let touch t ~color ~flash =
     let color =
       Color.interpolate [t.color; color] ~arg:0.5
     in
     t.color <- color;
+    t.flash <- flash;
     t.last_touched <- Some (Time.now ())
 
   let shortened_ends t =
@@ -79,11 +88,10 @@ module Segment = struct
     match t.last_touched with
     | None -> ()
     | Some t0 ->
-      let delta = Time.(now () - t0) |> Time.Span.to_seconds in
+      let delta = Time.(now () - t0) |> Time.Span.to_sec in
       let alpha = 1. - (delta / segment_life_span) in
-      (* Flash *)
       let alpha =
-        if alpha > 1. - (1. / segment_life_span) / 10.
+        if delta < 0.1 && t.flash
         then 1.
         else alpha * 0.7
       in
@@ -107,122 +115,131 @@ end
 type t =
   { ctx : Ctx.t
   ; sound : Sound.t
-  ; rows : int
-  ; cols : int
   ; top_left : Vector.t
   ; width : float
   ; height : float
   ; perspective : Matrix.t
   ; segments : Segment.t list
   ; mutable last_human_touch : Time.t
-  ; mutable start_raining_probability : float
+  ; mutable bot_active : bool
   ; mutable keep_raining_probability : float
   }
 
-let rec rain t ~base_color =
+let rec rain t ~base_color ~is_first =
   let open Float in
   let segment = List.random_element_exn t.segments in
+  let color = base_color in
+  (* interpolation in touch should already create enough variation. *)
+  (*
   let color =
     Color.interpolate [ base_color; Color.random () ] ~arg:0.1
   in
-  Segment.touch segment ~color;
+  *)
+  Segment.touch segment ~color ~flash:is_first;
   if Random.float 1. > t.keep_raining_probability
   then Lwt.return ()
   else begin
     Lwt_js.sleep 0.05
     >>= fun () ->
-    rain t ~base_color
+    rain t ~base_color ~is_first:false
   end
 
 let human_playing t =
-  let open Float in
-  Time.(now () - t.last_human_touch |> Span.to_seconds) > 10.
+  let open Time in
+  let open Span in
+  now () - t.last_human_touch < human_playing_timeout
 
-let start_rain t =
-  let base_color = Color.random () |> Color.maximize in
-  Lwt.async (fun () -> rain t ~base_color)
+let start_rain ?base_color t =
+  let base_color =
+    match base_color with
+    | Some base_color -> base_color
+    | None -> Color.random () |> Color.maximize
+  in
+  Lwt.async (fun () -> rain t ~base_color ~is_first:true)
 
-let rec _rain_loop t =
-  let open Float in
-  begin
-    if not (human_playing t)
-      (* CR-someday: 0.1? *)
-      && Random.float 0.1 < t.start_raining_probability
-    then start_rain t
-  end;
-  Lwt_js.sleep 1.
-  >>= fun () ->
-  _rain_loop t
+let grid_segments ~top_left ~width ~height ~color ~rows ~cols =
+  let dy = height /. (float rows) in
+  let dx = width  /. (float cols) in
+  let point row col =
+    Vector.(top_left + create_float ((float col) *. dx) ((float row) *. dy))
+  in
+  let segment ~row ~col ~kind =
+    let row', col' =
+      match kind with
+      | `vertical   -> row + 1, col
+      | `horizontal -> row, col + 1
+    in
+    let kind = (kind :> Segment.Kind.t) in
+    if row' > rows || col' > cols
+    then None
+    else Some (Segment.create (point row col) (point row' col') ~kind ~color)
+  in
+  let make ~kind =
+    List.init (rows + 1) ~f:(fun row ->
+      List.init (cols + 1) ~f:(fun col ->
+        segment ~row ~col ~kind))
+    |> List.concat
+    |> List.filter_opt
+  in
+  make ~kind:`horizontal @ make ~kind:`vertical
 
-(* camera in this context means "native" or source coordinates. *)
-let create ~ctx ~sound ~rows ~cols ?corners ~color () =
+module Segments = struct
+  type t =
+  | Grid of { rows: int; cols : int }
+  | Set of (Vector.t * Vector.t) list
+end
+
+let create ~ctx ~sound
+    ~(segments : Segments.t)
+    ?native_corners ?real_corners ~color () =
   let wmargin = Ctx.width ctx *. 0.1 in
   let hmargin = Ctx.height ctx *. 0.1 in
   let width = Ctx.width ctx -. 2. *. wmargin in
   let height = Ctx.height ctx -. 2. *. hmargin in
   let top_left = Vector.create_float wmargin hmargin in
-  let camera =
-    let w = width in
-    let h = height in
-    let tr dx dy = Vector.(top_left + Vector.create_float dx dy) in
-    let v1 = tr 0. 0. in
-    let v2 = tr w  0. in
-    let v3 = tr w  h  in
-    let v4 = tr 0. h  in
-    Prism.Quad.create v1 v2 v3 v4
+  let native_corners =
+    match native_corners with
+    | Some corners -> corners
+    | None ->
+      let w = width in
+      let h = height in
+      let tr dx dy = Vector.(top_left + Vector.create_float dx dy) in
+      let v1 = tr 0. 0. in
+      let v2 = tr w  0. in
+      let v3 = tr w  h  in
+      let v4 = tr 0. h  in
+      Prism.Quad.create v1 v2 v3 v4
   in
-  let canvas = Option.value corners ~default:camera in
+  let real_corners = Option.value real_corners ~default:native_corners in
   let perspective =
-    Prism.Surface.create ~canvas ~camera
+    Prism.Surface.create ~canvas:real_corners ~camera:native_corners
     |> Prism.Surface.camera_to_canvas
   in
   let segments =
-    let dy = height /. (float rows) in
-    let dx = width  /. (float cols) in
-    let point row col =
-      Vector.(top_left + create_float ((float col) *. dx) ((float row) *. dy))
-    in
-    let segment ~row ~col ~kind =
-      let row', col' =
-        match kind with
-        | `vertical   -> row + 1, col
-        | `horizontal -> row, col + 1
-      in
-      if row' > rows || col' > cols
-      then None
-      else Some (Segment.create (point row col) (point row' col') ~kind ~color)
-    in
-    let make ~kind =
-      List.init (rows + 1) ~f:(fun row ->
-        List.init (cols + 1) ~f:(fun col ->
-          segment ~row ~col ~kind))
-      |> List.concat
-      |> List.filter_opt
-    in
-    make ~kind:`horizontal @ make ~kind:`vertical
+    match segments with
+    | Set segments ->
+      List.map segments ~f:(fun (v1, v2) ->
+        Segment.create v1 v2 ~kind:`free ~color)
+    | Grid { rows; cols } ->
+      grid_segments ~top_left ~width ~height ~color ~rows ~cols
   in
   let t =
-    { rows
-    ; cols
-    ; ctx
+    { ctx
     ; sound
     ; top_left
     ; width
     ; height
     ; perspective
     ; segments
-    ; last_human_touch = Time.now ()
-    ; start_raining_probability = 0.
-    ; keep_raining_probability  = 0.75
+    ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
+    ; bot_active = Config.bot_active_at_start
+    ; keep_raining_probability = 0.
     }
   in
-  Sound.on_beat sound ~f:(fun () ->
-    start_rain t
-    (* if not (human_playing t) then start_rain t *)
+  Sound.on_beat sound ~f:(fun source ->
+    if not (human_playing t) && t.bot_active
+    then start_rain t ~base_color:(Sound.Source.color source)
   );
-  (*
-     Lwt.async (fun () -> rain_loop t);
-  *)
   t
 
 let ctl t box =
@@ -238,7 +255,7 @@ let ctl t box =
             (Segment.distance ~point s1)
             (Segment.distance ~point s2)))
       |> List.dedup_and_sort
-      |> List.iter ~f:(Segment.touch ~color)
+      |> List.iter ~f:(Segment.touch ~color ~flash:true)
     end
   | Ctl.Rain_control ->
     match Box.touches box ~coordinates:`canvas with
@@ -249,8 +266,7 @@ let ctl t box =
       let (x, y) = Vector.coords touch in
       let w = Ctx.width t.ctx in
       let h = Ctx.height t.ctx in
-      t.start_raining_probability <-
-        max_start_raining_probability * (x / w);
+      t.bot_active <- (x / w) > 0.5;
       t.keep_raining_probability <-
         max_keep_raining_probability * (y / h)
 

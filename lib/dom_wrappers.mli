@@ -118,3 +118,8 @@ end
 module Window : sig
   val set_reload_on_resize : unit -> unit
 end
+
+module Node_list : sig
+  type 'a t = 'a Dom.nodeList Js.t
+  val to_list : 'a t -> 'a Js.t list
+end

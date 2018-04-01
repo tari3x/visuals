@@ -4,46 +4,108 @@
   See LICENSE file for copyright notice.
 *)
 
-(* CR-someday: MFCC? JS-Xtract can do it. *)
+(* Goal is beat identity detection (not touching melody so far).
+
+   Next:
+   * normalize volume to perception
+   * slowmo
+   * Reading: audio source separation (in ocaml)
+   * meyda?
+*)
+
+(* CR-someday: MFCC?
+ * JS-Xtract
+ * https://github.com/vail-systems/node-mfcc
+ * https://github.com/meyda/meyda/wiki/Audio-Features
+ *)
+
+(* Audio feature extraction:
+
+   * google with machine learning:
+   https://github.com/google/web-audio-recognition/blob/master/audio-features/src/AudioUtils.ts
+   * https://github.com/meyda/meyda
+*)
 
 open Base
 open Lwt
 open Common
-open Js_std
 open Dom_wrappers
 open Web_audio
 open Typed_array
 open Geometry
 
+let source_idle_timeout =
+  Time.Span.of_sec 3.
+
+let max_source_age =
+  Time.Span.of_sec 30.
+
+let max_num_sources = 3
+
 (* CR-someday: how much does zero-allocation matter here? *)
 
-let beat_lockout = Time.Span.of_seconds 0.1
-let threshold_decay_rate = 0.3
+module Source = struct
+  module Id = Id(struct let name = "Sound_source_id" end)
 
-(*
-let volume_delta_ewma_half_life = 10.
-let volume_delta_ewma_decay =
-  let t = volume_delta_ewma_half_life in
-  let beta = exp (neg (log 2. / t)) in
-  let alpha = 1. - beta in
-  assert (alpha > 0.);
-  assert (alpha < 1.);
-  alpha
-*)
+  type t =
+    { id : Id.t
+    ; bin : int
+    ; beat : Beat_detector.t
+    ; mutable last_in_beat : bool
+    ; mutable last_beat_time : Time.t
+    ; mutable on_beat : (unit -> unit) list
+    ; color : Color.t
+    ; created : Time.t
+    } [@@deriving fields]
+
+  let do_on_beat t =
+    List.iter t.on_beat ~f:(fun f -> f ())
+
+  let create ~beat ~bin =
+    let id = Id.create () in
+    let color = Color.random () |> Color.maximize in
+    let now = Time.now () in
+    { id; beat; bin
+    ; last_in_beat = false
+    ; last_beat_time = now
+    ; on_beat = []
+    ; color
+    ; created = now
+    }
+
+  let update t =
+    let in_beat = Beat_detector.in_beat t.beat in
+    if not t.last_in_beat && in_beat then do_on_beat t;
+    t.last_in_beat <- in_beat;
+    if in_beat then t.last_beat_time <- Time.now ()
+
+  let in_beat t =
+    Beat_detector.in_beat t.beat
+
+  let on_beat t ~f =
+    t.on_beat <- f :: t.on_beat
+
+  let is_alive t =
+    let open Time in
+    let open Span in
+    let now = now () in
+    let too_idle =
+      now - t.last_beat_time > source_idle_timeout
+    in
+    let too_old =
+      now - t.created > max_source_age
+    in
+    not (too_idle || too_old)
+end
 
 type t =
   { analyser : AnalyserNode.t
-  ; mutable bins : uint8Array Js.t
-  ; mutable prev_bins : uint8Array Js.t
+  ; bins : uint8Array Js.t
+  ; beats : Beat_detector.t array
+  ; max_sources : int
+  ; mutable sources : Source.t list
   ; mutable volume : float
-  ; mutable prev_volume : float
-(*
-  ; mutable volume_delta_ewma : float
-*)
-  ; mutable max_volume_delta : float
-  ; mutable last_beat_time : Time.t
-  ; mutable last_beat_volume : float
-  ; mutable on_beat : (unit -> unit) list
+  ; mutable on_beat : (Source.t -> unit) list
   ; mutable debug : Ctx.t option
   }
 
@@ -53,78 +115,109 @@ let num_bins t =
 let bin_volume_exn t i =
   float (Typed_array.unsafe_get t.bins i) /. 256.
 
-let prev_bin_volume_exn t i =
-  float (Typed_array.unsafe_get t.prev_bins i) /. 256.
+let do_on_beat t ~source =
+  List.iter t.on_beat ~f:(fun f -> f source)
+
+let find_new_source t ~sources =
+  if List.length sources >= t.max_sources then None
+  else if List.exists sources ~f:Source.in_beat then None
+  else match Array.count t.beats ~f:Beat_detector.in_beat with
+  | 0 -> None
+  | num_beats ->
+    let n = ref (Random.int num_beats + 1) in
+    let (bin, beat) =
+      Array.findi_exn t.beats ~f:(fun _i beat ->
+        if Beat_detector.in_beat beat then n := !n - 1;
+        !n = 0)
+    in
+    let source = Source.create ~beat ~bin in
+    Source.on_beat source ~f:(fun () -> do_on_beat t ~source);
+    Some source
+
+let update_sources t =
+  List.iter t.sources ~f:Source.update;
+  let sources = List.filter t.sources ~f:Source.is_alive in
+  let sources = Option.to_list (find_new_source t ~sources) @ sources in
+  t.sources <- sources
 
 let draw t ctx =
   let open Float in
   Ctx.clear ctx;
   Ctx.save ctx;
+  Ctx.set_fill_color ctx Color.white;
+  Ctx.set_stroke_color ctx Color.green;
+  (* let min_freq = Freq.of_hertz 0. in *)
+  let max_freq = Freq.of_hertz (t.analyser##.context##.sampleRate / 2.) in
+  let _num_visible_bins = num_bins t in
   let ctx_w = Ctx.width ctx in
   let ctx_h = Ctx.height ctx in
   let volume_w = 100. in
   let empty_w = 100. in
-  let bin_w = (ctx_w - volume_w - empty_w) / float (num_bins t) in
+  let spectrum_w = ctx_w - volume_w - empty_w in
+  let freq_bin_width =
+    Freq.hertz max_freq / float (num_bins t)
+  in
+  let bin_w i =
+    let i = float i in
+    let left  = Freq.of_hertz ( i       * freq_bin_width) |> Freq.mel in
+    let right = Freq.of_hertz ((i + 1.) * freq_bin_width) |> Freq.mel in
+    (right - left) * spectrum_w / Freq.mel max_freq
+    |> Float.max 1.
+  in
   let cursor = ref 0. in
-  let draw_bar ~value ~width =
+  let draw_bin ~value ~width ?ewma () =
     let height = value * ctx_h in
     let v = Vector.create_float !cursor (ctx_h - height) in
     Ctx.fill_rect ctx v ~width ~height;
+    Option.iter ewma ~f:(fun ewma ->
+      let ewma_height = ewma * ctx_h in
+      let v1 = Vector.create_float !cursor (ctx_h - ewma_height) in
+      let v2 = Vector.(v1 + (create_float width 0.)) in
+      Ctx.begin_path ctx;
+      Ctx.move_to ctx v1;
+      Ctx.line_to ctx v2;
+      Ctx.stroke ctx;
+    );
     cursor := !cursor + width
   in
-  let volume_delta = t.volume - t.prev_volume in
-  t.max_volume_delta <-
-    max t.max_volume_delta (abs volume_delta);
-  (*
-  let volume_delta_ewma =
-    let a = volume_delta_ewma_half_life in
-    a * volume_delta + (1. - a) * t.volume_delta_ewma
-  in
-  t.volume_delta_ewma <- volume_delta_ewma;
-  *)
-  let bin_deltas =
-    Sequence.init (num_bins t) ~f:(fun i ->
-      bin_volume_exn t i - prev_bin_volume_exn t i)
-  in
-  let max_delta =
-    Sequence.max_elt_exn bin_deltas ~cmp:(fun x1 x2 -> compare (abs x1) (abs x2))
-    |> abs
-  in
-  Sequence.iteri bin_deltas ~f:(fun _i delta ->
-    let delta =
-      if delta = 0. || t.max_volume_delta = 0.
-      then delta
-      else delta * volume_delta / (max_delta * t.max_volume_delta)
-    in
-    let arg = (delta + 1.) / 2. in
+  Array.iteri t.beats ~f:(fun i beat ->
     let color =
-      Color.interpolate ~arg
-        [ Color.blue; Color.white; Color.red ]
+      List.find t.sources ~f:(fun source ->
+        Source.in_beat source && Int.(Source.bin source = i))
+      |> function
+        | Some source -> Source.color source
+        | None -> Color.black
+          (*
+          if Beat_detector.in_beat beat
+          then Color.red else Color.white
+          *)
     in
-    (* let value = bin_volume_exn t i in *)
     Ctx.set_fill_color ctx color;
-    draw_bar ~value:1. ~width:bin_w
+    let _value = bin_volume_exn t i in
+    let width = bin_w i in
+    let ewma = Beat_detector.Debug.ewma beat in
+    draw_bin ~value:1. ~width ~ewma ()
   );
-  draw_bar ~value:0. ~width:empty_w;
-  draw_bar ~value:t.volume ~width:volume_w;
+  draw_bin ~value:0. ~width:empty_w ();
+  draw_bin ~value:t.volume ~width:volume_w ();
   Ctx.restore ctx
 
 let draw t =
   Option.iter t.debug ~f:(draw t)
 
 let rec update_loop (t : t) =
-  let open Float in
   (*
   Lwt_js_events.request_animation_frame ()
   >>= fun () ->
   *)
   Lwt_js.sleep 0.01
   >>= fun () ->
-  let bins = t.prev_bins in
-  t.prev_bins <- t.bins;
-  t.bins <- bins;
-  t.prev_volume <- t.volume;
   t.analyser##getByteFrequencyData t.bins;
+  let time = Time.now () in
+  Array.iteri t.beats ~f:(fun i beat ->
+    let value = bin_volume_exn t i in
+    Beat_detector.add_sample beat ~time ~value);
+  update_sources t;
   let last_bin = num_bins t in
   let volume =
     t.bins##subarray 0 last_bin
@@ -134,41 +227,29 @@ let rec update_loop (t : t) =
     |> Float.scale (1. /. 256.)
   in
   t.volume <- volume;
-  let now_ = Time.now () in
-  let last_beat_age = Time.(now_ - t.last_beat_time) in
-  let threshold =
-    t.last_beat_volume
-    - (Time.Span.to_seconds last_beat_age) * threshold_decay_rate
-    |> (Float.max 0.0)
-  in
-  if Float.(volume > threshold + 0.05)
-    && Time.Span.(last_beat_age > beat_lockout)
-  then begin
-    List.iter t.on_beat ~f:(fun f -> f ());
-    t.last_beat_time <- now_;
-    t.last_beat_volume <- volume
-  end;
   draw t;
   update_loop t
 
 let create_from_src ~ctx ~src =
   let analyser = ctx##createAnalyser () in
-  analyser##.smoothingTimeConstant := 0.;
+  analyser##.smoothingTimeConstant := 0.; (* 0.85 *)
+  analyser##.minDecibels := (-90.);
+  analyser##.maxDecibels := (-10.);
+  analyser##.fftSize := 4096;
   src##connect ~destination:(analyser :> AudioNode.t);
   analyser##connect ~destination:(ctx##.destination :> AudioNode.t);
   (* 1024 by default *)
   let num_bins = analyser##.frequencyBinCount in
   let bins = new%js uint8Array num_bins in
-  let prev_bins = new%js uint8Array num_bins in
+  let time = Time.now () in
+  let beats = Array.init num_bins ~f:(fun _i -> Beat_detector.create ~time) in
   let t =
     { analyser
     ; bins
-    ; prev_bins
+    ; beats
+    ; max_sources = max_num_sources
+    ; sources = []
     ; volume = 0.
-    ; prev_volume = 0.
-    ; max_volume_delta = 0.
-    ; last_beat_time = Time.now ()
-    ; last_beat_volume = 1.
     ; on_beat = []
     ; debug = None
     }
@@ -183,6 +264,7 @@ let create_from_html ~id =
   create_from_src ~ctx ~src
 
 let create_from_mic () =
+  let open Js_std in
   let constraints =
     MediaStreamConstraints.of_js_expr "{audio : true, video : false}"
   in

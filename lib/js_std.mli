@@ -14,6 +14,7 @@ module MediaStreamConstraints : sig
 
   (* Examples:
      { audio: true, video: true }
+
      {
      audio: true,
      video: { width: 1280, height: 720 }

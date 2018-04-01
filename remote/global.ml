@@ -55,15 +55,6 @@ end = struct
       ?(requested = t.requested) () =
     let last_touched = Time.now () in
     { box; owner; requested; last_touched }
-
-(*
-  let _to_string { box; owner; requested; last_touched } =
-    Printf.sprintf "{ box = %s; owner = %s; requested = %b; last_touched = %s }"
-      (Box.to_string box)
-      (Option.to_string Client_id.to_string owner)
-      requested
-      (Time.to_string last_touched)
-*)
 end
 
 module Client_info = struct
@@ -170,7 +161,7 @@ let cleanup_boxes t =
   t.box_ids <- List.filter t.box_ids ~f:(fun box_id ->
     let box = Hashtbl.find_exn t.boxes box_id in
     let last_touched = Box_info.last_touched box in
-    let age = Time.(time - last_touched) |> Time.Span.to_seconds in
+    let age = Time.(time - last_touched) |> Time.Span.to_sec in
     if Float.(age > max_box_age)
     then begin
       Hashtbl.remove t.boxes box_id;
@@ -287,7 +278,7 @@ let create ~viewport_width ~viewport_height ~is_server ~max_clients ~sexp_of_a =
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
   if t.is_server
   then begin
-    Lwt.every ~span:(Time.Span.of_seconds 1.) ~f:(fun () -> cleanup_boxes t);
+    Lwt.every ~span:(Time.Span.of_sec 1.) ~f:(fun () -> cleanup_boxes t);
     return t
   end
   else begin
@@ -325,7 +316,7 @@ let request t box_id =
 
 let release t box_id =
   change t box_id ~f:(fun box ->
-    Box_info.set box ~requested:true ());
+    Box_info.set box ~requested:false ());
   if is_owner t box_id
   then publish t (Message.Release box_id)
 

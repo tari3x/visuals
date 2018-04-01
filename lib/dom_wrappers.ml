@@ -341,3 +341,10 @@ module Window = struct
     add_event_listener Html.window Html.Event.resize ~f:(fun _ ->
       Html.window##.location##reload)
 end
+
+module Node_list = struct
+  type 'a t = 'a Dom.nodeList Js.t
+
+  let to_list (t : 'a t) =
+    List.init t##.length ~f:(fun i -> Opt.value_exn (t##item i) ~here:[%here])
+end

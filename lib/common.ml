@@ -15,10 +15,17 @@ module Html = Dom_html
 (* CR-someday: unify catching this *)
 exception Shutdown
 
-(* CR-someday: [Int.Replace_polymorphic_compare] *)
-let (=) : int -> int -> bool = (=)
-let max : int -> int -> int = max
-let min : int -> int -> int = min
+(* [Base] doesn't have [Int.Replace_polymorphic_compare] *)
+include struct
+  open Int
+  let (=) = (=)
+  let max = max
+  let min = min
+  let (<) = (<)
+  let (>) = (>)
+  let (>=) = (>=)
+  let (<=) = (<=)
+end
 
 let debug_table x : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "console.table")
@@ -72,6 +79,14 @@ module Optdef = struct
 
   let value_exn t =
     get t (fun () -> failwith "Optdef: undefined")
+end
+
+module Opt = struct
+  include Opt
+
+  let value_exn ~here ?(message = "") t =
+    Opt.get t (fun () ->
+      failwithf !"Opt.value_exn: %{Source_code_position}: %s" here message ())
 end
 
 module Option = struct
@@ -198,20 +213,23 @@ module Time : sig
   (* prints the float *)
   val to_string : t -> string
 
-  val of_seconds : float -> t
-  val to_seconds : t -> float
+  val of_sec : float -> t
+  val to_sec : t -> float
   val now : unit -> t
 
   module Span : sig
     type t
     val zero : t
-    val to_seconds : t -> float
-    val of_seconds : float -> t
+    val to_sec : t -> float
+    val of_sec : float -> t
     val (>) : t -> t -> bool
+    val (<) : t -> t -> bool
   end
 
   val (-) : t -> t -> Span.t
   val (+) : t -> Span.t -> t
+
+  val sub : t -> Span.t -> t
 end = struct
   type t = float [@@deriving sexp]
 
@@ -219,16 +237,18 @@ end = struct
 
   module Span = struct
     include Float
-    let to_seconds t = t
-    let of_seconds t = t
+    let to_sec t = t
+    let of_sec t = t
   end
 
   let now () = Unix.gettimeofday ()
-  let of_seconds t = t
-  let to_seconds t = t
+  let of_sec t = t
+  let to_sec t = t
 
   let (-) = (-.)
   let (+) = (+.)
+
+  let sub = (-.)
 end
 
 module Lwt = struct
@@ -241,7 +261,7 @@ module Lwt = struct
     t
 
   let every ~span ~f =
-    let span = Time.Span.to_seconds span in
+    let span = Time.Span.to_sec span in
     let rec loop () =
       f ();
       Lwt_js.sleep span
@@ -272,8 +292,5 @@ let top_level f =
     Lwt.async (fun () -> Lwt.catch f raise))
 
 let get_element_by_id id coerce_to =
-  Opt.get
-    (Opt.bind ( Html.document##getElementById(string id) )
-       coerce_to)
-    (fun () -> failwithf "can't find element %s" id)
-
+  (Opt.bind (Html.document##getElementById (string id)) coerce_to)
+  |> Opt.value_exn ~here:[%here] ~message:(sprintf "can't find element %s" id)

@@ -13,7 +13,7 @@ val create
   :  viewport_width:float
   -> viewport_height:float
   -> is_server:bool
-  (* CR: fold this into [is_server] *)
+  (* CR-someday: fold this into [is_server] *)
   -> max_clients:int
   -> sexp_of_a:('a -> Sexp.t)
   -> 'a t Lwt.t

@@ -1,5 +1,9 @@
 index.html
 index-server.html
+index.js
+index_client_light.js
+index_client_full.js
+index_server.js
 external
 start.sh
 stop.sh

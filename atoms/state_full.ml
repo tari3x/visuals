@@ -56,7 +56,7 @@ let render_help t =
 let rec render_loop t =
   Lwt_js.sleep 0.1
   >>= fun () ->
-  let time = Global.now_on_server t.global |> Time.to_seconds in
+  let time = Global.now_on_server t.global |> Time.to_sec in
   Ctx.clear t.ctx;
   Global.iter t.global ~f:(fun box ->
     Shape.render box t.ctx ~time);
@@ -103,7 +103,7 @@ let create ctx ~is_server =
   in
   if t.is_server
   then Global.on_change t.global ~f:(fun _box_id box ->
-    t.tracers <- (Time.now() |> Time.to_seconds, box) :: t.tracers;);
+    t.tracers <- (Time.now() |> Time.to_sec, box) :: t.tracers;);
   Lwt.async (fun () -> render_loop t);
   Lwt.return t
 

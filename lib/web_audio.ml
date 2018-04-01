@@ -8,11 +8,23 @@ open Js
 open Typed_array
 open Js_std
 
+
+module BaseAudioContext = struct
+  type witness
+  class type js = object
+    method base_audio_context_witness : witness
+    method sampleRate : float readonly_prop
+  end
+
+  type t = js Js.t
+end
+
 module AudioNode = struct
   type witness
   class type js = object
     method audio_node_witness : witness
     method connect : destination:js Js.t -> unit meth
+    method context : BaseAudioContext.t readonly_prop
   end
 
   type t = js Js.t
@@ -43,12 +55,15 @@ module AnalyserNode = struct
   class type js = object
     inherit AudioNode.js
     method analyser_node_witness : witness
-    method frequencyBinCount : int prop
+    method fftSize : int prop
+    method frequencyBinCount : int readonly_prop
     (* From -infty to 0. WTF am I supposed to do with it? *)
     method getFloatFrequencyData : float32Array Js.t -> unit meth
     method getByteFrequencyData : uint8Array Js.t -> unit meth
     (* between 0 and 1 *)
     method smoothingTimeConstant : float prop
+    method minDecibels : float prop
+    method maxDecibels : float prop
   end
 
   type t = js Js.t
@@ -60,6 +75,7 @@ end
 module AudioContext = struct
   type witness
   class type js = object
+    inherit BaseAudioContext.js
     method audio_context_witness : witness
     method createAnalyser : unit -> AnalyserNode.t meth
     method createMediaElementSource
@@ -68,6 +84,8 @@ module AudioContext = struct
     method createMediaStreamSource
       :  MediaStream.t
       -> MediaStreamAudioSourceNode.t meth
+    (* CR-someday: actually part of [BaseAudioContext] but creates a cyclic
+       dependency. *)
     method destination : MediaStreamAudioDestinationNode.t readonly_prop
   end
 
