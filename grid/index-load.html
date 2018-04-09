@@ -46,29 +46,19 @@
                                    minimum-scale=1, maximum-scale=1,
                                    user-scalable=no">
   </head>
-  <body> <!-- oncontextmenu="return false;" -->
-    <!--
-    <audio id="audio"
-           src="data/track.mp3"
-           controls
-           autoplay>
-    </audio>
-    -->
+  <body>
 
     <iframe id="svg-iframe"
             src="data/input.svg"
             class="hidden">
     </iframe>
     
-    <canvas class="canvas" id="main_canvas"></canvas>
-    <!--
-    -->
     <script type="text/javascript" 
             src="external/faye/client.js">
     </script>
     
     <script src="external/math.min.js"></script>
     <script src="external/three.js"></script>
-    <script src="index_server.js"></script>
+    <script src="index_load.js"></script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 (executables (
-  (names (index index_rain index_server))
+  (names (index index_rain index_load index_server))
   (libraries (
     base
     lwt

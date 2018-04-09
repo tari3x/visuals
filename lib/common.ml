@@ -269,6 +269,18 @@ module Lwt = struct
       loop ()
     in
     Lwt.async loop
+
+  module Let_syntax = struct
+    module Let_syntax = struct
+      let return = return
+      let bind t ~f = bind t f
+      let map t ~f = map t f
+      let both t1 t2 =
+        t1 >>= fun t1 ->
+        t2 >>= fun t2 ->
+        return (t1, t2)
+    end
+  end
 end
 
 (* CR: move this to [Dom_wrappers]. *)

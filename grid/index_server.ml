@@ -35,23 +35,28 @@ let main () =
   >>= fun sound ->
   let ctx = Ctx.create ~id:"main_canvas" in
   if Config.debug_sound
-  then Sound.set_debug sound (Some ctx);
-  get_corners ctx
-  >>= fun real_corners ->
-  let color = start_color in
-  let grid =
-    match Config.grid_kind with
-    | `grid ->
-      let segments = Grid.Segments.Grid { cols = 7; rows = 3 } in
-      Grid.create ~ctx ~sound ~segments ?real_corners ~color ()
-    | `free ->
-      let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
-      let { Svg. segments; calibration_points } = Svg.parse_exn svg in
-      let segments = Grid.Segments.Set segments in
-      let native_corners = calibration_points in
-      Grid.create ~ctx ~sound ~segments ~native_corners ?real_corners ~color ()
-  in
-  Server_state.start grid ~ctx
+  then begin
+    Sound.set_debug sound (Some ctx);
+    return ()
+  end
+  else begin
+    get_corners ctx
+    >>= fun real_corners ->
+    let color = start_color in
+    let grid =
+      match Config.grid_kind with
+      | `grid ->
+        let segments = Grid.Segments.Grid { cols = 7; rows = 3 } in
+        Grid.create ~ctx ~sound ~segments ?real_corners ~color ()
+      | `free ->
+        let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
+        let { Svg. segments; calibration_points } = Svg.parse_exn svg in
+        let segments = Grid.Segments.Set segments in
+        let native_corners = calibration_points in
+        Grid.create ~ctx ~sound ~segments ~native_corners ?real_corners ~color ()
+    in
+    Server_state.start grid ~ctx
+  end
 ;;
 
 top_level main

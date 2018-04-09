@@ -8,8 +8,15 @@ open Base
 open Lwt
 open Std_internal
 
-let line_width = 4. (* 18. *)
-let shorten_by = 7.
+(* TODO:
+   - defining segment groups that flash together.
+   - unify the straight lines in the picture. Not sure which way is better.
+   - two independent projectors
+*)
+
+let flash_cutoff = 0.6 (* 0.7 *)
+let line_width = 8. (* 18. *)
+let shorten_by = 0. (* 7. *)
 let max_keep_raining_probability = 1.
 let segment_life_span =
   if Config.drawing_mode
@@ -22,6 +29,7 @@ module Ctl = struct
   type t =
   | Spot
   | Rain_control
+  | Set_segments of (Vector.t * Vector.t) list
       [@@deriving sexp]
 end
 
@@ -93,7 +101,7 @@ module Segment = struct
       let alpha =
         if delta < 0.1 && t.flash
         then 1.
-        else alpha * 0.7
+        else alpha * flash_cutoff
       in
       (* let alpha = alpha *. Sound.volume sound in *)
       if alpha < 0.
@@ -119,7 +127,8 @@ type t =
   ; width : float
   ; height : float
   ; perspective : Matrix.t
-  ; segments : Segment.t list
+  ; color : Color.t
+  ; mutable segments : Segment.t list
   ; mutable last_human_touch : Time.t
   ; mutable bot_active : bool
   ; mutable keep_raining_probability : float
@@ -230,10 +239,11 @@ let create ~ctx ~sound
     ; width
     ; height
     ; perspective
+    ; color
     ; segments
     ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
     ; bot_active = Config.bot_active_at_start
-    ; keep_raining_probability = 0.
+    ; keep_raining_probability = 0.9
     }
   in
   Sound.on_beat sound ~f:(fun source ->
@@ -258,17 +268,23 @@ let ctl t box =
       |> List.iter ~f:(Segment.touch ~color ~flash:true)
     end
   | Ctl.Rain_control ->
-    match Box.touches box ~coordinates:`canvas with
-    | [] ->
-      debug "box with no touches!"
-    | touch :: _ ->
-      let open Float in
-      let (x, y) = Vector.coords touch in
-      let w = Ctx.width t.ctx in
-      let h = Ctx.height t.ctx in
-      t.bot_active <- (x / w) > 0.5;
-      t.keep_raining_probability <-
-        max_keep_raining_probability * (y / h)
+    begin
+      match Box.touches box ~coordinates:`canvas with
+      | [] ->
+        debug "box with no touches!"
+      | touch :: _ ->
+        let open Float in
+        let (x, y) = Vector.coords touch in
+        let w = Ctx.width t.ctx in
+        let h = Ctx.height t.ctx in
+        t.bot_active <- (x / w) > 0.5;
+        t.keep_raining_probability <-
+          max_keep_raining_probability * (y / h)
+    end
+  | Ctl.Set_segments segments ->
+    t.segments <-
+      List.map segments ~f:(fun (v1, v2) ->
+        Segment.create v1 v2 ~kind:`free ~color:t.color)
 
 let render t =
   let perspective = t.perspective in

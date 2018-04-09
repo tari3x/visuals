@@ -8,7 +8,7 @@ let drawing_mode = false
 
 let debug_sound = false
 
-let screen_grid = true
+let screen_grid = false
 
 let bot_active_at_start = true
 

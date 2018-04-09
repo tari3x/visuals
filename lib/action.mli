@@ -37,6 +37,8 @@ module Pointer : sig
   val id : t -> Pointer_id.t
 end
 
+(* CR-someday: hide this. An empty list of pointers is invalid and leads to an
+   exception. *)
 type t =
   { kind : Kind.t
   ; changed_touches : Pointer.t list

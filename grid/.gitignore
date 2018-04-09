@@ -1,3 +1,4 @@
+data
 index.html
 index-server.html
 external
@@ -6,3 +7,4 @@ stop.sh
 index.js
 index_rain.js
 index_server.js
+index_load.js

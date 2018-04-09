@@ -12,12 +12,15 @@ type t =
   ; global : Grid.Ctl.t Global.t
   }
 
+let render t =
+  Global.iter t.global ~f:(Grid.ctl t.grid);
+  Grid.render t.grid
+
 let rec render_loop t =
   (* Lwt_js_events.request_animation_frame () *)
   Lwt_js.sleep 0.01
   >>= fun () ->
-  Global.iter t.global ~f:(Grid.ctl t.grid);
-  Grid.render t.grid;
+  render t;
   render_loop t
 
 let start grid ~ctx =
@@ -29,6 +32,8 @@ let start grid ~ctx =
     ~sexp_of_a:Grid.Ctl.sexp_of_t
   >>= fun global ->
   let t = { grid; global } in
-  Grid.render t.grid;
+  render t;
+  (* Make sure to pick up changes from [Index_load]. *)
+  Global.on_change global ~f:(fun _ _ -> render t);
   Lwt.async (fun () -> render_loop t);
   Lwt.return ()

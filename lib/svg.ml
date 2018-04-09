@@ -17,13 +17,15 @@ module Svg_list = struct
     List.init t##.numberOfItems ~f:(fun i -> t##getItem i)
 end
 
+(* This is not a correct representation. One should cast based on the value of
+   [pathSegType]. But this works for now. *)
 module Path_seg = struct
   type witness
   class type js = object
     inherit Dom_svg.pathSeg
     method path_seg_witness : witness
-    method x : float prop
-    method y : float prop
+    method x : float readonly_prop
+    method y : float readonly_prop
   end
 
   type t = js Js.t
@@ -105,11 +107,10 @@ let calibration_points (svg_document : Dom_html.document Js.t) =
     | _ -> failwith "expecting exactly 4 circles"
 
 let parse_exn (elt : Html.iFrameElement Js.t) =
-  match Opt.to_option elt##.contentDocument with
-  | None -> failwith "no contentDocuemnt"
-  | Some doc ->
-    let segments = segments doc in
-    let calibration_points = calibration_points doc in
-    let t = { segments; calibration_points } in
-    debug !"%{sexp:t}" t;
-    t
+  let doc = Opt.value_exn elt##.contentDocument ~here:[%here] in
+  let segments = segments doc in
+  let calibration_points = calibration_points doc in
+  let t = { segments; calibration_points } in
+  debug !"%{sexp:t}" t;
+  t
+

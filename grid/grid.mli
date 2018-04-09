@@ -10,6 +10,7 @@ module Ctl : sig
   type t =
   | Spot
   | Rain_control
+  | Set_segments of (Vector.t * Vector.t) list
       [@@deriving sexp]
 end
 
