@@ -1,5 +1,5 @@
 (executables (
-  (names (index index_rain index_load index_server))
+  (names (index index_rain index_server))
   (libraries (
     base
     lwt
@@ -7,6 +7,7 @@
     js_of_ocaml-lwt
     visuals
     remote
+    grid_lib
   ))
   (js_of_ocaml (
     (flags (+weak.js))

@@ -3,8 +3,6 @@ include Common
 include Dom_wrappers
 include Geometry
 
-module Config = Config
-
 module Color = Color
 module Color_cycle = Color_cycle
 module Action = Action

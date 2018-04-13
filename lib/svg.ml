@@ -113,4 +113,3 @@ let parse_exn (elt : Html.iFrameElement Js.t) =
   let t = { segments; calibration_points } in
   debug !"%{sexp:t}" t;
   t
-

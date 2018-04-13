@@ -6,7 +6,4 @@
 
 open Std_internal
 
-;;
-
-top_level (fun () ->
-  Gui_client.main (Box.create ~kind:Grid.Ctl.Rain_control ()))
+val start : Config.t -> Grid.t -> ctx:Ctx.t -> unit Lwt.t

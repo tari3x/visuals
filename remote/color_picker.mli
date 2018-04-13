@@ -6,6 +6,17 @@
 
 open Std_internal
 
-val draw : Ctx.t -> unit
+module Config : sig
+  type t =
+    (* included in drawing mode *)
+    { include_black_strip : bool
+    } [@@deriving sexp]
+end
 
-val run : _ State_light.t -> Ctx.t -> unit Lwt.t
+type t
+
+val create : Config.t -> Ctx.t -> t
+
+val draw : t -> unit
+
+val run : t -> _ State_light.t  -> unit Lwt.t

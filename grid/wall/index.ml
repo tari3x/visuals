@@ -6,4 +6,7 @@
 
 open Std_internal
 
-val start : Grid.t -> ctx:Ctx.t -> unit Lwt.t
+;;
+
+top_level (fun () ->
+  Gui_client.main Local_config.config (Box.create ~kind:Grid.Ctl.Spot ()))

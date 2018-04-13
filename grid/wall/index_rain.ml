@@ -4,12 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
-let drawing_mode = false
+open Std_internal
 
-let debug_sound = false
+;;
 
-let screen_grid = false
-
-let bot_active_at_start = true
-
-let grid_kind : [ `grid | `free ] = `free
+top_level (fun () ->
+  Gui_client.main Local_config.config (Box.create ~kind:Grid.Ctl.Rain_control ()))

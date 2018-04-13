@@ -23,7 +23,8 @@ module Segments : sig
 end
 
 val create
-  :  ctx:Ctx.t
+  :  config:Config.t
+  -> ctx:Ctx.t
   (* CR-someday: sound must be made optional if you want to display grid on the
      client .*)
   -> sound:Sound.t

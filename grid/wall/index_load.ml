@@ -18,13 +18,19 @@ let main () =
   let { Svg. segments; calibration_points = _ } = Svg.parse_exn svg in
   let set_segments = Grid.Ctl.Set_segments segments in
   let shape = Box.create ~kind:set_segments () in
+  let config = Local_config.config in
+  let global_config =
+    { Global.Config.
+      viewport_width = 1.
+    ; viewport_height = 1.
+    ; is_server = false
+    ; max_clients = 1
+    ; max_box_age = Config.max_box_age config
+    ; global_channel_name = config.global_channel_name
+    }
+  in
   let%bind global =
-    Global.create
-      ~viewport_width:1.
-      ~viewport_height:1.
-      ~is_server:false
-      ~max_clients:1
-      ~sexp_of_a:Grid.Ctl.sexp_of_t
+    Global.create global_config ~sexp_of_a:Grid.Ctl.sexp_of_t
   in
   let box_id = Global.add global shape in
   Global.delete global box_id;

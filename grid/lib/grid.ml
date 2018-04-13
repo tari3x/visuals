@@ -12,16 +12,13 @@ open Std_internal
    - defining segment groups that flash together.
    - unify the straight lines in the picture. Not sure which way is better.
    - two independent projectors
+   - remote control
 *)
 
 let flash_cutoff = 0.6 (* 0.7 *)
 let line_width = 8. (* 18. *)
 let shorten_by = 0. (* 7. *)
 let max_keep_raining_probability = 1.
-let segment_life_span =
-  if Config.drawing_mode
-  then Float.infty
-  else 3.
 
 let human_playing_timeout = Time.Span.of_sec 10.
 
@@ -91,13 +88,13 @@ module Segment = struct
     let delta = (normalize (t.v2 - t.v1)) * shorten_by in
     t.v1 + delta, t.v2 - delta
 
-  let render t ~perspective ~ctx ~sound:_ =
+  let render t ~(config : Config.t) ~perspective ~ctx ~sound:_ =
     let open Float in
     match t.last_touched with
     | None -> ()
     | Some t0 ->
       let delta = Time.(now () - t0) |> Time.Span.to_sec in
-      let alpha = 1. - (delta / segment_life_span) in
+      let alpha = 1. - (delta / Config.segment_life_span config) in
       let alpha =
         if delta < 0.1 && t.flash
         then 1.
@@ -121,7 +118,8 @@ module Segment = struct
 end
 
 type t =
-  { ctx : Ctx.t
+  { config : Config.t
+  ; ctx : Ctx.t
   ; sound : Sound.t
   ; top_left : Vector.t
   ; width : float
@@ -198,7 +196,7 @@ module Segments = struct
   | Set of (Vector.t * Vector.t) list
 end
 
-let create ~ctx ~sound
+let create ~(config : Config.t) ~ctx ~sound
     ~(segments : Segments.t)
     ?native_corners ?real_corners ~color () =
   let wmargin = Ctx.width ctx *. 0.1 in
@@ -233,7 +231,8 @@ let create ~ctx ~sound
       grid_segments ~top_left ~width ~height ~color ~rows ~cols
   in
   let t =
-    { ctx
+    { config
+    ; ctx
     ; sound
     ; top_left
     ; width
@@ -242,7 +241,7 @@ let create ~ctx ~sound
     ; color
     ; segments
     ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
-    ; bot_active = Config.bot_active_at_start
+    ; bot_active = config.bot_active_at_start
     ; keep_raining_probability = 0.9
     }
   in
@@ -289,4 +288,5 @@ let ctl t box =
 let render t =
   let perspective = t.perspective in
   Ctx.clear t.ctx;
-  List.iter t.segments ~f:(Segment.render ~perspective ~ctx:t.ctx ~sound:t.sound)
+  List.iter t.segments
+    ~f:(Segment.render ~config:t.config ~perspective ~ctx:t.ctx ~sound:t.sound)

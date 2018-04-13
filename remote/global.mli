@@ -7,14 +7,22 @@
 open Base
 open Std_internal
 
+module Config : sig
+  type t =
+    { viewport_width  : float
+    ; viewport_height : float
+    ; is_server : bool
+    (* CR-someday: fold this into [is_server] *)
+    ; max_clients : int
+    ; max_box_age : Time.Span.t
+    ; global_channel_name : string
+    }
+end
+
 type 'a t
 
 val create
-  :  viewport_width:float
-  -> viewport_height:float
-  -> is_server:bool
-  (* CR-someday: fold this into [is_server] *)
-  -> max_clients:int
+  :  Config.t
   -> sexp_of_a:('a -> Sexp.t)
   -> 'a t Lwt.t
 

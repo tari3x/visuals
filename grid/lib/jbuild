@@ -1,0 +1,15 @@
+(library (
+  (name grid_lib)
+  (libraries (
+    base
+    lwt
+    js_of_ocaml
+    js_of_ocaml-lwt
+    visuals
+    remote
+  ))
+  (preprocess (pps (
+    ppx_jane
+    js_of_ocaml-ppx
+  )))
+))

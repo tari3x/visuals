@@ -10,10 +10,17 @@ open Std_internal
 
 module Channel = Faye.Channel
 
-let max_box_age =
-  if Config.drawing_mode
-  then Float.infty
-  else 30.
+module Config = struct
+  type t =
+    { viewport_width : float
+    ; viewport_height : float
+    ; is_server : bool
+    (* CR-someday: fold this into [is_server] *)
+    ; max_clients : int
+    ; max_box_age : Time.Span.t
+    ; global_channel_name : string
+    }
+end
 
 module Box_info : sig
   type 'a t
@@ -64,18 +71,15 @@ module Client_info = struct
 end
 
 type 'a t =
-  { faye : 'a Message.t Faye.t
-  ; is_server : bool
+  { config : Config.t
+  ; faye : 'a Message.t Faye.t
   ; client_id : Client_id.t
   (* CR: get rid of this, or at least make sure that it is only used to order
      boxs during rendering. *)
   ; mutable box_ids : Box_id.t list
   ; boxes : 'a Box_info.t Hashtbl.M(Box_id).t
-  ; max_clients : int
   ; clients : Client_info.t Hashtbl.M(Client_id).t
   ; mutable server_offset : Time.Span.t
-  ; viewport_width  : float
-  ; viewport_height : float
   (* Multiply server coordinate by this number (<= 1) to get client
      coordinate. *)
   ; mutable viewport_scale : float
@@ -107,15 +111,15 @@ let init_message t =
   in
   Message.Init
     { boxes
-    ; width = t.viewport_width
-    ; height = t.viewport_height
+    ; width = t.config.viewport_width
+    ; height = t.config.viewport_height
     ; time = Time.now ()
     }
 
 let init t msg =
   let { Message.Init. boxes; width; height; time } = msg in
-  let scale_x = t.viewport_width /. width in
-  let scale_y = t.viewport_height /. height in
+  let scale_x = t.config.viewport_width /. width in
+  let scale_y = t.config.viewport_height /. height in
   (* Make sure to set viewport scale before decoding the boxes. *)
   t.viewport_scale <- Float.min (Float.min scale_x scale_y) 1.0;
   List.iter boxes ~f:(fun (box_id, box, owner) ->
@@ -161,8 +165,8 @@ let cleanup_boxes t =
   t.box_ids <- List.filter t.box_ids ~f:(fun box_id ->
     let box = Hashtbl.find_exn t.boxes box_id in
     let last_touched = Box_info.last_touched box in
-    let age = Time.(time - last_touched) |> Time.Span.to_sec in
-    if Float.(age > max_box_age)
+    let age = Time.(time - last_touched) in
+    if Time.Span.(age > t.config.max_box_age)
     then begin
       Hashtbl.remove t.boxes box_id;
       false
@@ -199,7 +203,7 @@ let reject_because_max_clients t client_id =
 
 let process_message t = function
   | Message.Request (client_id, box_id) ->
-    if t.is_server
+    if t.config.is_server
     then change t box_id ~f:(fun box ->
       match Box_info.owner box with
       | Some _ -> box
@@ -225,10 +229,10 @@ let process_message t = function
     Hashtbl.remove t.boxes box_id;
     t.box_ids <- List.delete t.box_ids box_id ~equal:Box_id.equal
   | Message.Request_init (_, channel) ->
-    if t.is_server
+    if t.config.is_server
     then Faye.publish t.faye channel (init_message t)
   | Message.Init msg ->
-    if not t.is_server then init t msg
+    if not t.config.is_server then init t msg
   | Message.Max_clients_exceeded (_client_id, max_clients) ->
     alert "At most %d users are allowed." max_clients;
     raise Shutdown
@@ -254,29 +258,26 @@ let process_message t msg =
   *)
   process_message t msg
 
-let create ~viewport_width ~viewport_height ~is_server ~max_clients ~sexp_of_a =
+let create config ~sexp_of_a =
   let faye =
     Faye.create ~sexp_of_a:(Message.sexp_of_t sexp_of_a)
   in
   let t =
-    { faye
-    ; is_server
+    { config
+    ; faye
     ; client_id = Client_id.create ()
     ; box_ids = []
     ; boxes = Hashtbl.create (module Box_id) ()
     ; server_offset = Time.Span.zero
-    ; viewport_width
-    ; viewport_height
     ; viewport_scale = 1.
     ; on_change = []
-    ; max_clients
     ; clients = Hashtbl.create (module Client_id) ()
     ; sexp_of_a
     }
   in
   (* debug !"starting with client_id %{Client_id}" t.client_id; *)
   Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
-  if t.is_server
+  if t.config.is_server
   then begin
     Lwt.every ~span:(Time.Span.of_sec 1.) ~f:(fun () -> cleanup_boxes t);
     return t

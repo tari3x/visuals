@@ -7,6 +7,13 @@
 open Lwt
 open Std_internal
 
+module Config = struct
+  type t =
+    { max_box_age : Time.Span.t
+    ; global_channel_name : string
+    }
+end
+
 type 'a t =
   { ctx : Ctx.t
   ; global : 'a Global.t
@@ -14,13 +21,23 @@ type 'a t =
   ; mutable shape : 'a Box.t
   }
 
-let create ctx shape ~sexp_of_a =
-  Global.create
-    ~viewport_width:(Ctx.width ctx)
-    ~viewport_height:(Ctx.height ctx)
-    ~is_server:false
-    ~max_clients:2
-    ~sexp_of_a
+let create (config : Config.t) ctx shape ~sexp_of_a =
+  let { Config.
+        max_box_age
+      ; global_channel_name
+      } = config
+  in
+  let global_config =
+    { Global.Config.
+      viewport_width = Ctx.width ctx
+    ; viewport_height = Ctx.height ctx
+    ; is_server = false
+    ; max_clients = 2
+    ; max_box_age
+    ; global_channel_name
+    }
+  in
+  Global.create global_config ~sexp_of_a
   >>= fun global ->
   Lwt.return { ctx
              ; global

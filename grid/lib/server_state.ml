@@ -23,13 +23,18 @@ let rec render_loop t =
   render t;
   render_loop t
 
-let start grid ~ctx =
-  Global.create
-    ~viewport_width:(Ctx.width ctx)
-    ~viewport_height:(Ctx.height ctx)
-    ~is_server:true
-    ~max_clients:6
-    ~sexp_of_a:Grid.Ctl.sexp_of_t
+let start (config : Config.t) grid ~ctx =
+  let global_config =
+    { Global.Config.
+      viewport_width = Ctx.width ctx
+    ; viewport_height = Ctx.height ctx
+    ; is_server = true
+    ; max_clients = 6
+    ; max_box_age = Config.max_box_age config
+    ; global_channel_name = config.global_channel_name
+    }
+  in
+  Global.create global_config ~sexp_of_a:Grid.Ctl.sexp_of_t
   >>= fun global ->
   let t = { grid; global } in
   render t;

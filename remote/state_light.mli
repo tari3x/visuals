@@ -7,10 +7,18 @@
 open Base
 open Std_internal
 
+module Config : sig
+  type t =
+    { max_box_age : Time.Span.t
+    ; global_channel_name : string
+    }
+end
+
 type 'a t
 
 val create
-  :   Ctx.t
+  :  Config.t
+  -> Ctx.t
   -> 'a Box.t
   -> sexp_of_a:('a -> Sexp.t)
   -> 'a t Lwt.t
