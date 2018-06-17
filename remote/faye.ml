@@ -29,7 +29,7 @@ let init () =
 module Channel = struct
   include String
 
-  let global = "/global"
+  let global s = sprintf "/%s" s
   let create () =
     Printf.sprintf "/%d" (Random.int 100_000_000)
 end
@@ -74,7 +74,8 @@ let subscribe_with_try (t : 'a t) channel ~f =
     Ordered_stream.write buffer msg
   in
   let read_from_buffer msg =
-    (* debug !"Received %{Message} on %{Channel" msg_string channel; *)
+    (*  let msg_sexp = t.sexp_of_a msg in
+        debug !"Received %{Sexp} on %{Channel}" msg_sexp channel; *)
     f msg
   in
   (* debug "Subscribed to %s" channel; *)

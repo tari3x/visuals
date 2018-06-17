@@ -81,12 +81,17 @@ let call_on_box_active t box =
 (* CR-someday: I'm not sure I have to actually wait for the window to load,
    but I suspect I do. *)
 let create ctx ~is_server =
-  Global.create
-    ~viewport_width:(Ctx.width ctx)
-    ~viewport_height:(Ctx.height ctx)
-    ~is_server
-    ~max_clients:6
-    ~sexp_of_a:Shape.sexp_of_t
+  let global_config =
+    { Global.Config.
+      viewport_width = Ctx.width ctx
+    ; viewport_height = Ctx.height ctx
+    ; is_server
+    ; max_clients = 6
+    ; max_box_age = Time.Span.of_sec 30.
+    ; global_channel_name = "global"
+    }
+  in
+  Global.create global_config ~sexp_of_a:Shape.sexp_of_t
   >>= fun global ->
   let t =
     { ctx

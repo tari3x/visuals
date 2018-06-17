@@ -7,7 +7,7 @@ var server = http.createServer(),
 bayeux.attach(server);
 server.listen(8000);
 
-/* 
+/*
 bayeux.on('handshake', function(clientId) {
   console.log('handshake: ' + clientId);
 });

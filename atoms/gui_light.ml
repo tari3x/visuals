@@ -77,14 +77,26 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
 let main () =
   Window.set_reload_on_resize ();
   Random.self_init ();
-  let picker_ctx = Ctx.create ~id:"color-picker-canvas" in
-  Color_picker.draw picker_ctx;
+  let color_picker =
+    Color_picker.create
+      { Color_picker.Config.
+        include_black_strip = false
+      }
+      (Ctx.create ~id:"color-picker-canvas")
+  in
+  Color_picker.draw color_picker;
   let ctx = Ctx.create ~id:"main_canvas" in
   let actions = Ctx.canvas_actions ctx in
   choose_shape actions ctx
   >>= fun (shape, action) ->
-  State.create ctx shape ~sexp_of_a:Shape.sexp_of_t
+  let state_config =
+    { State.Config.
+      max_box_age = Time.Span.of_sec 30.
+    ; global_channel_name = "global"
+    }
+  in
+  State.create state_config ctx shape ~sexp_of_a:Shape.sexp_of_t
   >>= fun t ->
   State.process_action t action;
-  Lwt.async (fun () -> Color_picker.run t picker_ctx);
+  Lwt.async (fun () -> Color_picker.run color_picker t);
   Lwt_stream.iter_with_try actions ~f:(State.process_action t)

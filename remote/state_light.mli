@@ -7,6 +7,7 @@
 open Base
 open Std_internal
 
+(* CR: convert this to create arguments. *)
 module Config : sig
   type t =
     { max_box_age : Time.Span.t

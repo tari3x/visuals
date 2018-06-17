@@ -30,23 +30,26 @@ module Ctl = struct
       [@@deriving sexp]
 end
 
-module Segment = struct
-  module Kind = struct
-    type t = [ `vertical | `horizontal | `free ] [@@deriving sexp]
-  end
-
+  (*
+module Shape = struct
   type t =
-    { kind : Kind.t
-    ; v1 : Vector.t
+  | Segment of (Vector.t * Vector.t)
+  | Polygon of Vector.t list
+      [@@deriving sexp]
+end
+  *)
+
+module Segment = struct
+  type t =
+    { v1 : Vector.t
     ; v2 : Vector.t
     ; mutable last_touched : Time.t option
     ; mutable color : Color.t
     ; mutable flash : bool
     } [@@deriving sexp]
 
-  let create v1 v2 ~kind ~color =
-    { kind
-    ; v1
+  let create v1 v2 ~color =
+    { v1
     ; v2
     ; last_touched = Some (Time.now ())
     ; color
@@ -64,16 +67,17 @@ module Segment = struct
     let (x1, y1) = Vector.coords t.v1 in
     let (x2, y2) = Vector.coords t.v2 in
     let rec between a a1 a2 =
-      if a1 < a2
+      if a1 <= a2
       then a1 < a && a < a2
       else between a a2 a1
     in
-    match t.kind with
-    | `vertical ->
+    let vertical =
       if between y y1 y2 then abs (x - x1) else infty
-    | `horizontal ->
+    in
+    let horizontal =
       if between x x1 x2 then abs (y - y1) else infty
-    | `free -> infty
+    in
+    Float.min vertical horizontal
 
   let touch t ~color ~flash =
     let color =
@@ -176,10 +180,9 @@ let grid_segments ~top_left ~width ~height ~color ~rows ~cols =
       | `vertical   -> row + 1, col
       | `horizontal -> row, col + 1
     in
-    let kind = (kind :> Segment.Kind.t) in
     if row' > rows || col' > cols
     then None
-    else Some (Segment.create (point row col) (point row' col') ~kind ~color)
+    else Some (Segment.create (point row col) (point row' col') ~color)
   in
   let make ~kind =
     List.init (rows + 1) ~f:(fun row ->
@@ -225,8 +228,7 @@ let create ~(config : Config.t) ~ctx ~sound
   let segments =
     match segments with
     | Set segments ->
-      List.map segments ~f:(fun (v1, v2) ->
-        Segment.create v1 v2 ~kind:`free ~color)
+      List.map segments ~f:(fun (v1, v2) -> Segment.create v1 v2 ~color)
     | Grid { rows; cols } ->
       grid_segments ~top_left ~width ~height ~color ~rows ~cols
   in
@@ -283,7 +285,7 @@ let ctl t box =
   | Ctl.Set_segments segments ->
     t.segments <-
       List.map segments ~f:(fun (v1, v2) ->
-        Segment.create v1 v2 ~kind:`free ~color:t.color)
+        Segment.create v1 v2 ~color:t.color)
 
 let render t =
   let perspective = t.perspective in

@@ -8,7 +8,7 @@ open Base
 
 module Channel : sig
   type t [@@deriving sexp]
-  val global : t
+  val global : string -> t
   val create : unit -> t
 end
 

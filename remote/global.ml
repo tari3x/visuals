@@ -140,7 +140,9 @@ let is_owner t box_id =
 
 let assign t client_id box_id =
   let release () =
-    Faye.publish t.faye Channel.global (Message.Release box_id)
+    Faye.publish t.faye
+      (Channel.global t.config.global_channel_name)
+      (Message.Release box_id)
   in
   match Hashtbl.find t.boxes box_id with
   | None ->
@@ -188,7 +190,7 @@ let change t box_id ~f =
     Hashtbl.set t.boxes ~key:box_id ~data:(f box)
 
 let publish t msg =
-  Faye.publish t.faye Channel.global msg
+  Faye.publish t.faye (Channel.global t.config.global_channel_name) msg
 
 let add t client_id box_id box =
   let box_info = Box_info.create ~box ~owner:(Some client_id) in
@@ -276,7 +278,9 @@ let create config ~sexp_of_a =
     }
   in
   (* debug !"starting with client_id %{Client_id}" t.client_id; *)
-  Faye.subscribe_with_try t.faye Channel.global ~f:(process_message t);
+  Faye.subscribe_with_try t.faye
+    (Channel.global config.global_channel_name)
+    ~f:(process_message t);
   if t.config.is_server
   then begin
     Lwt.every ~span:(Time.Span.of_sec 1.) ~f:(fun () -> cleanup_boxes t);
