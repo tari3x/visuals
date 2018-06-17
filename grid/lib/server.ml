@@ -37,19 +37,20 @@ let main (config : Config.t) =
   else begin
     get_corners config ctx
     >>= fun real_corners ->
-    let color = Config.start_color config in
+    let base_color = Config.start_color config in
     let grid =
       match config.grid_kind with
       | `grid ->
         let segments = Grid.Segments.Grid { cols = 7; rows = 3 } in
-        Grid.create ~config ~ctx ~sound ~segments ?real_corners ~color ()
+        Grid.create ~config ~ctx ~sound ~segments ?real_corners ~base_color ()
       | `free ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
         let { Svg. segments; calibration_points } = Svg.parse_exn svg in
         let segments = Grid.Segments.Set segments in
         let native_corners = calibration_points in
         Grid.create
-          ~config ~ctx ~sound ~segments ~native_corners ?real_corners ~color ()
+          ~config ~ctx ~sound ~segments
+          ~native_corners ?real_corners ~base_color ()
     in
     Server_state.start config grid ~ctx
   end

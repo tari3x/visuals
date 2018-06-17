@@ -218,12 +218,13 @@ module Time : sig
   val now : unit -> t
 
   module Span : sig
-    type t
+    type t [@@deriving sexp]
     val zero : t
     val to_sec : t -> float
     val of_sec : float -> t
     val (>) : t -> t -> bool
     val (<) : t -> t -> bool
+    val ( * ) : t -> float -> t
   end
 
   val (-) : t -> t -> Span.t

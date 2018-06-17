@@ -30,6 +30,8 @@ val of_hex8_string : string -> t
 
 val random : unit -> t
 
+val interpolate_two : t -> t -> float -> t
+
 (* Defaults to white if list is empty *)
 val interpolate : t list -> arg:float -> t
 

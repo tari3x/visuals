@@ -15,6 +15,8 @@ open Std_internal
    - remote control
 *)
 
+module CF = Color_flow
+
 let flash_cutoff = 0.6 (* 0.7 *)
 let line_width = 8. (* 18. *)
 let shorten_by = 0. (* 7. *)
@@ -41,19 +43,43 @@ end
 
 module Segment = struct
   type t =
-    { v1 : Vector.t
+    { config : Config.t sexp_opaque
+    ; v1 : Vector.t
     ; v2 : Vector.t
-    ; mutable last_touched : Time.t option
-    ; mutable color : Color.t
-    ; mutable flash : bool
+    ; mutable base_color : Color.t
+    ; mutable color : Color_flow.t
     } [@@deriving sexp]
 
-  let create v1 v2 ~color =
-    { v1
+  let fade ~config ~base_color ~flash =
+    let open Time.Span in
+    let base_color alpha = Color.set_alpha base_color ~alpha in
+    let sls = Config.segment_life_span config in
+    if not flash
+    then begin
+      CF.start_now (base_color flash_cutoff)
+      |> CF.add ~after:sls ~color:(base_color 0.)
+    end
+    else begin
+      CF.start_now (base_color 1.)
+      |> CF.add ~after:(sls * 0.1) ~color:(base_color flash_cutoff)
+      |> CF.add ~after:(sls * 0.9) ~color:(base_color 0.)
+    end
+
+  let touch t ~color ~flash =
+    (* CR-someday: if we are faded out, why interpolate? *)
+    let base_color =
+      Color.interpolate [t.base_color; color] ~arg:0.5
+    in
+    t.base_color <- base_color;
+    t.color <- fade ~config:t.config ~base_color ~flash
+
+  let create v1 v2 ~config ~base_color =
+    let color = fade ~config ~base_color ~flash:false in
+    { config
+    ; v1
     ; v2
-    ; last_touched = Some (Time.now ())
+    ; base_color
     ; color
-    ; flash = false
     }
 
   let distance t ~point =
@@ -79,46 +105,22 @@ module Segment = struct
     in
     Float.min vertical horizontal
 
-  let touch t ~color ~flash =
-    let color =
-      Color.interpolate [t.color; color] ~arg:0.5
-    in
-    t.color <- color;
-    t.flash <- flash;
-    t.last_touched <- Some (Time.now ())
-
   let shortened_ends t =
     let open Vector in
     let delta = (normalize (t.v2 - t.v1)) * shorten_by in
     t.v1 + delta, t.v2 - delta
 
-  let render t ~(config : Config.t) ~perspective ~ctx ~sound:_ =
-    let open Float in
-    match t.last_touched with
-    | None -> ()
-    | Some t0 ->
-      let delta = Time.(now () - t0) |> Time.Span.to_sec in
-      let alpha = 1. - (delta / Config.segment_life_span config) in
-      let alpha =
-        if delta < 0.1 && t.flash
-        then 1.
-        else alpha * flash_cutoff
-      in
-      (* let alpha = alpha *. Sound.volume sound in *)
-      if alpha < 0.
-      then t.last_touched <- None
-      else begin
-        let color = Color.set_alpha t.color ~alpha in
-        Ctx.set_stroke_color ctx color;
-        Ctx.set_line_width ctx line_width;
-        let v1, v2 = shortened_ends t in
-        let v1 = Matrix.apply perspective v1 in
-        let v2 = Matrix.apply perspective v2 in
-        Ctx.begin_path ctx;
-        Ctx.move_to ctx v1;
-        Ctx.line_to ctx v2;
-        Ctx.stroke ctx
-      end
+  let render t ~perspective ~ctx ~sound:_ =
+    let color = CF.eval t.color in
+    Ctx.set_stroke_color ctx color;
+    Ctx.set_line_width ctx line_width;
+    let v1, v2 = shortened_ends t in
+    let v1 = Matrix.apply perspective v1 in
+    let v2 = Matrix.apply perspective v2 in
+    Ctx.begin_path ctx;
+    Ctx.move_to ctx v1;
+    Ctx.line_to ctx v2;
+    Ctx.stroke ctx
 end
 
 type t =
@@ -129,7 +131,7 @@ type t =
   ; width : float
   ; height : float
   ; perspective : Matrix.t
-  ; color : Color.t
+  ; base_color : Color.t
   ; mutable segments : Segment.t list
   ; mutable last_human_touch : Time.t
   ; mutable bot_active : bool
@@ -168,7 +170,7 @@ let start_rain ?base_color t =
   in
   Lwt.async (fun () -> rain t ~base_color ~is_first:true)
 
-let grid_segments ~top_left ~width ~height ~color ~rows ~cols =
+let grid_segments ~config ~top_left ~width ~height ~base_color ~rows ~cols =
   let dy = height /. (float rows) in
   let dx = width  /. (float cols) in
   let point row col =
@@ -182,7 +184,8 @@ let grid_segments ~top_left ~width ~height ~color ~rows ~cols =
     in
     if row' > rows || col' > cols
     then None
-    else Some (Segment.create (point row col) (point row' col') ~color)
+    else Some (Segment.create (point row col) (point row' col')
+                 ~config ~base_color)
   in
   let make ~kind =
     List.init (rows + 1) ~f:(fun row ->
@@ -201,7 +204,7 @@ end
 
 let create ~(config : Config.t) ~ctx ~sound
     ~(segments : Segments.t)
-    ?native_corners ?real_corners ~color () =
+    ?native_corners ?real_corners ~base_color () =
   let wmargin = Ctx.width ctx *. 0.1 in
   let hmargin = Ctx.height ctx *. 0.1 in
   let width = Ctx.width ctx -. 2. *. wmargin in
@@ -228,9 +231,10 @@ let create ~(config : Config.t) ~ctx ~sound
   let segments =
     match segments with
     | Set segments ->
-      List.map segments ~f:(fun (v1, v2) -> Segment.create v1 v2 ~color)
+      List.map segments ~f:(fun (v1, v2) ->
+        Segment.create v1 v2 ~config ~base_color)
     | Grid { rows; cols } ->
-      grid_segments ~top_left ~width ~height ~color ~rows ~cols
+      grid_segments ~config ~top_left ~width ~height ~base_color ~rows ~cols
   in
   let t =
     { config
@@ -240,7 +244,7 @@ let create ~(config : Config.t) ~ctx ~sound
     ; width
     ; height
     ; perspective
-    ; color
+    ; base_color
     ; segments
     ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
     ; bot_active = config.bot_active_at_start
@@ -285,10 +289,10 @@ let ctl t box =
   | Ctl.Set_segments segments ->
     t.segments <-
       List.map segments ~f:(fun (v1, v2) ->
-        Segment.create v1 v2 ~color:t.color)
+        Segment.create ~config:t.config v1 v2 ~base_color:t.base_color)
 
 let render t =
   let perspective = t.perspective in
   Ctx.clear t.ctx;
   List.iter t.segments
-    ~f:(Segment.render ~config:t.config ~perspective ~ctx:t.ctx ~sound:t.sound)
+    ~f:(Segment.render ~perspective ~ctx:t.ctx ~sound:t.sound)

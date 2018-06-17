@@ -5,6 +5,7 @@ include Geometry
 
 module Color = Color
 module Color_cycle = Color_cycle
+module Color_flow = Color_flow
 module Action = Action
 module Math = Math
 

@@ -1,3 +1,10 @@
+(*
+  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+  This file is distributed under a BSD license.
+  See LICENSE file for copyright notice.
+*)
+
+open Base
 open Std_internal
 
 type t =
@@ -7,7 +14,7 @@ type t =
   ; bot_active_at_start : bool
   ; grid_kind : [ `grid | `free ]
   ; global_channel_name : string
-  }
+  } [@@deriving sexp]
 
 let max_box_age t : Time.Span.t =
   if t.drawing_mode
@@ -21,5 +28,5 @@ let start_color t =
 
 let segment_life_span t =
   if t.drawing_mode
-  then Float.infty
-  else 3.
+  then Time.Span.of_sec Float.infty
+  else Time.Span.of_sec 3.
