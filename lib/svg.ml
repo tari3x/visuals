@@ -1,3 +1,9 @@
+(*
+  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+  This file is distributed under a BSD license.
+  See LICENSE file for copyright notice.
+*)
+
 open Base
 open Js
 open Common
@@ -6,7 +12,7 @@ open Dom_wrappers
 open Prism
 
 type t =
-  { segments : (Vector.t * Vector.t) list
+  { shapes : Shape.t list
   ; calibration_points : Quad.t
   } [@@deriving sexp]
 
@@ -76,7 +82,7 @@ let collect_segments (segments : Path_seg.t list) =
 
    There doesn't seem to be a way to coerce Dom_html.document to
    Dom_svg.docuemnt, but you can convert the elements once you got them.  *)
-let segments (svg_document : Dom_html.document Js.t) =
+let shapes (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "path")
   |> Node_list.to_list
   |> List.concat_map ~f:(fun path ->
@@ -90,7 +96,8 @@ let segments (svg_document : Dom_html.document Js.t) =
     path##.pathSegList
     |> Svg_list.to_list
     |> List.map ~f:Path_seg.of_path_seg
-    |> collect_segments)
+    |> collect_segments
+    |> List.map ~f:(fun (v1, v2) -> Shape.segment v1 v2))
 
 let calibration_points (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "circle")
@@ -108,8 +115,8 @@ let calibration_points (svg_document : Dom_html.document Js.t) =
 
 let parse_exn (elt : Html.iFrameElement Js.t) =
   let doc = Opt.value_exn elt##.contentDocument ~here:[%here] in
-  let segments = segments doc in
+  let shapes = shapes doc in
   let calibration_points = calibration_points doc in
-  let t = { segments; calibration_points } in
+  let t = { shapes; calibration_points } in
   debug !"%{sexp:t}" t;
   t

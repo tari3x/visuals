@@ -177,8 +177,19 @@ module Ctx = struct
   let begin_path (t : t) =
     t##beginPath
 
+  let path (t : t) vs =
+    match vs with
+    | [] -> ()
+    | v :: vs ->
+      begin_path t;
+      move_to t v;
+      List.iter vs ~f:(line_to t)
+
   let stroke (t : t) =
     t##stroke
+
+  let fill (t : t) =
+    t##fill
 
   let clip (t : t) =
     t##clip

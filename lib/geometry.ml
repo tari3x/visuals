@@ -253,3 +253,15 @@ module Frame = struct
     Matrix.to_string (matrix t)
 end
 
+module Shape = struct
+  type t =
+  | Segment of Vector.t * Vector.t
+  | Polygon of Vector.t list (* not empty *)
+      [@@deriving sexp]
+
+  let segment v1 v2 =
+    Segment (v1, v2)
+
+  let polygon vs =
+    Polygon vs
+end

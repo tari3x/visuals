@@ -109,3 +109,12 @@ module Frame : sig
   val matrix : t -> Matrix.t
 end
 
+module Shape : sig
+  type t =
+  | Segment of Vector.t * Vector.t
+  | Polygon of Vector.t list (* not empty *)
+      [@@deriving sexp]
+
+  val segment : Vector.t -> Vector.t -> t
+  val polygon : Vector.t list -> t
+end

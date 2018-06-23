@@ -25,28 +25,52 @@ let max_keep_raining_probability = 1.
 
 let human_playing_timeout = Time.Span.of_sec 10.
 
+module Shape = struct
+  include Shape
+
+  let centre t =
+    let open Vector in
+    match t with
+    | Segment (v1, v2) ->
+      (v1 + v2) / 2.
+    | Polygon vs ->
+      let n = List.length vs in
+      List.reduce_exn vs ~f:(+) / float n
+
+  let shortened_ends v1 v2 =
+    let open Vector in
+    let delta = (normalize (v2 - v1)) * shorten_by in
+    v1 + delta, v2 - delta
+
+  let render t ~perspective ~ctx ~color =
+    match t with
+    | Segment (v1, v2) ->
+      Ctx.set_stroke_color ctx color;
+      Ctx.set_line_width ctx line_width;
+      let v1, v2 = shortened_ends v1 v2 in
+      let v1 = Matrix.apply perspective v1 in
+      let v2 = Matrix.apply perspective v2 in
+      Ctx.path ctx [v1; v2];
+      Ctx.stroke ctx
+    | Polygon vs ->
+      Ctx.set_fill_color ctx color;
+      let vs = List.map vs ~f:(Matrix.apply perspective) in
+      Ctx.path ctx vs;
+      Ctx.fill ctx
+end
+
 module Ctl = struct
   type t =
   | Spot
   | Rain_control
-  | Set_segments of (Vector.t * Vector.t) list
+  | Set_shapes of Shape.t list
       [@@deriving sexp]
 end
 
-  (*
-module Shape = struct
-  type t =
-  | Segment of (Vector.t * Vector.t)
-  | Polygon of Vector.t list
-      [@@deriving sexp]
-end
-  *)
-
-module Segment = struct
+module Elt = struct
   type t =
     { config : Config.t sexp_opaque
-    ; v1 : Vector.t
-    ; v2 : Vector.t
+    ; shape : Shape.t
     ; mutable base_color : Color.t
     ; mutable color : Color_flow.t
     } [@@deriving sexp]
@@ -83,58 +107,26 @@ module Segment = struct
     t.base_color <- base_color;
     t.color <- fade ~config:t.config ~base_color ~flash
 
-  let create v1 v2 ~config ~base_color =
+  let create ~shape ~config ~base_color =
     let color = fade ~config ~base_color ~flash:false in
     { config
-    ; v1
-    ; v2
+    ; shape
     ; base_color
     ; color
     }
 
-  let distance t ~point =
-    (*
-      debug !"segment: %{sexp:t}" t;
-      debug !"point: %{sexp:Vector.t}" point;
-    *)
-    let open Float in
-    let infty = 1_000_000_000. in
-    let (x, y)   = Vector.coords point in
-    let (x1, y1) = Vector.coords t.v1 in
-    let (x2, y2) = Vector.coords t.v2 in
-    let rec between a a1 a2 =
-      if a1 <= a2
-      then a1 < a && a < a2
-      else between a a2 a1
-    in
-    let vertical =
-      if between y y1 y2 then abs (x - x1) else infty
-    in
-    let horizontal =
-      if between x x1 x2 then abs (y - y1) else infty
-    in
-    Float.min vertical horizontal
-
   let centre t =
-    let open Vector in
-    (t.v1 + t.v2) / 2.
+    Shape.centre t.shape
 
-  let shortened_ends t =
+  (* This used to try and find the distance to the actual line rather than to
+     the centre. Not sure what the point was, try the new method out. *)
+  let distance t ~point =
     let open Vector in
-    let delta = (normalize (t.v2 - t.v1)) * shorten_by in
-    t.v1 + delta, t.v2 - delta
+    length (centre t - point)
 
-  let render t ~perspective ~ctx ~sound:_ =
+  let render t ~perspective ~ctx =
     let color = CF.eval t.color in
-    Ctx.set_stroke_color ctx color;
-    Ctx.set_line_width ctx line_width;
-    let v1, v2 = shortened_ends t in
-    let v1 = Matrix.apply perspective v1 in
-    let v2 = Matrix.apply perspective v2 in
-    Ctx.begin_path ctx;
-    Ctx.move_to ctx v1;
-    Ctx.line_to ctx v2;
-    Ctx.stroke ctx
+    Shape.render t.shape ~perspective ~ctx ~color
 end
 
 module Source = struct
@@ -145,25 +137,25 @@ module Source = struct
     type t =
       { source : source sexp_opaque
       ; color : Color.t
-      ; segments : Segment.t PD.t sexp_opaque
+      ; elts : Elt.t PD.t sexp_opaque
       } [@@deriving sexp, fields]
 
-    let create ~source ~segments =
+    let create ~source ~elts =
       let open Float in
       let color = Color.random () |> Color.maximize in
-      let centre_segment = List.random_element_exn segments in
-      let c = Segment.centre centre_segment in
-      let segments =
-        let max_weight, other_segments =
-          List.filter segments ~f:(fun s -> not (phys_equal s centre_segment))
+      let centre_segment = List.random_element_exn elts in
+      let c = Elt.centre centre_segment in
+      let elts =
+        let max_weight, other_elts =
+          List.filter elts ~f:(fun s -> not (phys_equal s centre_segment))
           |> List.fold_map ~init:0. ~f:(fun max_weight segment ->
-            let distance = Vector.(length (Segment.centre segment - c)) in
+            let distance = Vector.(length (Elt.centre segment - c)) in
             let weight = int_pow (1. / distance) 3 in
             Float.max max_weight weight, (segment, weight))
         in
         (*
-        let other_segments =
-          List.map other_segments ~f:(fun (segment, weight) ->
+        let other_elts =
+          List.map other_elts ~f:(fun (segment, weight) ->
             let weight =
               if weight < max_weight / 2. then 0. else weight
             in
@@ -171,10 +163,10 @@ module Source = struct
         in
         *)
         PD.create_exn
-          (( centre_segment, max_weight ) :: other_segments)
+          (( centre_segment, max_weight ) :: other_elts)
       in
-      (* debug !"segments: %{sexp: Segment.t PD.t}" segments; *)
-      { source; color; segments }
+      (* debug !"elts: %{sexp: Elt.t PD.t}" elts; *)
+      { source; color; elts }
   end
 end
 
@@ -189,7 +181,7 @@ type t =
   ; height : float
   ; perspective : Matrix.t
   ; base_color : Color.t
-  ; mutable segments : Segment.t list
+  ; mutable elts : Elt.t list
   ; mutable last_human_touch : Time.t
   ; mutable bot_active : bool
   ; mutable keep_raining_probability : float
@@ -208,11 +200,11 @@ let start_cleanup_sources_loop t =
 let source_data t source =
   let id = Source.id source in
   Hashtbl.find_or_add t.sources id ~default:(fun () ->
-    Source.Data.create ~source ~segments:t.segments)
+    Source.Data.create ~source ~elts:t.elts)
 
 let rec rain t ~(source : Source.Data.t) ~is_first =
   let open Float in
-  let segment = PD.draw (Source.Data.segments source) in
+  let segment = PD.draw (Source.Data.elts source) in
   let color = (Source.Data.color source) in
   (* interpolation in touch should already create enough variation. *)
   (*
@@ -220,7 +212,7 @@ let rec rain t ~(source : Source.Data.t) ~is_first =
     Color.interpolate [ base_color; Color.random () ] ~arg:0.1
   in
   *)
-  Segment.touch segment ~color ~flash:is_first;
+  Elt.touch segment ~color ~flash:is_first;
   if Random.float 1. > t.keep_raining_probability
   then Lwt.return ()
   else begin
@@ -251,8 +243,10 @@ let grid_segments ~config ~top_left ~width ~height ~base_color ~rows ~cols =
     in
     if row' > rows || col' > cols
     then None
-    else Some (Segment.create (point row col) (point row' col')
-                 ~config ~base_color)
+    else begin
+      let shape = Shape.segment (point row col) (point row' col') in
+      Some (Elt.create ~shape ~config ~base_color)
+    end
   in
   let make ~kind =
     List.init (rows + 1) ~f:(fun row ->
@@ -263,14 +257,13 @@ let grid_segments ~config ~top_left ~width ~height ~base_color ~rows ~cols =
   in
   make ~kind:`horizontal @ make ~kind:`vertical
 
-module Segments = struct
+module Shapes = struct
   type t =
   | Grid of { rows: int; cols : int }
-  | Set of (Vector.t * Vector.t) list
+  | Set of Shape.t list
 end
 
-let create ~(config : Config.t) ~ctx ~sound
-    ~(segments : Segments.t)
+let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
     ?native_corners ?real_corners ~base_color () =
   let wmargin = Ctx.width ctx *. 0.1 in
   let hmargin = Ctx.height ctx *. 0.1 in
@@ -295,11 +288,10 @@ let create ~(config : Config.t) ~ctx ~sound
     Prism.Surface.create ~canvas:real_corners ~camera:native_corners
     |> Prism.Surface.camera_to_canvas
   in
-  let segments =
-    match segments with
-    | Set segments ->
-      List.map segments ~f:(fun (v1, v2) ->
-        Segment.create v1 v2 ~config ~base_color)
+  let elts =
+    match shapes with
+    | Set shapes ->
+      List.map shapes ~f:(fun shape -> Elt.create ~shape ~config ~base_color)
     | Grid { rows; cols } ->
       grid_segments ~config ~top_left ~width ~height ~base_color ~rows ~cols
   in
@@ -313,7 +305,7 @@ let create ~(config : Config.t) ~ctx ~sound
     ; height
     ; perspective
     ; base_color
-    ; segments
+    ; elts
     ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
     ; bot_active = config.bot_active_at_start
     ; keep_raining_probability = 0.95
@@ -337,12 +329,12 @@ let ctl t box =
       let color = Box.color box in
       let touches = Box.touches box ~coordinates:`canvas in
       List.filter_map touches ~f:(fun point ->
-        List.min_elt t.segments ~cmp:(fun s1 s2 ->
+        List.min_elt t.elts ~cmp:(fun s1 s2 ->
           Float.compare
-            (Segment.distance ~point s1)
-            (Segment.distance ~point s2)))
+            (Elt.distance ~point s1)
+            (Elt.distance ~point s2)))
       |> List.dedup_and_sort
-      |> List.iter ~f:(Segment.touch ~color ~flash:true)
+      |> List.iter ~f:(Elt.touch ~color ~flash:true)
     end
   | Ctl.Rain_control ->
     begin
@@ -358,13 +350,13 @@ let ctl t box =
         t.keep_raining_probability <-
           max_keep_raining_probability * (y / h)
     end
-  | Ctl.Set_segments segments ->
-    t.segments <-
-      List.map segments ~f:(fun (v1, v2) ->
-        Segment.create ~config:t.config v1 v2 ~base_color:t.base_color)
+  | Ctl.Set_shapes shapes ->
+    t.elts <-
+      List.map shapes ~f:(fun shape ->
+        Elt.create ~config:t.config ~shape ~base_color:t.base_color)
 
 let render t =
   let perspective = t.perspective in
   Ctx.clear t.ctx;
-  List.iter t.segments
-    ~f:(Segment.render ~perspective ~ctx:t.ctx ~sound:t.sound)
+  List.iter t.elts
+    ~f:(Elt.render ~perspective ~ctx:t.ctx)

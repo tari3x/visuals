@@ -41,15 +41,15 @@ let main (config : Config.t) =
     let grid =
       match config.grid_kind with
       | `grid ->
-        let segments = Grid.Segments.Grid { cols = 7; rows = 3 } in
-        Grid.create ~config ~ctx ~sound ~segments ?real_corners ~base_color ()
+        let shapes = Grid.Shapes.Grid { cols = 7; rows = 3 } in
+        Grid.create ~config ~ctx ~sound ~shapes ?real_corners ~base_color ()
       | `free ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
-        let { Svg. segments; calibration_points } = Svg.parse_exn svg in
-        let segments = Grid.Segments.Set segments in
+        let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
+        let shapes = Grid.Shapes.Set shapes in
         let native_corners = calibration_points in
         Grid.create
-          ~config ~ctx ~sound ~segments
+          ~config ~ctx ~sound ~shapes
           ~native_corners ?real_corners ~base_color ()
     in
     Server_state.start config grid ~ctx

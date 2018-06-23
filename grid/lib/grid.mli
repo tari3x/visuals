@@ -10,16 +10,16 @@ module Ctl : sig
   type t =
   | Spot
   | Rain_control
-  | Set_segments of (Vector.t * Vector.t) list
+  | Set_shapes of Shape.t list
       [@@deriving sexp]
 end
 
 type t
 
-module Segments : sig
+module Shapes : sig
   type t =
   | Grid of { rows: int; cols : int }
-  | Set of (Vector.t * Vector.t) list
+  | Set of Shape.t list
 end
 
 val create
@@ -28,7 +28,7 @@ val create
   (* CR-someday: sound must be made optional if you want to display grid on the
      client .*)
   -> sound:Sound.t
-  -> segments:Segments.t
+  -> shapes:Shapes.t
   -> ?native_corners:Prism.Quad.t
   -> ?real_corners:Prism.Quad.t
   -> base_color:Color.t
