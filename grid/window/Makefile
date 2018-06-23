@@ -1,6 +1,6 @@
 JS = index_server.js index.js index_rain.js
 
-all: build $(JS) external start.sh stop.sh index-server.html index.html
+all: build $(JS) external start.sh stop.sh index.html
 
 ROOT=$(shell git rev-parse --show-toplevel)
 
@@ -15,9 +15,6 @@ build:
 
 index.html: 
 	ln -s  ${ROOT}/html/index-client-light.html $@
-
-index-server.html:
-	ln -s  ${ROOT}/html/$@
 
 index-rain.html:
 	ln -s  ${ROOT}/grid/html/$@

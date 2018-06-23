@@ -11,4 +11,5 @@ let config : Grid_lib.Config.t =
   ; bot_active_at_start = true
   ; grid_kind = `grid
   ; global_channel_name = "global-window"
+  ; color_flow = `fade_to_base
   }

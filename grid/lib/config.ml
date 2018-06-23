@@ -14,6 +14,7 @@ type t =
   ; bot_active_at_start : bool
   ; grid_kind : [ `grid | `free ]
   ; global_channel_name : string
+  ; color_flow : [ `fade_to_black | `fade_to_base ]
   } [@@deriving sexp]
 
 let max_box_age t : Time.Span.t =

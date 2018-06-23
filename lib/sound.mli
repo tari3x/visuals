@@ -22,7 +22,8 @@ module Source : sig
   module Id : Id
   type t
   val id : t -> Id.t
-  val color : t -> Color.t
+  (* CR: most likely not needed if I use weak pointers *)
+  val is_alive : t -> bool
 end
 
 val on_beat : t -> f:(Source.t -> unit) -> unit

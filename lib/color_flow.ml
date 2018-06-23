@@ -29,7 +29,7 @@ let eval t =
   let rec eval = function
     | [] -> failwith "BUG: Color_flow empty"
     | [_, color] -> color
-    | (time1, color1) :: (time2, color2) :: t ->
+    | ((time1, color1) :: (time2, color2) :: _) as t ->
       let open Float in
       let time1 = Time.to_sec time1 in
       let time2 = Time.to_sec time2 in
@@ -41,4 +41,3 @@ let eval t =
         ((now_ - time1) / (time2 - time1))
   in
   eval t
-
