@@ -74,6 +74,9 @@ let collect_segments (segments : Path_seg.t list) =
     in
     collect v0 segments
 
+let is_polygon (path : Dom_svg.pathElement Js.t) =
+  String.(Js.to_string path##.style##.fill <> "none")
+
 (* inspired by
    view-source:http://xn--dahlstrm-t4a.net/svg/html/get-embedded-svg-document-script.html
 
@@ -93,11 +96,15 @@ let shapes (svg_document : Dom_html.document Js.t) =
       |> Opt.value_exn ~here:[%here]
     in
     (* CR-someday: normalizedPathSegList blows up. *)
-    path##.pathSegList
-    |> Svg_list.to_list
-    |> List.map ~f:Path_seg.of_path_seg
-    |> collect_segments
-    |> List.map ~f:(fun (v1, v2) -> Shape.segment v1 v2))
+    let segments =
+      path##.pathSegList
+      |> Svg_list.to_list
+      |> List.map ~f:Path_seg.of_path_seg
+      |> collect_segments
+    in
+    if is_polygon path
+    then [Shape.polygon (List.map segments ~f:fst)]
+    else List.map segments ~f:(fun (v1, v2) -> Shape.segment v1 v2))
 
 let calibration_points (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "circle")

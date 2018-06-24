@@ -74,7 +74,7 @@ module Ctx : sig
     -> control2:Vector.t
     -> Vector.t
     -> unit
-  val path : t -> Vector.t list -> unit
+  val path : t -> closed:bool -> Vector.t list -> unit
   val stroke : t -> unit
   val fill : t -> unit
   (* Preserve line width under transformations. *)

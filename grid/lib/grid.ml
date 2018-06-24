@@ -50,12 +50,12 @@ module Shape = struct
       let v1, v2 = shortened_ends v1 v2 in
       let v1 = Matrix.apply perspective v1 in
       let v2 = Matrix.apply perspective v2 in
-      Ctx.path ctx [v1; v2];
+      Ctx.path ctx ~closed:false [v1; v2];
       Ctx.stroke ctx
     | Polygon vs ->
       Ctx.set_fill_color ctx color;
       let vs = List.map vs ~f:(Matrix.apply perspective) in
-      Ctx.path ctx vs;
+      Ctx.path ctx ~closed:true vs;
       Ctx.fill ctx
 end
 
