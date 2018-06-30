@@ -4,16 +4,20 @@
   See LICENSE file for copyright notice.
 *)
 
+open Std_internal
+
 module C = Grid_lib.Config
 
 let config : C.t =
   { drawing_mode = false
+  ; base_color = Color.white
   ; debug_sound  = false
   ; skip_calibration = false
   ; bot_active = true
   ; grid_kind = `grid
   ; global_channel_name = "global-window"
   ; color_flow = `fade_to_base
-  ; start_rain = `on_sound_source
+  ; start_rain_on_sound = true
+  ; start_silent_rain_probability = 0.
   ; keep_raining_probability = C.keep_raining_probability
   }

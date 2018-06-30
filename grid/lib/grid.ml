@@ -179,8 +179,7 @@ let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
     | Grid { rows; cols } ->
       grid_segments ~top_left ~width ~height ~rows ~cols
   in
-  let skin = Skin.start ~config ~sound in
-  Skin.set_elts skin elts;
+  let skin = Skin.start ~config ~sound elts in
   { config
   ; ctx
   ; top_left

@@ -200,6 +200,17 @@ module Ephemeron = struct
         let data = default () in
         add t ~key ~data;
         data
+
+    let iteri t ~f =
+      iter (fun key data -> f ~key ~data) t
+
+    let iter t ~f =
+      iteri t ~f:(fun ~key:_ ~data -> f data)
+
+    let count t ~f =
+      let result = ref 0 in
+      iter t ~f:(fun x -> if f x then Int.incr result);
+      !result
   end
 end
 

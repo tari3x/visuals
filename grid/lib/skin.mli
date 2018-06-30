@@ -23,6 +23,7 @@ module Make(Elt : Elt) : sig
   val start
     :  config:Config.t
     -> sound:Sound.t
+    -> Elt.t list
     -> t
 
   (* CR-someday: allow to [stop] the bot such that a new one can be created
