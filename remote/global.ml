@@ -283,7 +283,7 @@ let create config ~sexp_of_a =
     ~f:(process_message t);
   if t.config.is_server
   then begin
-    Lwt.every ~span:(Time.Span.of_sec 1.) ~f:(fun () -> cleanup_boxes t);
+    Lwt.every (Time.Span.of_sec 1.) ~f:(fun () -> cleanup_boxes t);
     return t
   end
   else begin

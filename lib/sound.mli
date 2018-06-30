@@ -15,6 +15,8 @@ val create_from_mic : unit -> t Lwt.t
 
 val create_from_html : id:string -> t
 
+val start : t -> unit
+
 val set_debug : t -> Ctx.t option -> unit
 
 (* As in "source separation" *)
@@ -22,8 +24,8 @@ module Source : sig
   module Id : Id
   type t
   val id : t -> Id.t
-  (* CR: most likely not needed if I use weak pointers *)
-  val is_alive : t -> bool
 end
 
+(* CR-someday: make this a bus that doesn't keep the thing on the other end
+   alive. *)
 val on_beat : t -> f:(Source.t -> unit) -> unit

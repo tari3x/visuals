@@ -12,10 +12,10 @@ module L = Lwt_stream
 
 module State = State_light
 
-type t = Shape.t State.t
+type t = Atom.t State.t
 
 let shapes =
-  let open Shape in
+  let open Atom in
   [ Zigzag
   ; Vertical_line
   ; Rectangle
@@ -55,9 +55,9 @@ let choose_shape (actions : Action.t Lwt_stream.t) ctx =
       in
       Ctx.save ctx;
       Ctx.clip_rect ctx clip_p ~width:clip_size ~height:clip_size;
-      let shape = Shape.scale_to_fit shape (Float.of_int clip_size) in
+      let shape = Atom.scale_to_fit shape (Float.of_int clip_size) in
       (* CR-someday: need late time *)
-      Shape.render shape ctx ~time:100.;
+      Atom.render shape ctx ~time:100.;
       Ctx.restore ctx;
       shape
     )
@@ -95,7 +95,7 @@ let main () =
     ; global_channel_name = "global"
     }
   in
-  State.create state_config ctx shape ~sexp_of_a:Shape.sexp_of_t
+  State.create state_config ctx shape ~sexp_of_a:Atom.sexp_of_t
   >>= fun t ->
   State.process_action t action;
   Lwt.async (fun () -> Color_picker.run color_picker t);

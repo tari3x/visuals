@@ -31,7 +31,6 @@ val create
   -> shapes:Shapes.t
   -> ?native_corners:Prism.Quad.t
   -> ?real_corners:Prism.Quad.t
-  -> base_color:Color.t
   -> unit
   -> t
 

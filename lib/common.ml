@@ -178,6 +178,31 @@ module Lwt_stream = struct
     loop n []
 end
 
+(* CR-someday: THere's a different interface in [Core_kernel], but not one in
+   base. *)
+module Ephemeron = struct
+  module Make (Key : Caml.Hashtbl.HashedType) = struct
+    include Caml.Ephemeron.K1.Make(Key)
+
+    let create () =
+      create 4000
+
+    let find t key =
+      Option.try_with (fun () -> find t key)
+
+    let add t ~key ~data =
+      add t key data
+
+    let find_or_add t key ~default =
+      match find t key with
+      | Some data -> data
+      | None ->
+        let data = default () in
+        add t ~key ~data;
+        data
+  end
+end
+
 module type Id = sig
   include Identifiable.S
   val create : unit -> t
@@ -261,7 +286,7 @@ module Lwt = struct
     f cont;
     t
 
-  let every ~span ~f =
+  let every span ~f =
     let span = Time.Span.to_sec span in
     let rec loop () =
       f ();

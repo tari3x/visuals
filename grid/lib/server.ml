@@ -17,7 +17,7 @@ let get_clicks ctx =
   Lwt_stream.take clicks ~n:4
 
 let get_corners (config : Config.t) ctx =
-  if config.screen_grid then return None
+  if config.skip_calibration then return None
   else begin
     get_clicks ctx
     >>= fun clicks ->
@@ -37,12 +37,11 @@ let main (config : Config.t) =
   else begin
     get_corners config ctx
     >>= fun real_corners ->
-    let base_color = Config.start_color config in
     let grid =
       match config.grid_kind with
       | `grid ->
         let shapes = Grid.Shapes.Grid { cols = 7; rows = 3 } in
-        Grid.create ~config ~ctx ~sound ~shapes ?real_corners ~base_color ()
+        Grid.create ~config ~ctx ~sound ~shapes ?real_corners ()
       | `free ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
         let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
@@ -50,7 +49,7 @@ let main (config : Config.t) =
         let native_corners = calibration_points in
         Grid.create
           ~config ~ctx ~sound ~shapes
-          ~native_corners ?real_corners ~base_color ()
+          ~native_corners ?real_corners ()
     in
     Server_state.start config grid ~ctx
   end

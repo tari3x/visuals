@@ -121,11 +121,11 @@ let add_choice_handlers t =
     let elt = get_element_by_id id Html.CoerceTo.button in
     add_event_listener elt Html.Event.touchstart ~f:(fun _ -> f ())
   in
-  add_listener "R" ~f:(fun () -> State.set_shape t Shape.Rectangle);
-  add_listener "C" ~f:(fun () -> State.set_shape t Shape.Circle);
-  add_listener "H" ~f:(fun () -> State.set_shape t Shape.Horizontal_line);
-  add_listener "V" ~f:(fun () -> State.set_shape t Shape.Vertical_line);
-  add_listener "X" ~f:(fun () -> State.set_shape t Shape.Cross_line);
+  add_listener "R" ~f:(fun () -> State.set_shape t Atom.Rectangle);
+  add_listener "C" ~f:(fun () -> State.set_shape t Atom.Circle);
+  add_listener "H" ~f:(fun () -> State.set_shape t Atom.Horizontal_line);
+  add_listener "V" ~f:(fun () -> State.set_shape t Atom.Vertical_line);
+  add_listener "X" ~f:(fun () -> State.set_shape t Atom.Cross_line);
   add_listener "T" ~f:(fun () -> State.toggle_transient_mode t)
 
 let add_toolbar_handlers t =

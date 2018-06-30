@@ -4,12 +4,16 @@
   See LICENSE file for copyright notice.
 *)
 
-let config : Grid_lib.Config.t =
+module C = Grid_lib.Config
+
+let config : C.t =
   { drawing_mode = false
   ; debug_sound  = false
-  ; screen_grid = false
-  ; bot_active_at_start = true
+  ; skip_calibration = true
+  ; bot_active = true
   ; grid_kind = `free
   ; global_channel_name = "global-wall"
-  ; color_flow = `fade_to_black
+  ; color_flow = `fade_to_base
+  ; start_rain = `with_probability 0.9
+  ; keep_raining_probability = C.keep_raining_probability
   }

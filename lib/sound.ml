@@ -107,6 +107,7 @@ type t =
   ; mutable volume : float
   ; mutable on_beat : (Source.t -> unit) list
   ; mutable debug : Ctx.t option
+  ; mutable started : bool
   }
 
 let num_bins t =
@@ -243,19 +244,21 @@ let create_from_src ~ctx ~src =
   let bins = new%js uint8Array num_bins in
   let time = Time.now () in
   let beats = Array.init num_bins ~f:(fun _i -> Beat_detector.create ~time) in
-  let t =
-    { analyser
-    ; bins
-    ; beats
-    ; max_sources = max_num_sources
-    ; sources = []
-    ; volume = 0.
-    ; on_beat = []
-    ; debug = None
-    }
-  in
-  Lwt.async (fun () -> update_loop t);
-  t
+  { analyser
+  ; bins
+  ; beats
+  ; max_sources = max_num_sources
+  ; sources = []
+  ; volume = 0.
+  ; on_beat = []
+  ; debug = None
+  ; started = false
+  }
+
+let start t =
+  if not t.started
+  then Lwt.async (fun () -> update_loop t);
+  t.started <- true
 
 let create_from_html ~id =
   let audio = Audio.create ~id in

@@ -15,12 +15,12 @@ open Std_internal
 type t =
   { is_server : bool
   ; ctx : Ctx.t
-  ; global : Shape.t Global.t
+  ; global : Atom.t Global.t
   ; touches : Multitouch.t
-  ; mutable template : Shape.t Box.t
-  ; mutable on_box_active : (Shape.t Box.t -> unit) list
+  ; mutable template : Atom.t Box.t
+  ; mutable on_box_active : (Atom.t Box.t -> unit) list
   ; mutable transient_mode : bool
-  ; mutable tracers : (float * Shape.t Box.t) list
+  ; mutable tracers : (float * Atom.t Box.t) list
   ; mutable most_recent : Box_id.t
   }
 
@@ -41,7 +41,7 @@ let render_tracers t ~time =
       if Float.(alpha < 0.02) then false
       else begin
         let box = Box.set_alpha box ~alpha in
-        Shape.render box t.ctx ~time;
+        Atom.render box t.ctx ~time;
         true
       end)
 
@@ -59,7 +59,7 @@ let rec render_loop t =
   let time = Global.now_on_server t.global |> Time.to_sec in
   Ctx.clear t.ctx;
   Global.iter t.global ~f:(fun box ->
-    Shape.render box t.ctx ~time);
+    Atom.render box t.ctx ~time);
   if t.is_server
   then begin
     render_tracers t ~time;
@@ -91,7 +91,7 @@ let create ctx ~is_server =
     ; global_channel_name = "global"
     }
   in
-  Global.create global_config ~sexp_of_a:Shape.sexp_of_t
+  Global.create global_config ~sexp_of_a:Atom.sexp_of_t
   >>= fun global ->
   let t =
     { ctx
@@ -100,7 +100,7 @@ let create ctx ~is_server =
     (* Start with a bit of lies, never lie after that. *)
     ; most_recent = Box_id.create ()
     ; touches = Multitouch.create ()
-    ; template = Box.default Shape.default
+    ; template = Box.default Atom.default
     ; on_box_active = []
     ; transient_mode = false
     ; tracers = []
@@ -136,7 +136,7 @@ let process_action t (action : Action.t) =
     List.iter action.changed_touches ~f:(fun (touch : Action.Pointer.t) ->
       let box_id =
         Global.find t.global ~f:(fun box ->
-          Shape.touched_by box touch.position)
+          Atom.touched_by box touch.position)
       in
       match box_id with
       | Some box_id ->
