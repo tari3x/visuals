@@ -14,9 +14,9 @@ open Std_internal
    * resonant flow
    * solve slow movement together with color variety
    * make rains avoid each other
-   * make rains die at different times
+   * vary the time till next rain
    * why the fuck does it fade out with time?
-
+   * make sure checkout works
 *)
 
 module CF = Color_flow
@@ -24,13 +24,24 @@ module PD = Probability_distribution
 
 let flash_cutoff = 0.94 (* 0.7 *)
 let human_playing_timeout = Time.Span.of_sec 10.
-let max_silent_rain_age = Time.Span.of_sec 20.
+
+let max_silent_rain_age_sec = 10.
+let rain_interval = Time.Span.of_sec 0.2
+let drop_interval = Time.Span.of_sec 0.01
+let silent_base_interpolation_arg = 0.4
+let fade_to_base_interpolation_arg = 0.1
+let max_active_rains = 1
+let num_silent_rains = 3
+
+(*
+let max_silent_rain_age_sec = 20.
 let rain_interval = Time.Span.of_sec 1.5
 let drop_interval = Time.Span.of_sec 0.1
 let silent_base_interpolation_arg = 0.4
 let fade_to_base_interpolation_arg = 0.1
 let max_active_rains = 1
 let num_silent_rains = 3
+  *)
 
 module type Elt = sig
   module Id : Id
@@ -55,45 +66,56 @@ module Make(Elt : Elt) = struct
     let distance t1 t2 =
       Elt.distance t1.elt t2.elt
 
-    let fade ~config ~base_color ~flash =
+    let a c alpha = Color.set_alpha c ~alpha
+
+    let fade_to_black ~config ~base_color ~flash =
       let open Time.Span in
-      let base_color alpha = Color.set_alpha base_color ~alpha in
+      let a c alpha = Color.set_alpha c ~alpha in
       let sls = Config.segment_life_span config in
-      let final_alpha =
-        match config.color_flow with
-        | `fade_to_black -> 0.
-        | `fade_to_base -> flash_cutoff
-      in
       if not flash
       then begin
-        CF.start_now (base_color flash_cutoff)
-        |> CF.add ~after:sls ~color:(base_color final_alpha)
+        CF.start_now (a base_color flash_cutoff)
+        |> CF.add ~after:sls ~color:(a base_color 0.)
       end
       else begin
-        CF.start_now (base_color 1.)
-        |> CF.add ~after:(sls * 0.1) ~color:(base_color flash_cutoff)
-        |> CF.add ~after:(sls * 0.9) ~color:(base_color final_alpha)
+        CF.start_now (a base_color 1.)
+        |> CF.add ~after:(sls * 0.1) ~color:(a base_color flash_cutoff)
+        |> CF.add ~after:(sls * 0.9) ~color:(a base_color 0.)
       end
 
-    let create elt ~(config : Config.t) =
-      let base_color = config.base_color in
-      let color = fade ~config ~base_color ~flash:false in
-      Elt.touch elt color;
-      { base_color; elt; config }
+    (* Always flashes *)
+    let fade_to_base ~config ~old_base ~new_base =
+      let open Time.Span in
+      let sls = Config.segment_life_span config in
+      CF.start_now (a old_base 1.)
+      |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
 
     let touch t ~color ~flash =
       (* CR-someday: if we are faded out, why interpolate? *)
-      let base_color =
+      let base_color, color =
         match t.config.color_flow with
         | `fade_to_black ->
-          Color.interpolate [t.base_color; color] ~arg:0.5
+          let base_color = Color.interpolate [t.base_color; color] ~arg:0.5 in
+          let color = fade_to_black ~config:t.config ~base_color ~flash in
+          base_color, color
         | `fade_to_base ->
-          Color.interpolate [t.base_color; color]
-            ~arg:fade_to_base_interpolation_arg
+          let new_base =
+            Color.interpolate [t.base_color; color]
+              ~arg:fade_to_base_interpolation_arg
+          in
+          let color =
+            fade_to_base ~config:t.config ~old_base:t.base_color ~new_base
+          in
+          new_base, color
       in
       t.base_color <- base_color;
-      let color = fade ~config:t.config ~base_color ~flash in
       Elt.touch t.elt color
+
+    let create elt ~(config : Config.t) =
+      let base_color = config.base_color in
+      let t = { base_color; elt; config } in
+      touch t ~color:base_color ~flash:false;
+      t
   end
 
   module Rain = struct
@@ -155,7 +177,6 @@ module Make(Elt : Elt) = struct
             (( centre, max_weight ) :: other_elts)
           |> Some
       in
-      (* debug !"elts: %{sexp: Elt.t PD.t}" elts; *)
       { id; config; color; elts
       ; active = false
       }
@@ -234,27 +255,24 @@ module Make(Elt : Elt) = struct
 
   let run_silent_rain t =
     let open Lwt.Let_syntax in
-    let rec loop id start_time =
-      let too_old =
-        let open Time in
-        let open Span in
-        now () - start_time > max_silent_rain_age
-      in
+    let rec loop id ~stop_time =
       let%bind () = Lwt_js.sleep (Time.Span.to_sec rain_interval) in
-      if too_old then start_new ()
+      if Time.(now () > stop_time) then start_new ()
       else if
           num_active_rains t >= max_active_rains
           || Float.(Random.float 1. > t.config.start_silent_rain_probability)
-      then loop id start_time
+      then loop id ~stop_time
       else begin
         let rain = find_or_add_rain t ~id in
         let%bind () = Rain.burst rain in
-        loop id start_time
+        loop id ~stop_time
       end
     and start_new () =
       let id = Rain.Id.create_silent () in
-      let start_time = Time.now () in
-      loop id start_time
+      let stop_time =
+        Time.(now () + Span.of_sec (Random.float max_silent_rain_age_sec))
+      in
+      loop id ~stop_time
     in
     start_new ()
 

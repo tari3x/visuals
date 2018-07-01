@@ -265,10 +265,12 @@ module Time : sig
 
   val (-) : t -> t -> Span.t
   val (+) : t -> Span.t -> t
+  val (>) : t -> t -> bool
+  val (<) : t -> t -> bool
 
   val sub : t -> Span.t -> t
 end = struct
-  type t = float [@@deriving sexp]
+  include Float
 
   let to_string = Float.to_string
 
@@ -281,9 +283,6 @@ end = struct
   let now () = Unix.gettimeofday ()
   let of_sec t = t
   let to_sec t = t
-
-  let (-) = (-.)
-  let (+) = (+.)
 
   let sub = (-.)
 end

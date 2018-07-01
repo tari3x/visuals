@@ -17,6 +17,8 @@ module Three_wrappers = Three_wrappers
 module Prism = Prism
 module Probability_distribution = Probability_distribution
 
+module Resonant_flow = Resonant_flow
+
 module Sound = Sound
 
 module Svg = Svg
