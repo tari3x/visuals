@@ -18,17 +18,23 @@ module type Elt = sig
 end
 
 module Make(Elt : Elt) : sig
+  module Elts : sig
+    type t
+    (* not empty *)
+    val create_exn : Elt.t list -> t
+  end
+
   type t
 
   val start
     :  config:Config.t
     -> sound:Sound.t
-    -> Elt.t list
+    -> Elts.t
     -> t
 
   (* CR-someday: allow to [stop] the bot such that a new one can be created
      with new elements. *)
-  val set_elts : t -> Elt.t list -> unit
+  val set_elts : t -> Elts.t -> unit
 
   val human_touch : t -> Elt.t -> Color.t -> unit
 end

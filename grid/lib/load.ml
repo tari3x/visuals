@@ -16,7 +16,7 @@ let main (config : Config.t) =
   Random.self_init ();
   let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
   let { Svg. shapes; calibration_points = _ } = Svg.parse_exn svg in
-  let set_shapes = Grid.Ctl.Set_shapes shapes in
+  let set_shapes = Grid.Ctl.set_shapes_exn shapes in
   let shape = Box.create ~kind:set_shapes () in
   let global_config =
     { Global.Config.

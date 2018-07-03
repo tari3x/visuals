@@ -98,6 +98,12 @@ module Source = struct
     not (too_idle || too_old)
 end
 
+module Event = struct
+  type t =
+  | Beat   of Source.t
+  | Delete of Source.t
+end
+
 type t =
   { analyser : AnalyserNode.t
   ; bins : uint8Array Js.t
@@ -105,7 +111,7 @@ type t =
   ; max_sources : int
   ; mutable sources : Source.t list
   ; mutable volume : float
-  ; mutable on_beat : (Source.t -> unit) list
+  ; mutable on_event : (Event.t -> unit) list
   ; mutable debug : Ctx.t option
   ; mutable started : bool
   }
@@ -117,7 +123,7 @@ let bin_volume_exn t i =
   float (Typed_array.unsafe_get t.bins i) /. 256.
 
 let do_on_beat t ~source =
-  List.iter t.on_beat ~f:(fun f -> f source)
+  List.iter t.on_event ~f:(fun f -> f (Beat source))
 
 let find_new_source t ~sources =
   if List.length sources >= t.max_sources then None
@@ -135,9 +141,13 @@ let find_new_source t ~sources =
     Source.on_beat source ~f:(fun () -> do_on_beat t ~source);
     Some source
 
+let delete_source_event t source =
+  List.iter t.on_event ~f:(fun f -> f (Delete source))
+
 let update_sources t =
   List.iter t.sources ~f:Source.update;
-  let sources = List.filter t.sources ~f:Source.is_alive in
+  let sources, deleted_sources = List.partition_tf t.sources ~f:Source.is_alive in
+  List.iter deleted_sources ~f:(delete_source_event t);
   let sources = Option.to_list (find_new_source t ~sources) @ sources in
   t.sources <- sources
 
@@ -250,7 +260,7 @@ let create_from_src ~ctx ~src =
   ; max_sources = max_num_sources
   ; sources = []
   ; volume = 0.
-  ; on_beat = []
+  ; on_event = []
   ; debug = None
   ; started = false
   }
@@ -278,8 +288,8 @@ let create_from_mic () =
   create_from_src ~ctx ~src
   |> Lwt.return
 
-let on_beat t ~f =
-  t.on_beat <- f :: t.on_beat
+let on_event t ~f =
+  t.on_event <- f :: t.on_event
 
 let set_debug t ctx =
   t.debug <- ctx

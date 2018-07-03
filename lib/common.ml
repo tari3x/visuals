@@ -69,6 +69,12 @@ let pi =
   assert (Float.(>=) pi 3.0 && Float.(<=) pi 4.);
   pi
 
+module type Comparable_and_to_stringable = sig
+  type t
+  include Comparable.S with type t := t
+  val to_string : t -> string
+end
+
 module Float = struct
   include Float
   let infty = 10000000000000000000000000.
@@ -178,42 +184,6 @@ module Lwt_stream = struct
     loop n []
 end
 
-(* CR-someday: THere's a different interface in [Core_kernel], but not one in
-   base. *)
-module Ephemeron = struct
-  module Make (Key : Caml.Hashtbl.HashedType) = struct
-    include Caml.Ephemeron.K1.Make(Key)
-
-    let create () =
-      create 4000
-
-    let find t key =
-      Option.try_with (fun () -> find t key)
-
-    let add t ~key ~data =
-      add t key data
-
-    let find_or_add t key ~default =
-      match find t key with
-      | Some data -> data
-      | None ->
-        let data = default () in
-        add t ~key ~data;
-        data
-
-    let iteri t ~f =
-      iter (fun key data -> f ~key ~data) t
-
-    let iter t ~f =
-      iteri t ~f:(fun ~key:_ ~data -> f data)
-
-    let count t ~f =
-      let result = ref 0 in
-      iter t ~f:(fun x -> if f x then Int.incr result);
-      !result
-  end
-end
-
 module type Id = sig
   include Identifiable.S
   val create : unit -> t
@@ -255,12 +225,14 @@ module Time : sig
 
   module Span : sig
     type t [@@deriving sexp]
+    include Comparable.S with type t := t
+
     val zero : t
     val to_sec : t -> float
     val of_sec : float -> t
-    val (>) : t -> t -> bool
-    val (<) : t -> t -> bool
     val ( * ) : t -> float -> t
+
+    val to_string : t -> string
   end
 
   val (-) : t -> t -> Span.t
@@ -278,6 +250,9 @@ end = struct
     include Float
     let to_sec t = t
     let of_sec t = t
+
+    let to_string t =
+      sprintf "%f seconds" t
   end
 
   let now () = Unix.gettimeofday ()

@@ -26,6 +26,12 @@ module Source : sig
   val id : t -> Id.t
 end
 
+module Event : sig
+  type t =
+  | Beat   of Source.t
+  | Delete of Source.t
+end
+
 (* CR-someday: make this a bus that doesn't keep the thing on the other end
    alive. *)
-val on_beat : t -> f:(Source.t -> unit) -> unit
+val on_event : t -> f:(Event.t -> unit) -> unit

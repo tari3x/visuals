@@ -10,7 +10,7 @@ module C = Grid_lib.Config
 
 let config : C.t =
   { drawing_mode = false
-  ; base_color = Color.white
+  ; base_color = Color.black
   ; debug_sound  = false
   ; skip_calibration = true
   ; bot_active = true

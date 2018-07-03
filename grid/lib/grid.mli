@@ -7,19 +7,23 @@
 open Std_internal
 
 module Ctl : sig
-  type t =
-  | Spot
-  | Rain_control
-  | Set_shapes of Shape.t list
-      [@@deriving sexp]
+  type t [@@deriving sexp]
+
+  val spot : t
+  val rain_control : t
+  (* must be not empty *)
+  val set_shapes_exn : Shape.t list -> t
 end
 
 type t
 
 module Shapes : sig
-  type t =
-  | Grid of { rows: int; cols : int }
-  | Set of Shape.t list
+  type t
+
+  (* both must be positive *)
+  val grid_exn : rows:int -> cols:int -> t
+  (* must be not empty *)
+  val set_exn : Shape.t list -> t
 end
 
 val create

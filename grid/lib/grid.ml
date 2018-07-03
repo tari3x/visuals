@@ -59,6 +59,13 @@ module Ctl = struct
   | Rain_control
   | Set_shapes of Shape.t list
       [@@deriving sexp]
+
+  let spot = Spot
+  let rain_control = Rain_control
+
+  let set_shapes_exn shapes =
+    if List.is_empty shapes then failwith "Ctl.Set_shapes: empty list";
+    Set_shapes shapes
 end
 
 module Elt = struct
@@ -145,6 +152,14 @@ module Shapes = struct
   type t =
   | Grid of { rows: int; cols : int }
   | Set of Shape.t list
+
+  let grid_exn ~rows ~cols =
+    if rows <= 0 || cols <= 0 then failwith "rows or cols not positive";
+    Grid { rows; cols }
+
+  let set_exn shapes =
+    if List.is_empty shapes then failwith "Shapes.set_exn: empty list";
+    Set shapes
 end
 
 let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
@@ -179,7 +194,11 @@ let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
     | Grid { rows; cols } ->
       grid_segments ~top_left ~width ~height ~rows ~cols
   in
-  let skin = Skin.start ~config ~sound elts in
+  (* elts are not empty by interface *)
+  let skin =
+    Skin.Elts.create_exn elts
+    |> Skin.start ~config ~sound
+  in
   { config
   ; ctx
   ; top_left
@@ -221,7 +240,9 @@ let ctl t box =
   | Ctl.Set_shapes shapes ->
     let elts = List.map shapes ~f:(fun shape -> Elt.create ~shape) in
     t.elts <- elts;
-    Skin.set_elts t.skin elts
+    (* elts are not empty by interface. *)
+    Skin.Elts.create_exn elts
+    |> Skin.set_elts t.skin
 
 let render t =
   let perspective = t.perspective in

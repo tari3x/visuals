@@ -10,38 +10,25 @@ open Std_internal
 (* TODO:
 
    * borders?
-   * measure how the average brightness develops
-   * resonant flow
-   * solve slow movement together with color variety
-   * make rains avoid each other
-   * vary the time till next rain
-   * why the fuck does it fade out with time?
    * make sure checkout works
+   * try tweaking centre max weight
+   * more intensity at the top of resonant flow
+
+   * CPU consumption
 *)
 
 module CF = Color_flow
 module PD = Probability_distribution
 
-let flash_cutoff = 0.94 (* 0.7 *)
+let flash_cutoff = 0.9 (* 0.7 *)
 let human_playing_timeout = Time.Span.of_sec 10.
 
-let max_silent_rain_age_sec = 10.
-let rain_interval = Time.Span.of_sec 0.2
+let rain_dropoff = 1.5
 let drop_interval = Time.Span.of_sec 0.01
-let silent_base_interpolation_arg = 0.4
-let fade_to_base_interpolation_arg = 0.1
-let max_active_rains = 1
-let num_silent_rains = 3
-
-(*
-let max_silent_rain_age_sec = 20.
-let rain_interval = Time.Span.of_sec 1.5
-let drop_interval = Time.Span.of_sec 0.1
-let silent_base_interpolation_arg = 0.4
-let fade_to_base_interpolation_arg = 0.1
-let max_active_rains = 1
-let num_silent_rains = 3
-  *)
+let fade_to_base_interpolation_arg = 0.03
+let num_silent_rains = 2 (* 3 *)
+let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
+let drops_value_range = (0.002, 0.3)
 
 module type Elt = sig
   module Id : Id
@@ -54,6 +41,14 @@ module type Elt = sig
 end
 
 module Make(Elt : Elt) = struct
+  module Elts = struct
+    type t = Elt.t list
+
+    let create_exn elts =
+      if List.is_empty elts then failwith "Elts.create_exn: empty list";
+      elts
+  end
+
   module E = struct
     module Id = Elt.Id
 
@@ -62,6 +57,12 @@ module Make(Elt : Elt) = struct
       ; elt : Elt.t
       ; mutable base_color : Color.t
       } [@@deriving fields]
+
+    let id t =
+      Elt.id t.elt
+
+    let compare_ids t1 t2 =
+      Id.compare (id t1) (id t2)
 
     let distance t1 t2 =
       Elt.distance t1.elt t2.elt
@@ -125,9 +126,7 @@ module Make(Elt : Elt) = struct
       type t =
       | Sound of Sound.Source.Id.t
       | Silent of Silent.t
-          [@@deriving hash, compare]
-
-      let equal = [%compare.equal : t]
+          [@@deriving hash, compare, sexp]
 
       let create_silent () =
         Silent (Silent.create ())
@@ -136,92 +135,94 @@ module Make(Elt : Elt) = struct
     type t =
       { id : Id.t
       ; config : Config.t
-      ; elts : E.t PD.t option
+      ; centre : E.t
+      ; elts : E.t PD.t
       ; color : Color.t
-      ; mutable active : bool
+      ; mutable centre_drops : int
       } [@@deriving fields]
 
-    let create ~elts ~(id : Id.t) ~config =
+    let choose_new_centre_exn ~elts ~other_rains =
+      let cs =
+        List.map other_rains ~f:centre
+        |> List.dedup_and_sort ~compare:E.compare_ids
+      in
+      let is_degenerate =
+        List.is_empty cs || List.length cs >= List.length elts
+      in
+      let weight e =
+        if is_degenerate then 1.
+        else if List.mem cs e ~equal:phys_equal then 0.
+        else
+          List.map cs ~f:(E.distance e)
+          |> List.reduce_exn ~f:Float.(+)
+      in
+      List.map elts ~f:(fun e -> e, weight e)
+      |> PD.create_exn
+      |> PD.draw
+
+    let create_exn ~other_rains ~elts ~(id : Id.t) ~config =
       let open Float in
-      let centre = List.random_element_exn elts in
-      (* let color = Color.random () |> Color.maximize in *)
-      let color =
-        match id with
-        | Sound _ -> Color.random ()
-        | Silent _ ->
-          Color.interpolate [E.base_color centre; Color.random ()]
-            ~arg:silent_base_interpolation_arg
-      in
-      let color = Color.maximize color in
+      let color = Color.random () |> Color.maximize in
+      let centre = choose_new_centre_exn ~elts ~other_rains in
       let elts =
-        match elts with
-        | [] -> None
-        | elts ->
-          let max_weight, other_elts =
-            List.filter elts ~f:(fun e -> not (phys_equal e centre))
-            |> List.fold_map ~init:0. ~f:(fun max_weight e ->
-              let distance = E.distance centre e in
-              let weight = int_pow (1. / distance) 3 in
-              Float.max max_weight weight, (e, weight))
-          in
-          (*
-            let other_elts =
-            List.map other_elts ~f:(fun (segment, weight) ->
-            let weight =
-            if weight < max_weight / 2. then 0. else weight
-            in
-            (segment, weight))
-            in
-          *)
-          PD.create_exn
-            (( centre, max_weight ) :: other_elts)
-          |> Some
+        let max_weight, other_elts =
+          List.filter elts ~f:(fun e -> not (phys_equal e centre))
+          |> List.fold_map ~init:0. ~f:(fun max_weight e ->
+            let distance = E.distance centre e in
+            let weight = (1. / distance) **. rain_dropoff in
+            Float.max max_weight weight, (e, weight))
+        in
+        PD.create_exn
+          (( centre, max_weight ) :: other_elts)
       in
-      { id; config; color; elts
-      ; active = false
+      { id; config; color; elts; centre
+      ; centre_drops = 0
       }
+
+    let is_silent t =
+      match t.id with
+      | Sound _ -> false
+      | Silent _ -> true
+
+    let drop t ~flash =
+      let e = PD.draw t.elts in
+      if phys_equal e t.centre then t.centre_drops <- t.centre_drops + 1;
+      E.touch e ~color:t.color ~flash
+
+    (* This should be roughly enough to saturate the color *)
+    let finished t =
+      t.centre_drops >= int (4. /. fade_to_base_interpolation_arg)
 
     let burst t =
       let open Lwt.Let_syntax in
-      match t.elts with
-      | None -> Lwt.return ()
-      | Some elts ->
-        let rec loop ~is_first =
-          let open Float in
-          let stop () =
-            t.active <- false;
-            Lwt.return ()
+      let rec loop ~is_first =
+        let open Float in
+        let stop () = Lwt.return () in
+        let%bind () = Lwt_js.sleep (Time.Span.to_sec drop_interval) in
+        if Random.float 1. > t.config.keep_raining_probability
+        then stop ()
+        else begin
+          let flash =
+            match t.id with
+            | Sound _ -> is_first
+            | Silent _ -> true
           in
-          let%bind () = Lwt_js.sleep (Time.Span.to_sec drop_interval) in
-          if Random.float 1. > t.config.keep_raining_probability
-          then stop ()
-          else begin
-            let elt = PD.draw elts in
-            let color = t.color in
-            let flash =
-              match t.id with
-              | Sound _ -> is_first
-              | Silent _ -> true
-            in
-            E.touch elt ~color ~flash;
-            loop ~is_first:false
-          end
-        in
-        t.active <- true;
-        loop ~is_first:true
+          drop t ~flash;
+          loop ~is_first:false
+        end
+      in
+      loop ~is_first:true
   end
-
-  module Rain_table = Ephemeron.Make(Rain.Id)
 
   type t =
     { config : Config.t
     ; elts : E.t Hashtbl.M(E.Id).t (* not empty *)
     ; sound : Sound.t
-    ; rains : Rain.t Rain_table.t
+    ; rains : Rain.t Hashtbl.M(Rain.Id).t
     ; mutable last_human_touch : Time.t
     }
 
-  let set_elts t elts =
+  let set_elts t (elts : Elts.t) =
     Hashtbl.clear t.elts;
     List.iter elts ~f:(fun elt ->
       let key = Elt.id elt in
@@ -231,8 +232,8 @@ module Make(Elt : Elt) = struct
   let create ~(config : Config.t) ~sound elts =
     let t =
       { config; sound
-      ; rains = Rain_table.create ()
-      ; elts = Hashtbl.create (module E.Id) ()
+      ; rains = Hashtbl.create (module Rain.Id) ()
+      ; elts  = Hashtbl.create (module E.Id) ()
       ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
       }
     in
@@ -245,54 +246,79 @@ module Make(Elt : Elt) = struct
     now () - t.last_human_touch < human_playing_timeout
 
   let new_rain t id =
-    Rain.create ~id ~elts:(Hashtbl.data t.elts) ~config:t.config
+    Rain.create_exn ~id ~config:t.config
+      ~other_rains:(Hashtbl.data t.rains)
+      ~elts:(Hashtbl.data t.elts)
 
   let find_or_add_rain t ~id =
-    Rain_table.find_or_add t.rains id ~default:(fun () -> new_rain t id)
-
-  let num_active_rains t =
-    Rain_table.count t.rains ~f:Rain.active
+    Hashtbl.find_or_add t.rains id ~default:(fun () -> new_rain t id)
 
   let run_silent_rain t =
     let open Lwt.Let_syntax in
-    let rec loop id ~stop_time =
-      let%bind () = Lwt_js.sleep (Time.Span.to_sec rain_interval) in
-      if Time.(now () > stop_time) then start_new ()
-      else if
-          num_active_rains t >= max_active_rains
-          || Float.(Random.float 1. > t.config.start_silent_rain_probability)
-      then loop id ~stop_time
+    let rec loop rain =
+      let%bind () = Lwt_js.sleep 1. in
+      if not (Rain.finished rain) then loop rain
       else begin
-        let rain = find_or_add_rain t ~id in
-        let%bind () = Rain.burst rain in
-        loop id ~stop_time
+        Hashtbl.remove t.rains (Rain.id rain);
+        start_new ()
       end
     and start_new () =
       let id = Rain.Id.create_silent () in
-      let stop_time =
-        Time.(now () + Span.of_sec (Random.float max_silent_rain_age_sec))
-      in
-      loop id ~stop_time
+      loop (find_or_add_rain t ~id)
     in
     start_new ()
+
+  let silent_rains t =
+    Hashtbl.data t.rains
+    |> List.filter ~f:Rain.is_silent
+
+  let run_drops t =
+    let open Lwt.Let_syntax in
+    let open Float in
+    (* CR-someday: surely there's something smarter possible that doesn't wake
+       up every quantum if not many drops are happening. *)
+    let quantum = 0.01 in
+    let drop_intervals =
+      Resonant_flow.create_exn
+        ~period_range:drops_period_range
+        ~value_range:drops_value_range
+    in
+    let drop () =
+      Option.iter
+        (List.random_element (silent_rains t))
+        ~f:(Rain.drop ~flash:true);
+    in
+    let rec loop () =
+      let%bind () = Lwt_js.sleep quantum in
+      let drop_interval = Resonant_flow.eval drop_intervals in
+      let drop_probability = quantum / drop_interval in
+      if Random.float 1. <= drop_probability then drop ();
+      loop ()
+    in
+    loop ()
 
   let start_silent_rains t =
     for _ = 1 to num_silent_rains do
       Lwt.async (fun () -> run_silent_rain t)
-    done
+    done;
+    Lwt.async (fun () -> run_drops t)
 
   let start t =
     start_silent_rains t;
     if t.config.start_rain_on_sound
     then begin
       Sound.start t.sound;
-      Sound.on_beat t.sound ~f:(fun source ->
+      Sound.on_event t.sound ~f:(function
+      | Beat source ->
         if not (human_playing t) && t.config.bot_active
         then begin
           let id = Rain.Id.Sound (Sound.Source.id source) in
           let rain = find_or_add_rain t ~id in
           Lwt.async (fun () -> Rain.burst rain)
-        end)
+        end
+      | Delete source ->
+        let id = Rain.Id.Sound (Sound.Source.id source) in
+        Hashtbl.remove t.rains id)
     end
 
   let start ~config ~sound elts =
