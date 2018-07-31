@@ -16,6 +16,7 @@ module Period = struct
        function remains continuous. *)
     ; d : float
     ; value_mult : float
+    ; sin_mult : float
     }
 
   let create
@@ -37,10 +38,19 @@ module Period = struct
     (* let d = Random.float max_d in *)
     let d = max_d in
     let value_mult = max_v / (1. + d) in
-    { span; start; d; value_mult }
+    { span; start; d
+    ; value_mult
+    ; sin_mult = min_v }
 
   let elapsed t =
     Time.(now () > t.start + t.span)
+
+  (* CR-someday: figure this out. *)
+  let sgn x =
+    let open Float in
+    if x = 0. then 0.
+    else if x > 0. then 1.
+    else -1.
 
   let eval t =
     let open Float in
@@ -48,8 +58,11 @@ module Period = struct
       2. * pi * (Time.Span.to_sec Time.(now () - t.start))
       / Time.Span.to_sec t.span
     in
-    let x = cos phase in
-    let y = sin phase in
+    let x =
+      let x = cos phase in
+      int_pow x 3 * (sgn x)
+    in
+    let y = t.sin_mult * (sin phase) in
     let result =
       t.value_mult * sqrt (int_pow y 2 + int_pow (x - t.d) 2)
     in

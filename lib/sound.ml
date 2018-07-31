@@ -40,6 +40,8 @@ let source_idle_timeout =
 let max_source_age =
   Time.Span.of_sec 30.
 
+let show_spectrum = false
+
 let max_num_sources = 3
 
 (* CR-someday: how much does zero-allocation matter here? *)
@@ -197,17 +199,18 @@ let draw t ctx =
         Source.in_beat source && Int.(Source.bin source = i))
       |> function
         | Some source -> Source.color source
-        | None -> Color.black
-          (*
-          if Beat_detector.in_beat beat
-          then Color.red else Color.white
-          *)
+        | None ->
+          if not show_spectrum
+          then Color.black
+          else if Beat_detector.in_beat beat
+          then Color.red
+          else Color.white
     in
     Ctx.set_fill_color ctx color;
-    let _value = bin_volume_exn t i in
+    let value = bin_volume_exn t i in
     let width = bin_w i in
     let ewma = Beat_detector.Debug.ewma beat in
-    draw_bin ~value:1. ~width ~ewma ()
+    draw_bin ~value ~width ~ewma ()
   );
   draw_bin ~value:0. ~width:empty_w ();
   draw_bin ~value:t.volume ~width:volume_w ();

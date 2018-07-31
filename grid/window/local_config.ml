@@ -17,7 +17,7 @@ let config : C.t =
   ; grid_kind = `grid
   ; global_channel_name = "global-window"
   ; color_flow = `fade_to_base
-  ; start_rain_on_sound = true
-  ; start_silent_rain_probability = 0.
+  ; on_sound = Some `rain
+  ; num_silent_rains = 0
   ; keep_raining_probability = C.keep_raining_probability
   }

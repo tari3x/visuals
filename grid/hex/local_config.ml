@@ -10,14 +10,14 @@ module C = Grid_lib.Config
 
 let config : C.t =
   { drawing_mode = false
-  ; base_color = Color.black
+  ; base_color = Color.white
   ; debug_sound  = false
   ; skip_calibration = true
   ; bot_active = true
   ; grid_kind = `free
   ; global_channel_name = "global-wall"
   ; color_flow = `fade_to_base
-  ; start_rain_on_sound = false
-  ; start_silent_rain_probability = 0.9
-  ; keep_raining_probability = 0.9
+  ; on_sound = Some (`drop 3)
+  ; num_silent_rains = 2
+  ; keep_raining_probability = 0.
   }

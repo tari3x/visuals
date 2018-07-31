@@ -18,8 +18,8 @@ type t =
   ; grid_kind : [ `grid | `free ]
   ; global_channel_name : string
   ; color_flow : [ `fade_to_black | `fade_to_base ]
-  ; start_rain_on_sound : bool
-  ; start_silent_rain_probability : float
+  ; on_sound : [ `rain | `drop of int ] option
+  ; num_silent_rains : int
   ; mutable keep_raining_probability : float
   } [@@deriving sexp]
 

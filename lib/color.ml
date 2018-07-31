@@ -118,4 +118,3 @@ let maximize t =
   in
   let s = Float.(255. / max_component) in
   scale t s
-

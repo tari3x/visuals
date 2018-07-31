@@ -10,9 +10,17 @@ open Std_internal
 (* TODO:
 
    * borders?
-   * make sure checkout works
    * try tweaking centre max weight
-   * more intensity at the top of resonant flow
+   * try using manhattan distance or similar
+
+   * try with chrome
+   * make sure sound is not overpowered by talking
+
+   * self-adjusting resonant flow,
+   want to be able to say "100 flashes" per round.
+
+   * make all flash with maximized base color
+   Is a bit weird, no?
 
    * CPU consumption
 *)
@@ -26,9 +34,8 @@ let human_playing_timeout = Time.Span.of_sec 10.
 let rain_dropoff = 1.5
 let drop_interval = Time.Span.of_sec 0.01
 let fade_to_base_interpolation_arg = 0.03
-let num_silent_rains = 2 (* 3 *)
 let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
-let drops_value_range = (0.002, 0.3)
+let drops_value_range = (0.1, 1.) (*  (0.0000002, 0.3) *)
 
 module type Elt = sig
   module Id : Id
@@ -88,7 +95,7 @@ module Make(Elt : Elt) = struct
     let fade_to_base ~config ~old_base ~new_base =
       let open Time.Span in
       let sls = Config.segment_life_span config in
-      CF.start_now (a old_base 1.)
+      CF.start_now (a (Color.maximize old_base) 1.)
       |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
 
     let touch t ~color ~flash =
@@ -199,17 +206,15 @@ module Make(Elt : Elt) = struct
         let open Float in
         let stop () = Lwt.return () in
         let%bind () = Lwt_js.sleep (Time.Span.to_sec drop_interval) in
+        let flash =
+          match t.id with
+          | Sound _ -> is_first
+          | Silent _ -> true
+        in
+        drop t ~flash;
         if Random.float 1. > t.config.keep_raining_probability
         then stop ()
-        else begin
-          let flash =
-            match t.id with
-            | Sound _ -> is_first
-            | Silent _ -> true
-          in
-          drop t ~flash;
-          loop ~is_first:false
-        end
+        else loop ~is_first:false
       in
       loop ~is_first:true
   end
@@ -220,6 +225,7 @@ module Make(Elt : Elt) = struct
     ; sound : Sound.t
     ; rains : Rain.t Hashtbl.M(Rain.Id).t
     ; mutable last_human_touch : Time.t
+    ; mutable drop_count : int
     }
 
   let set_elts t (elts : Elts.t) =
@@ -235,6 +241,7 @@ module Make(Elt : Elt) = struct
       ; rains = Hashtbl.create (module Rain.Id) ()
       ; elts  = Hashtbl.create (module E.Id) ()
       ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
+      ; drop_count = 0
       }
     in
     set_elts t elts;
@@ -272,54 +279,70 @@ module Make(Elt : Elt) = struct
     Hashtbl.data t.rains
     |> List.filter ~f:Rain.is_silent
 
-  let run_drops t =
+   let drop t =
+     t.drop_count <- t.drop_count + 1;
+     Option.iter
+       (List.random_element (silent_rains t))
+       ~f:(Rain.drop ~flash:true)
+
+  let run_silent_drops t =
     let open Lwt.Let_syntax in
     let open Float in
     (* CR-someday: surely there's something smarter possible that doesn't wake
        up every quantum if not many drops are happening. *)
-    let quantum = 0.01 in
-    let drop_intervals =
+    let quantum = 0.001 in
+    let drops =
       Resonant_flow.create_exn
         ~period_range:drops_period_range
         ~value_range:drops_value_range
     in
-    let drop () =
-      Option.iter
-        (List.random_element (silent_rains t))
-        ~f:(Rain.drop ~flash:true);
+    let rec count_drops () =
+      let%bind () = Lwt_js.sleep 1. in
+      debug "drops: %d" t.drop_count;
+      t.drop_count <- 0;
+      count_drops ()
     in
     let rec loop () =
       let%bind () = Lwt_js.sleep quantum in
-      let drop_interval = Resonant_flow.eval drop_intervals in
-      let drop_probability = quantum / drop_interval in
-      if Random.float 1. <= drop_probability then drop ();
+      let drop_probability = Resonant_flow.eval drops in
+      if Random.float 1. <= drop_probability then drop t;
       loop ()
     in
+    Lwt.async (fun () -> count_drops ());
     loop ()
 
   let start_silent_rains t =
-    for _ = 1 to num_silent_rains do
+    for _ = 1 to t.config.num_silent_rains do
       Lwt.async (fun () -> run_silent_rain t)
     done;
-    Lwt.async (fun () -> run_drops t)
+    if t.config.num_silent_rains > 0
+    then Lwt.async (fun () -> run_silent_drops t)
 
   let start t =
     start_silent_rains t;
-    if t.config.start_rain_on_sound
-    then begin
+    match t.config.on_sound with
+    | None -> ()
+    | Some on_sound ->
       Sound.start t.sound;
-      Sound.on_event t.sound ~f:(function
-      | Beat source ->
-        if not (human_playing t) && t.config.bot_active
-        then begin
+      match on_sound with
+      | `rain ->
+        Sound.on_event t.sound ~f:(function
+        | Beat source ->
+          if not (human_playing t) && t.config.bot_active
+          then begin
+            let id = Rain.Id.Sound (Sound.Source.id source) in
+            let rain = find_or_add_rain t ~id in
+            Lwt.async (fun () -> Rain.burst rain)
+          end
+        | Delete source ->
           let id = Rain.Id.Sound (Sound.Source.id source) in
-          let rain = find_or_add_rain t ~id in
-          Lwt.async (fun () -> Rain.burst rain)
-        end
-      | Delete source ->
-        let id = Rain.Id.Sound (Sound.Source.id source) in
-        Hashtbl.remove t.rains id)
-    end
+          Hashtbl.remove t.rains id)
+      | `drop num_drops ->
+        Sound.on_event t.sound ~f:(function
+        | Beat _ ->
+          if not (human_playing t) && t.config.bot_active
+          then for _ = 1 to num_drops do drop t done
+        | Delete _ -> ())
 
   let start ~config ~sound elts =
     let t = create ~config ~sound elts in

@@ -17,7 +17,7 @@ let config : C.t =
   ; grid_kind = `free
   ; global_channel_name = "global-wall"
   ; color_flow = `fade_to_black
-  ; start_rain_on_sound = true
-  ; start_silent_rain_probability = 0.
+  ; on_sound = Some `rain
+  ; num_silent_rains = 0
   ; keep_raining_probability = C.keep_raining_probability
   }
