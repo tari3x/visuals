@@ -1,0 +1,38 @@
+# Boring file regexps:
+
+galaxy-remote
+
+.depend
+notes.txt
+_build
+
+.merlin
+
+# C object files
+*.o
+*.a
+*.so
+# Ocaml object files
+*.cmi
+*.cmo
+*.cmx
+*.cma
+*.cmxa
+*.cmxs
+*.cmjs
+
+*.exe
+
+# backup files
+*~
+*#
+.#*
+
+# emacs
+.emacs.desktop
+.emacs.desktop.lock
+
+# Specific to Js_of_ocaml
+*.byte
+*.tmpjs
+*.map

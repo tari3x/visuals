@@ -1,0 +1,11 @@
+(executables (
+  (names (main))
+  (libraries (
+    core
+    async
+    async_shell
+  ))
+  (preprocess (pps (
+    ppx_jane
+  )))
+))
