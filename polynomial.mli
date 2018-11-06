@@ -3,6 +3,7 @@ open Async
 type t
 
 val var : int -> t
+val func : string -> t list -> t
 val const : float -> t
 
 val ( * ) : t -> t -> t

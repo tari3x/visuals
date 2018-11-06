@@ -10,6 +10,9 @@ let var = function
   | 3 -> "z"
   | i -> sprintf "v%d" i
 
+let func f args =
+  sprintf "%s(%s)" f (String.concat args ~sep:", ")
+
 let const = Float.to_string
 
 let ( * ) t1 t2 =
@@ -87,7 +90,8 @@ let divide t1 t2 =
   |> return
 
 let zero_line_between_two_points (x1, y1) (x2, y2) =
-  if x2 = x1 then failwith "TODO: vertical lines"
+  if Float.(x2 = x1)
+  then var 1 - const x1
   else begin
     let slope = Float.((y2 - y1) / (x2 - x1)) in
     var 2 - const y1 - const slope * (var 1 - const x1)
