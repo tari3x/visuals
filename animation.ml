@@ -5,19 +5,18 @@ module P = Polynomial
 module D = P.Division_result
 
 module Config = struct
-  (* CR: make cbrange part of config. *)
   type t =
     { n_x : int
     ; n_y : int
-    ; x_margin : int
-    ; y_margin : int
+    ; left_margin : int
+    ; top_margin : int
+    ; right_margin : int
+    ; bottom_margin : int
     ; style : [ `zeroes | `heat ]
+    ; cbrange : int * int
     ; show_dots : bool
     }
 end
-
-let frame = ref 0
-let fun_id = ref 0
 
 module Writer = struct
   type t =
@@ -29,17 +28,19 @@ module Writer = struct
     let { Config.
           n_x
         ; n_y
-        ; x_margin
-        ; y_margin
+        ; left_margin
+        ; top_margin
+        ; right_margin
+        ; bottom_margin
         ; _
         } = config
     in
     let%bind header = Reader.file_contents "header.gp" in
     fprintf w "%s" header;
-    let x_start = -x_margin in
-    let x_stop = n_x + x_margin + 3 in
-    let y_start = -y_margin in
-    let y_stop = n_y + y_margin in
+    let x_start = -left_margin in
+    let x_stop = n_x + right_margin in
+    let y_start = -bottom_margin in
+    let y_stop = n_y + top_margin in
     if config.show_dots then begin
       for i = 0 to n_x - 1 do
         for j = 0 to n_y - 1 do
@@ -63,9 +64,11 @@ module Writer = struct
     end;
     fprintf w "set xrange [%d:%d]\n" x_start x_stop;
     fprintf w "set yrange [%d:%d]\n" y_start y_stop;
+    let cb_x, cb_y = config.cbrange in
+    fprintf w "set cbrange [%d:%d]\n" cb_x cb_y;
   (* # set terminal pngcairo size 2000, 1500 enhanced font 'Verdana,10' *)
-    let x_units = n_x + 2 * x_margin - 1 in
-    let y_units = n_y + 2 * y_margin - 1 in
+    let x_units = n_x + left_margin + right_margin  - 1 in
+    let y_units = n_y + top_margin  + bottom_margin - 1 in
     let width = 1600 in
     let height = width * y_units / x_units in
   (* pngcairo is 3x slower, although slightly better quality.*)
@@ -81,11 +84,15 @@ module Writer = struct
     return t
 end
 
+let fun_id = ref 0
+
 let define (w : Writer.t) p =
   incr fun_id;
   let f = sprintf "f%d" !fun_id in
   fprintf w.writer "%s(x, y) = %s\n" f (P.to_gnuplot p);
   f
+
+let frame = ref 0
 
 let make_frame { Writer. writer = w; config } f =
   incr frame;

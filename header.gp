@@ -1,7 +1,6 @@
 unset surface 
 set view map
 set cntrparam levels disc 0
-set cbrange [-20:25]
 # set logscale zcb
 # could also try setting monochrome png output?
 set style increment userstyles 

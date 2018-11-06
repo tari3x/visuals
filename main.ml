@@ -99,12 +99,14 @@ module Line = struct
   include Comparable.Make(T)
 end
 
+(* Point range is [0; n - 1] *)
 module Lines = struct
   let all_points { Config. n_x; n_y; _ } =
     List.cartesian_product
       (List.init n_x ~f:Fn.id)
       (List.init n_y ~f:Fn.id)
 
+  (* CR: a dedup is missing. *)
   let all_diagonals config =
     let { Config. n_x; n_y; _ } = config in
     let all_points = all_points config in
@@ -119,6 +121,7 @@ module Lines = struct
       let points = List.filter all_points ~f:(Line.mem l) in
       List.length points > 0)
 
+  (* CR: not is missing. *)
   let is_cover lines points =
     List.exists points ~f:(fun p ->
       Set.for_all lines ~f:(fun l -> not (Line.mem l p)))
@@ -140,7 +143,7 @@ module Lines = struct
     |> List.map ~f:Line.poly
     |> P.product
 
-  let imo_lines { Config. n_x; n_y; _ } =
+  let imo_vh { Config. n_x; n_y; _ } =
     let make_lines v n =
       List.init (n - 1) ~f:(fun i ->
         let i = i + 1 in
@@ -154,7 +157,6 @@ module Lines = struct
   let vertical_lines { Config. n_x; _ } =
     List.init n_x ~f:(fun i ->
       P.(var 1 - const (float i)))
-
 end
 
 module IMO = struct
@@ -176,9 +178,12 @@ module IMO = struct
     { Animation.Config.
       n_x = 5
     ; n_y = 4
-    ; x_margin = 2
-    ; y_margin = 2
+    ; left_margin = 2
+    ; top_margin = 2
+    ; right_margin = 5
+    ; bottom_margin = 2
     ; style = `heat
+    ; cbrange = (-10, 12)
     ; show_dots = false
     }
 
@@ -210,7 +215,7 @@ module IMO = struct
 
   let lines_to_emerge =
     match target_lines with
-    | `both -> Lines.imo_lines config
+    | `both -> Lines.imo_vh config
     | `vertical -> Lines.vertical_lines config
 
   let animate ~dir =
@@ -229,13 +234,16 @@ module IMO_loop = struct
     { Animation.Config.
       n_x = 5
     ; n_y = 4
-    ; x_margin = 0
-    ; y_margin = 0
+    ; left_margin = 0
+    ; top_margin = 0
+    ; right_margin = 0
+    ; bottom_margin = 0
     ; style = `heat
+    ; cbrange = (-20, 25)
     ; show_dots = false
     }
 
-  let imo_lines      = Lines.imo_lines config
+  let imo_lines      = Lines.imo_vh config
   let vertical_lines = Lines.vertical_lines config
 
   let n_covers = 3
@@ -261,7 +269,7 @@ module IMO_loop = struct
             ~f:step
         in
         let%bind states = loop (emerge2, emerge1) cs in
-        (List.rev states1) @ states2 @ states
+        (List.rev states1) @ (List.tl_exn states2) @ states
         |> return
     in
     loop (imo_lines, vertical_lines) covers
@@ -281,9 +289,12 @@ module Star = struct
     { Animation.Config.
       n_x = 7
     ; n_y = 6
-    ; x_margin = 2
-    ; y_margin = 2
+    ; left_margin = 2
+    ; top_margin = 2
+    ; right_margin = 5
+    ; bottom_margin = 2
     ; style = `heat
+    ; cbrange = (-10, 12)
     ; show_dots = false
     }
 

@@ -6,9 +6,12 @@ module Config : sig
   type t =
     { n_x : int
     ; n_y : int
-    ; x_margin : int
-    ; y_margin : int
+    ; left_margin : int
+    ; top_margin : int
+    ; right_margin : int
+    ; bottom_margin : int
     ; style : [ `zeroes | `heat ]
+    ; cbrange : int * int
     ; show_dots : bool
     }
 end
