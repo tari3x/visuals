@@ -4,9 +4,9 @@ SRC=$(wildcard *.ml *.mli)
 
 all: a.exe
 
-a.exe: ${SRC}
+a.exe: FORCE
 	jbuilder build main.exe --dev
-	cp _build/default/main.exe $@
+	cp ../_build/default/bin/main.exe $@
 
 clean:
 	jbuilder clean

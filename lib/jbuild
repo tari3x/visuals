@@ -1,0 +1,13 @@
+(library (
+  (name nullstellen_lib)
+  (libraries (
+    core
+    async
+    async_shell
+  ))
+  (inline_tests)
+  (preprocess (pps (
+    ppx_jane
+    ppx_inline_test
+  )))
+))

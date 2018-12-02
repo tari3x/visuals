@@ -9,17 +9,14 @@ module Config = A.Config
 (* CR-someday: higher resolution when lines move fast. *)
 
 (* TODO:
- * try plotting the surface
- * make it more generic than rectangular grids
  * understand what happens around the points such that zeroes persist.
- * make all lines move at once (direct interpolation)
  * the end of 4x5 is pretty abrupt
  * double log gives interesting colour effect
  * negative log gives interesting colour effect
- * how do I actually output two function tables and reuse them?
- * video quality
  * set samples vs set isosamples!! x vs y?
  * don't use deferred for maxima?
+ * Ruslan says 30fps
+ * hack gnuplot to remove margins
 *)
 
 let () = Random.init 150
@@ -40,43 +37,6 @@ let rec intercalate xs ys =
   | xs, [] -> xs
   | (x :: xs), (y :: ys) ->
     x :: y :: intercalate xs ys
-
-module type Ring = sig
-  type t [@@deriving sexp, compare]
-
-  include Commutative_group.S with type t := t
-
-  val ( * ) : t -> t -> t
-end
-
-module Vector = struct
-  module Make (R : Ring) = struct
-    module T = struct
-      type t = R.t * R.t [@@deriving sexp, compare]
-    end
-
-    include T
-    include Comparable.Make(T)
-
-    let ( + ) (x1, y1) (x2, y2) : t =
-      R.(x1 + x2, y1 + y2)
-
-    let ( - ) (x1, y1) (x2, y2) : t =
-      R.(x1 - x2, y1 - y2)
-
-    let cross (x1, y1) (x2, y2) : R.t =
-      R.(x1 * y2 - x2 * y1)
-  end
-
-  module Float = Make(Float)
-
-  module Int = struct
-    include Make(Int)
-
-    let to_float (x, y) =
-      (float x, float y)
-  end
-end
 
 module Point = Vector
 
@@ -101,13 +61,14 @@ end
 
 (* Point range is [0; n - 1] *)
 module Lines = struct
+  type t = Line.t list [@@deriving sexp]
+
   let all_points { Config. n_x; n_y; _ } =
     List.cartesian_product
       (List.init n_x ~f:Fn.id)
       (List.init n_y ~f:Fn.id)
 
-  (* CR: a dedup is missing. *)
-  let all_diagonals config =
+  let all_diagonals config : t =
     let { Config. n_x; n_y; _ } = config in
     let all_points = all_points config in
     let dirs = [ (1, 1); (1, -1) ] in
@@ -120,15 +81,17 @@ module Lines = struct
     |> List.filter ~f:(fun l ->
       let points = List.filter all_points ~f:(Line.mem l) in
       List.length points > 0)
+    |> List.dedup_and_sort ~compare:Line.compare
 
-  (* CR: not is missing. *)
   let is_cover lines points =
-    List.exists points ~f:(fun p ->
-      Set.for_all lines ~f:(fun l -> not (Line.mem l p)))
+    List.for_all points ~f:(fun p ->
+      Set.exists lines ~f:(fun l -> Line.mem l p))
 
-  let random_diagonal_cover config =
+  let random_diagonal_cover config : t =
     let all_points = all_points config in
-    let rec loop cover = function
+    let rec loop cover to_remove =
+      if Set.length cover <= 20 then cover
+      else match to_remove with
       | [] -> cover
       | l :: ls ->
         let cover' = Set.remove cover l in
@@ -140,23 +103,25 @@ module Lines = struct
     let cover = Line.Set.of_list lines in
     loop cover lines
     |> Set.to_list
-    |> List.map ~f:Line.poly
+
+  let poly t =
+    List.map t ~f:Line.poly
     |> P.product
 
-  let imo_vh { Config. n_x; n_y; _ } =
-    let make_lines v n =
-      List.init (n - 1) ~f:(fun i ->
-        let i = i + 1 in
-        P.(v - const (float i)))
-      |> List.rev
-    in
-    intercalate
-      (make_lines (P.var 1) n_x)
-      (make_lines (P.var 2) n_y)
+  let horizontal_lines { Config. n_x; _ } =
+    List.init n_x ~f:(fun i -> (0, i), (i, 0))
 
-  let vertical_lines { Config. n_x; _ } =
-    List.init n_x ~f:(fun i ->
-      P.(var 1 - const (float i)))
+  let vertical_lines { Config. n_y; _ } =
+    List.init n_y ~f:(fun i -> (i, 0), (0, i))
+
+  let imo_vh config =
+    intercalate
+      (horizontal_lines config)
+      (vertical_lines config)
+
+  let random_regular_line config =
+    (imo_vh config)
+    |> List.random_element_exn
 end
 
 module IMO = struct
@@ -218,6 +183,9 @@ module IMO = struct
     | `both -> Lines.imo_vh config
     | `vertical -> Lines.vertical_lines config
 
+  let lines_to_emerge =
+    List.map lines_to_emerge ~f:Line.poly
+
   let animate ~dir =
     (* CR-someday: you can skip the last iteration since last two lines fall in
        place together. *)
@@ -232,26 +200,27 @@ end
 module IMO_loop = struct
   let config =
     { Animation.Config.
-      n_x = 5
-    ; n_y = 4
+      n_x = 7
+    ; n_y = 5
     ; left_margin = 0
     ; top_margin = 0
     ; right_margin = 0
     ; bottom_margin = 0
     ; style = `heat
-    ; cbrange = (-20, 25)
+    ; cbrange = (-20, 25) (* (-10, 12) *)
     ; show_dots = false
     }
 
-  let imo_lines      = Lines.imo_vh config
-  let vertical_lines = Lines.vertical_lines config
+  let imo_lines      = Lines.imo_vh config         |> List.map ~f:Line.poly
+  let vertical_lines = Lines.vertical_lines config |> List.map ~f:Line.poly
 
   let n_covers = 3
 
+  (* CR: you are reversing the whole list. *)
   let states covers =
     let step state line =
       let%bind state = A.State.emerge state line in
-      let state = A.State.collapse state in
+       let state = A.State.collapse state in
       return state
     in
     let rec loop (emerge1, emerge2) covers =
@@ -276,7 +245,9 @@ module IMO_loop = struct
 
   let animate ~dir =
     let covers = List.init n_covers ~f:(fun _ ->
-      Lines.random_diagonal_cover config)
+      let c = Lines.random_diagonal_cover config in
+      printf !"%{sexp:Lines.t}" c;
+      Lines.poly c)
     in
     let%bind states = states covers in
     A.write ~dir ~config states
@@ -288,17 +259,17 @@ module Star = struct
   let config =
     { Animation.Config.
       n_x = 7
-    ; n_y = 6
-    ; left_margin = 2
-    ; top_margin = 2
-    ; right_margin = 5
-    ; bottom_margin = 2
+    ; n_y = 5
+    ; left_margin = 0
+    ; top_margin = 0
+    ; right_margin = 0
+    ; bottom_margin = 0
     ; style = `heat
-    ; cbrange = (-10, 12)
+    ; cbrange = (-20, 25)
     ; show_dots = false
     }
 
-  let n_lines = 10
+  let n_lines = 15
   let n_steps = 50
 
   let rec random_line () =
@@ -313,13 +284,21 @@ module Star = struct
     then random_line ()
     else P.zero_line_between_two_points p1 p2
 
+      (*
   let initial_state () =
     List.init n_lines ~f:(fun _ -> random_line ())
     |> P.product
     |> A.State.create
+      *)
+  let initial_state () =
+    Lines.random_diagonal_cover config
+    |> Lines.poly
+    |> A.State.create
 
   let animate ~dir =
-    let lines = List.init n_steps ~f:(fun _ -> random_line ()) in
+    let lines = List.init n_steps ~f:(fun _ ->
+      Lines.random_regular_line config |> Line.poly)
+    in
     let%bind states =
       fold_map_deferred lines
         ~init:(initial_state ())
@@ -331,16 +310,78 @@ module Star = struct
     A.write ~dir ~config states
 end
 
+module Lagrange = struct
+  let config =
+    { Animation.Config.
+      n_x = 4
+    ; n_y = 4
+    ; left_margin = 0
+    ; top_margin = 0
+    ; right_margin = 0
+    ; bottom_margin = 0
+    ; style = `heat
+    ; cbrange = (-10, 12)
+    ; show_dots = false
+    }
+
+  let set_value x =
+    List.map ~f:(fun p -> (p, x))
+
+  let grid =
+    Lines.all_points config
+    |> List.map ~f:Vector.Int.to_float
+    |> set_value 0.
+
+  let _pivots_2 =
+    [
+      [ (0.5, 0.5)
+      ; (1.5, 1.3)
+      ] |> set_value 1.
+    ]
+
+  let _pivots_3 =
+    [
+      [ (4., 3.)
+      (* ; (1.4, 1.3)
+      ; (3.4, 0.1)
+      ; (2.4, 1.5)
+      *)
+      ] |> set_value 1.
+    ]
+
+  let _pivots_6 =
+    [
+      [ (1.4, 1.3)
+      ; (3.4, 0.1)
+      ; (2.4, 1.5)
+      ] |> set_value 1.
+    ]
+
+  let animate ~dir =
+    let points =
+      List.init 10 ~f:(fun _ ->
+        let x = Random.float 3. in
+        let y = Random.float 3. in
+        let value = Random.float 1. in
+        ((x, y), value))
+      |> List.return
+    in
+    let%bind states =
+      Deferred.List.map points ~f:(fun points ->
+       P.lagrange ~degree:3 points)
+    in
+    let states = List.map states ~f:A.State.create in
+    A.write ~dir ~config ~interpolate:false states
+end
+
 let command =
   let open Command.Let_syntax in
   Command.async
     ~readme:(fun () -> "")
     ~summary:""
     [%map_open
-     let dir = flag "-dir" (required file) ~doc:"" in
+     let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
      fun () ->
-       IMO_loop.animate ~dir
+       Lagrange.animate ~dir
     ]
 
-;;
-Command.run command

@@ -7,3 +7,12 @@ set style increment userstyles
 # 0 gives error
 set style line 1 linewidth 4;
 set datafile nofpe_trap
+
+unset border
+# unset tics
+unset key
+# these have no effect in splot:
+set lmargin 0
+set rmargin 0
+set tmargin 0
+set bmargin 0

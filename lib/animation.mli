@@ -29,5 +29,6 @@ end
 val write
   :  dir:string
   -> config:Config.t
+  -> ?interpolate:bool
   -> State.t list
   -> unit Deferred.t

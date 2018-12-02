@@ -66,14 +66,14 @@ module Writer = struct
     fprintf w "set yrange [%d:%d]\n" y_start y_stop;
     let cb_x, cb_y = config.cbrange in
     fprintf w "set cbrange [%d:%d]\n" cb_x cb_y;
-  (* # set terminal pngcairo size 2000, 1500 enhanced font 'Verdana,10' *)
+    (* # set terminal pngcairo size 2000, 1500 enhanced font 'Verdana,10' *)
     let x_units = n_x + left_margin + right_margin  - 1 in
     let y_units = n_y + top_margin  + bottom_margin - 1 in
     let width = 1600 in
     let height = width * y_units / x_units in
-  (* pngcairo is 3x slower, although slightly better quality.*)
+    (* pngcairo is 3x slower, although slightly better quality.*)
     fprintf w
-      "set terminal png size %d, %d enhanced font 'Verdana,10'\n"
+      "set terminal png size %d, %d enhanced\n"
       width height;
     return ()
 
@@ -140,15 +140,21 @@ module State = struct
     return t'
 end
 
-let write ~dir ~config states =
+let write ~dir ~config ?(interpolate = true) states =
   let%bind w = Writer.create ~dir ~config in
+  let write_all states =
+    List.iter states ~f:(fun s ->
+      make_frame w (State.product s))
+  in
   let rec loop = function
     | s1 :: s2 :: states ->
       State.interpolate w s1 s2;
       loop (s2 :: states)
     | _ -> ()
   in
-  loop states;
+  if interpolate
+  then loop states
+  else write_all states;
   return ()
 
 

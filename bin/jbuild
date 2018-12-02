@@ -4,6 +4,7 @@
     core
     async
     async_shell
+    nullstellen_lib
   ))
   (preprocess (pps (
     ppx_jane
