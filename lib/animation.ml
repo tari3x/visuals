@@ -3,6 +3,7 @@ open Async
 
 module P = Polynomial
 module D = P.Division_result
+module V = Vector.Float
 
 module Config = struct
   type t =
@@ -14,7 +15,7 @@ module Config = struct
     ; bottom_margin : int
     ; style : [ `zeroes | `heat ]
     ; cbrange : int * int
-    ; show_dots : bool
+    ; show_dots : V.t list
     }
 end
 
@@ -23,6 +24,13 @@ module Writer = struct
     { config : Config.t
     ; writer : Writer.t
     } [@@deriving fields]
+
+  let add_dots w dots =
+    fprintf w "unset object\n";
+    List.iter dots ~f:(fun (x, y) ->
+      fprintf w "set object circle front at first %f,%f \
+                 radius char 0.5 fillstyle solid \
+                 border lc rgb '#aa1100' lw 2\n" x y)
 
   let make_header { writer = w; config } =
     let { Config.
@@ -41,15 +49,7 @@ module Writer = struct
     let x_stop = n_x + right_margin in
     let y_start = -bottom_margin in
     let y_stop = n_y + top_margin in
-    if config.show_dots then begin
-      for i = 0 to n_x - 1 do
-        for j = 0 to n_y - 1 do
-          fprintf w "set object circle at first %d,%d \
-                 radius char 0.5 fillstyle empty \
-                 border lc rgb '#aa1100' lw 2\n" i j;
-        done
-      done
-    end;
+    add_dots w config.show_dots;
     begin match config.style with
     | `zeroes ->
       fprintf w "set contour\n";
@@ -77,8 +77,9 @@ module Writer = struct
       width height;
     return ()
 
-  let create ~dir ~config =
-    let%bind writer = Writer.open_file (dir ^/ "make-frames.gp") in
+  let create ~dir ~config ~file_id =
+    let filename = dir ^/ sprintf "make-frames%04d.gp" file_id in
+    let%bind writer = Writer.open_file filename in
     let t = { writer; config } in
     let%bind () = make_header t in
     return t
@@ -94,10 +95,11 @@ let define (w : Writer.t) p =
 
 let frame = ref 0
 
-let make_frame { Writer. writer = w; config } f =
+let make_frame { Writer. writer = w; config } f ~dots =
   incr frame;
-  fprintf w "set output 'frame%04d.png'\n" !frame;
+  fprintf w "set output 'frame%06d.png'\n" !frame;
   let f = P.to_gnuplot f in
+  Writer.add_dots w dots;
   match config.style with
   | `zeroes ->
     fprintf w "splot(%s)\n" f
@@ -106,19 +108,26 @@ let make_frame { Writer. writer = w; config } f =
 
 module State = struct
   (* animated and static parts *)
-  type t = P.t * P.t list
+  type t =
+    { p : P.t
+    ; ps : P.t list
+    ; dots : V.t list
+    }
 
-  let create p =
-    (p, [])
+  let create ?(show_dots = []) p =
+    { p; ps = []; dots = show_dots}
 
-  let product (p, ps) =
-    P.product (p :: ps)
+  let product t =
+    P.product (t.p :: t.ps)
 
   let collapse t =
-    (product t, [])
+    { p = product t
+    ; ps = []
+    ; dots = t.dots
+    }
 
   let interpolate w t1 t2 =
-    let num_steps = 100 in
+    let num_steps = 110 in
     let p1 = product t1 in
     let p2 = product t2 in
     (* Offset it a bit so we are less likely to hit an exact zero in log *)
@@ -128,33 +137,44 @@ module State = struct
     let make_fun f = P.(func f [var 1; var 2]) in
     let f1 = define w p1 |> make_fun in
     let f2 = define w p2 |> make_fun in
-    for n = 0 to num_steps do
+    for n = 0 to num_steps - 1 do
       let alpha = float n /. float num_steps in
-      make_frame w P.(scale f1 (1. -. alpha) + scale f2 alpha)
+      make_frame w P.(scale f1 (1. -. alpha) + scale f2 alpha) ~dots:t1.dots
     done
 
   let emerge t l =
-    let (p, ps) = t in
+    let { p;  ps; _ } = t in
     let%bind { D. q; r = _ } = P.divide p l in
-    let t' = (q, l :: ps) in
-    return t'
+    { t with
+      p = q
+      ; ps = l :: ps
+    }
+    |> return
 end
 
+(* CR-someday: first interpolate, then write. *)
 let write ~dir ~config ?(interpolate = true) states =
-  let%bind w = Writer.create ~dir ~config in
+  let file_id = ref 0 in
+  let%bind w = Writer.create ~dir ~config ~file_id:!file_id in
+  (* CR-someday: it's weird that we don't use [define] in this code path. *)
   let write_all states =
     List.iter states ~f:(fun s ->
-      make_frame w (State.product s))
+      make_frame w (State.product s) ~dots:s.dots);
+    return ()
   in
-  let rec loop = function
+  let rec loop w i = function
     | s1 :: s2 :: states ->
       State.interpolate w s1 s2;
-      loop (s2 :: states)
-    | _ -> ()
+      let states = s2 :: states in
+      if i < 10
+      then loop w (i + 1) states
+      else begin
+        incr file_id;
+        let%bind w = Writer.create ~dir ~config ~file_id:!file_id in
+        loop w 0 states
+      end
+    | _ -> return ()
   in
   if interpolate
-  then loop states
-  else write_all states;
-  return ()
-
-
+  then loop w 0 states
+  else write_all states

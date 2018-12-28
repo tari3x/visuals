@@ -36,7 +36,7 @@ module Expr = struct
   let scale t x =
     sprintf "%f * (%s)" x t
 
-  let exp t power =
+  let pow t power =
     sprintf "(%s)**%d" t power
 
   let product = function

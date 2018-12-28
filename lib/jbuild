@@ -4,6 +4,7 @@
     core
     async
     async_shell
+    lacaml
   ))
   (inline_tests)
   (preprocess (pps (

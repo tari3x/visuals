@@ -1,5 +1,7 @@
 open Core
 
+open Common
+
 module type Ring = sig
   type t [@@deriving sexp, compare]
 
@@ -24,6 +26,14 @@ module Make (R : Ring) = struct
 
   let cross (x1, y1) (x2, y2) : R.t =
     R.(x1 * y2 - x2 * y1)
+
+  let scale (x, y) scale : t =
+    R.(scale * x, scale * y)
+
+  let weighted_average (x1, y1) (x2, y2) ~w =
+    let x = weighted_average x1 x2 ~w in
+    let y = weighted_average y1 y2 ~w in
+    (x, y)
 end
 
 module Float = Make(Float)

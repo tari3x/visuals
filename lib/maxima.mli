@@ -16,7 +16,7 @@ module Expr : sig
   val ( - ) : t -> t -> t
   val ( / ) : t -> t -> t
 
-  val exp : t -> int -> t
+  val pow : t -> int -> t
 
   val product : t list -> t
   val sum : t list -> t

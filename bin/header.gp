@@ -9,7 +9,8 @@ set style line 1 linewidth 4;
 set datafile nofpe_trap
 
 unset border
-# unset tics
+unset colorbox
+unset tics
 unset key
 # these have no effect in splot:
 set lmargin 0

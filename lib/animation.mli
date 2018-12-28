@@ -1,6 +1,7 @@
 open Async
 
 module P = Polynomial
+module V = Vector.Float
 
 module Config : sig
   type t =
@@ -12,14 +13,17 @@ module Config : sig
     ; bottom_margin : int
     ; style : [ `zeroes | `heat ]
     ; cbrange : int * int
-    ; show_dots : bool
+    ; show_dots : V.t list
     }
 end
 
 module State : sig
   type t
 
-  val create : P.t -> t
+  val create
+    :  ?show_dots:V.t list
+    -> P.t
+    -> t
 
   val collapse : t -> t
 
