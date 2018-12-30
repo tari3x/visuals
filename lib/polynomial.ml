@@ -181,11 +181,11 @@ let lagrange ~degree data =
   let b = B2.create B.Float64 B.Fortran_layout (max nm np) 1 in
   List.iteri values ~f:(fun i value -> bset b i 0 value);
   (* gelsy gives smaller error. *)
+  let rank = Lacaml.D.gelsy m b in
+  ignore rank;
   (*
-     let rank = Lacaml.D.gelsy m b in
-     ignore rank;
-  *)
   Lacaml.D.gesv m b;
+  *)
   let coeffs = List.init nm ~f:(fun i -> bget b i 0) in
   List.map2_exn monomials coeffs ~f:(fun p c ->
     (* Don't round, very sensitive. *)
