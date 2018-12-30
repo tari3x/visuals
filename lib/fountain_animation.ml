@@ -44,7 +44,7 @@ let animate ~dir =
       in
       let%bind p = P.lagrange ~degree:10 data in
       let _points = List.map data ~f:fst in
-      A.State.create p (* ~show_dots:_points *)
+      A.State.of_poly p (* ~show_dots:_points *)
       |> return)
   in
   A.write ~dir ~config ~interpolate:true states

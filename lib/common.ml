@@ -35,3 +35,16 @@ let rec intercalate xs ys =
   | xs, [] -> xs
   | (x :: xs), (y :: ys) ->
     x :: y :: intercalate xs ys
+
+module Float = struct
+  include Float
+
+  let sum =
+    List.fold ~init:0. ~f:(+)
+
+  let product =
+    List.fold ~init:1. ~f:( * )
+end
+
+let debug ?(should_debug = false) a =
+  ksprintf (fun s -> if should_debug then print_endline s) a

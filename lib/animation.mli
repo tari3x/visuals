@@ -1,6 +1,7 @@
 open Async
 
 module P = Polynomial
+module E = Maxima.Expr
 module V = Vector.Float
 
 module Config : sig
@@ -20,9 +21,14 @@ end
 module State : sig
   type t
 
-  val create
+  val of_poly
     :  ?show_dots:V.t list
     -> P.t
+    -> t
+
+  val of_maxima
+    :  ?show_dots:V.t list
+    -> E.t
     -> t
 
   val collapse : t -> t

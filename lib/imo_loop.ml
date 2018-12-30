@@ -33,12 +33,12 @@ let states covers =
     | c :: cs ->
       let%bind states1 =
         fold_map_deferred emerge1
-          ~init:(A.State.create c)
+          ~init:(A.State.of_poly c)
           ~f:step
       in
       let%bind states2 =
         fold_map_deferred emerge2
-          ~init:(A.State.create c)
+          ~init:(A.State.of_poly c)
           ~f:step
       in
       let%bind states = loop (emerge2, emerge1) cs in

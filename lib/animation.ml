@@ -2,7 +2,8 @@ open Core
 open Async
 
 module P = Polynomial
-module D = P.Division_result
+module E = Maxima.Expr
+module D = E.Division_result
 module V = Vector.Float
 
 module Config = struct
@@ -90,7 +91,7 @@ let fun_id = ref 0
 let define (w : Writer.t) p =
   incr fun_id;
   let f = sprintf "f%d" !fun_id in
-  fprintf w.writer "%s(x, y) = %s\n" f (P.to_gnuplot p);
+  fprintf w.writer "%s(x, y) = %s\n" f (E.to_gnuplot p);
   f
 
 let frame = ref 0
@@ -98,7 +99,7 @@ let frame = ref 0
 let make_frame { Writer. writer = w; config } f ~dots =
   incr frame;
   fprintf w "set output 'frame%06d.png'\n" !frame;
-  let f = P.to_gnuplot f in
+  let f = E.to_gnuplot f in
   Writer.add_dots w dots;
   match config.style with
   | `zeroes ->
@@ -109,16 +110,19 @@ let make_frame { Writer. writer = w; config } f ~dots =
 module State = struct
   (* animated and static parts *)
   type t =
-    { p : P.t
-    ; ps : P.t list
+    { p : E.t
+    ; ps : E.t list
     ; dots : V.t list
     }
 
-  let create ?(show_dots = []) p =
+  let of_maxima ?(show_dots = []) p =
     { p; ps = []; dots = show_dots}
 
+  let of_poly ?show_dots p =
+    of_maxima ?show_dots (P.to_maxima p)
+
   let product t =
-    P.product (t.p :: t.ps)
+    E.product (t.p :: t.ps)
 
   let collapse t =
     { p = product t
@@ -131,25 +135,28 @@ module State = struct
     let p1 = product t1 in
     let p2 = product t2 in
     (* Offset it a bit so we are less likely to hit an exact zero in log *)
-    let epsilon = P.const 0.0000001 in
-    let p1 = P.(p1 + epsilon) in
-    let p2 = P.(p2 + epsilon) in
-    let make_fun f = P.(func f [var 1; var 2]) in
+    let epsilon = E.const 0.0000001 in
+    let p1 = E.(p1 + epsilon) in
+    let p2 = E.(p2 + epsilon) in
+    let make_fun f = E.(func f [var 1; var 2]) in
     let f1 = define w p1 |> make_fun in
     let f2 = define w p2 |> make_fun in
     for n = 0 to num_steps - 1 do
       let alpha = float n /. float num_steps in
-      make_frame w P.(scale f1 (1. -. alpha) + scale f2 alpha) ~dots:t1.dots
+      make_frame w E.(scale f1 (1. -. alpha) + scale f2 alpha) ~dots:t1.dots
     done
 
   let emerge t l =
     let { p;  ps; _ } = t in
-    let%bind { D. q; r = _ } = P.divide p l in
+    let%bind { D. q; r = _ } = E.divide p l in
     { t with
       p = q
       ; ps = l :: ps
     }
     |> return
+
+  let emerge t l =
+    emerge t (P.to_maxima l)
 end
 
 (* CR-someday: first interpolate, then write. *)

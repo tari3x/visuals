@@ -68,7 +68,7 @@ let animate ~dir =
        place together. *)
   let%bind states =
     fold_map_deferred lines_to_emerge
-      ~init:(A.State.create p)
+      ~init:(A.State.of_poly p)
       ~f:A.State.emerge
   in
   A.write ~dir ~config states

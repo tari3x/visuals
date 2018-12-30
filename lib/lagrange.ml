@@ -2,6 +2,8 @@ open Core
 open Async
 open Std_internal
 
+let debug a = debug ~should_debug:true a
+
 let config =
   { Animation.Config.
     n_x = 10
@@ -57,27 +59,36 @@ let weighted_average ~w points1 points2 =
   (* CR: *)
   | Unequal_lengths -> points1
 
+module Data = struct
+  type t =
+    { data : P.Data.t
+    ; desc : Sexp.t
+    }
+end
+
 let perturbations =
   let open Float in
-  let ps = grid @ random 10 in
+  let ps = grid @ random 35 in
   let p1 = (2.7, 2.3) in
   let p2 = (3.5, 3.3) in
-  let frame value ~w =
+  let data value ~w =
     let p = Vector.Float.weighted_average p1 p2 ~w in
-    (p, value) :: ps
+    let desc = [%message (value : float) (w : float)] in
+    let data = (p, value) :: ps in
+    { Data. data; desc }
   in
   (*
   List.init 100 ~f:(fun i ->
-    frame (float i) ~w:0.)
+    data (float i) ~w:0.)
   @
   *)
   let make step =
-    List.init 10 ~f:(fun i ->
-      frame 100. ~w:(step * float i))
+    List.init 100 ~f:(fun i ->
+      data 100. ~w:(step * float i))
   in
-  make 1e-14
-  @ make 1e-13
+  make 1e-13
   @ make 1e-12
+    (*
   @ make 1e-11
   @ make 1e-10
   @ make 1e-9
@@ -85,6 +96,7 @@ let perturbations =
   @ make 1e-7
   @ make 1e-6
   @ make 1e-5
+    *)
 
 let animate ~dir =
   (*
@@ -115,11 +127,15 @@ let animate ~dir =
     |> interpolate ~weighted_average ~num_steps:100
   in
   *)
-  let points = perturbations in
+  let data = perturbations in
   let%bind states =
-    Deferred.List.map points ~f:(fun data ->
+    Deferred.List.map data ~f:(fun {Data. data; desc } ->
       let%bind p = P.lagrange ~degree data in
-      A.State.create p (*  ~show_dots:(List.map data ~f:fst) *)
+      let error = P.error p data in
+      debug !"%{Sexp} error = %f" desc error;
+      (A.State.of_poly p, error) (*  ~show_dots:(List.map data ~f:fst) *)
       |> return)
   in
+  let (states, errors) = List.unzip states in
+  debug "total error = %f" (Float.sum errors);
   A.write ~dir ~config ~interpolate:false states

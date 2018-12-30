@@ -20,7 +20,7 @@ let imo_lines = Lines.imo_vh config |> List.map ~f:Line.poly
 let initial_state () =
   Lines.random_diagonal_cover config
   |> Lines.poly
-  |> A.State.create
+  |> A.State.of_poly
 
 let animate ~dir =
   let diagonals = initial_state () in

@@ -37,12 +37,12 @@ let rec random_line () =
     let initial_state () =
     List.init n_lines ~f:(fun _ -> random_line ())
     |> P.product
-    |> A.State.create
+    |> A.State.of_poly
   *)
 let initial_state () =
   Lines.random_diagonal_cover config
   |> Lines.poly
-  |> A.State.create
+  |> A.State.of_poly
 
 let animate ~dir =
   let lines = List.init n_steps ~f:(fun _ ->

@@ -3,21 +3,84 @@ open Async
 
 open Common
 
+module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
 
-module T = struct
-  include Maxima.Expr
+type t =
+| Const of float
+| Var of int
+| Sum of t list
+| Product of t list
+| Pow of t * int
+    [@@deriving variants]
 
-  let pow t n =
-    if n = 0 then const 1. else pow t n
-end
+let _descend t ~f =
+  match t with
+  | Const x -> Const x
+  | Var n -> Var n
+  | Sum ts -> Sum (List.map ts ~f)
+  | Product ts -> Product (List.map ts ~f)
+  | Pow (t, n) -> Pow (f t, n)
 
-include T
+let rec to_maxima t =
+  match t with
+  | Const f -> E.const f
+  | Var i -> E.var i
+  | Sum ts -> E.sum (List.map ts ~f:to_maxima)
+  | Product ts -> E.product (List.map ts ~f:to_maxima)
+  | Pow (t, n) -> E.pow (to_maxima t) n
 
-module B = Bigarray
-module B1 = B.Array1
-module B2 = B.Array2
+let split_const =
+  List.partition_map ~f:(function
+  | Const x -> `Fst x
+  | t -> `Snd t)
+
+let sum ts =
+  let sum = function
+    | [] -> const 0.
+    | [x] -> x
+    | ts -> sum ts
+  in
+  let cs, ts = split_const ts in
+  let c = Float.sum cs in
+  if Float.(c = 0.) then sum ts
+  else sum (const c :: ts)
+
+let product ts =
+  let product = function
+    | [] -> const 1.
+    | [x] -> x
+    | ts -> product ts
+  in
+  let cs, ts = split_const ts in
+  let c = Float.product cs in
+  if Float.(c = 1.) then product ts
+  else product (const c :: ts)
+
+let pow t n =
+  if n = 0 then const 1.
+  else if n = 1 then t
+  else pow t n
+
+let to_string t =
+  to_maxima t |> E.to_string
+
+let to_gnuplot t =
+  to_maxima t
+  |> E.to_gnuplot
+
+let ( * ) t1 t2 =
+  product [t1; t2]
+
+let ( + ) t1 t2 =
+  sum [t1; t2]
+
+let scale t x =
+  product [ const x; t ]
+
+let ( - ) t1 t2 =
+  sum [t1; scale t2 (-1.)]
 
 let var_x = var 1
 let var_y = var 2
@@ -30,68 +93,40 @@ let zero_line_between_two_points (x1, y1) (x2, y2) =
     var_y - const y1 - const slope * (var_x - const x1)
   end
 
-module E = struct
-  type t =
-  | Const of float
-  | Var of int
-  | Sum of t list
-  | Product of t list
-  | Pow of t * int
-      [@@deriving variants]
-
-  let ( * ) t1 t2 = product [t1; t2]
+let ( * ) t1 t2 = product [t1; t2]
   (* let ( + ) t1 t2 = sum [t1; t2] *)
 
-  let eval t values =
-    let rec eval = function
-      | Const f -> f
-      | Var i -> List.nth_exn values Int.(i - 1)
-      | Sum ts ->
-        begin
-          List.map ts ~f:eval
-          |> List.fold ~init:0. ~f:Float.(+)
-        end
-      | Product ts ->
-        begin
-          List.map ts ~f:eval
-          |> List.fold ~init:1. ~f:Float.( * )
-        end
-      | Pow (t, n) ->
-        if n = 0 then 1.
-        else Float.int_pow (eval t) n
-    in
-    eval t
+let eval t values =
+  let rec eval = function
+    | Const f -> f
+    | Var i -> List.nth_exn values Int.(i - 1)
+    | Sum ts -> List.map ts ~f:eval |> Float. sum
+    | Product ts -> List.map ts ~f:eval |> Float.product
+    | Pow (t, n) ->
+      if n = 0 then 1.
+      else Float.int_pow (eval t) n
+  in
+  eval t
 
-  let rec to_maxima t =
-    let open T in
-    match t with
-    | Const f -> const f
-    | Var i -> var i
-    | Sum ts -> sum (List.map ts ~f:to_maxima)
-    | Product ts -> product (List.map ts ~f:to_maxima)
-    | Pow (t, n) -> pow (to_maxima t) n
-
-  (* 2D only *)
-  let all_monomials ~degree:n =
-    List.init Int.(n + 1) ~f:(fun i ->
-      List.init Int.(n + 1) ~f:(fun j ->
-        if Int.(i + j > n) then None
-        else Some (pow (var 1) i *  pow (var 2) j))
-      |> List.filter_opt)
-    |> List.concat
-end
+(* 2D only *)
+let all_monomials ~degree:n =
+  List.init Int.(n + 1) ~f:(fun i ->
+    List.init Int.(n + 1) ~f:(fun j ->
+      if Int.(i + j > n) then None
+      else Some (pow (var 1) i *  pow (var 2) j))
+    |> List.filter_opt)
+  |> List.concat
 
 let%expect_test _ =
-  E.all_monomials ~degree:2
-  |> List.map ~f:E.to_maxima
-  |> printf !"%{sexp:t list}\n";
+  all_monomials ~degree:2
+  |> List.map ~f:to_string
+  |> printf !"%{sexp:string list}\n";
   [%expect {|
-    ("(1.) * (1.)" "(1.) * ((y)**1)" "(1.) * ((y)**2)" "((x)**1) * (1.)"
-     "((x)**1) * ((y)**1)" "((x)**2) * (1.)") |}]
+    (1. y "(y)**2" x "(x) * (y)" "(x)**2") |}]
 
 let%expect_test _ =
   for i = 1 to 20 do
-    printf "(%d %d) " i (List.length (E.all_monomials ~degree:i));
+    printf "(%d %d) " i (List.length (all_monomials ~degree:i));
   done;
   [%expect {|
     (1 3) (2 6) (3 10) (4 15) (5 21) (6 28) (7 36) (8 45) (9 55) (10 66) (11 78) (12 91) (13 105) (14 120) (15 136) (16 153) (17 171) (18 190) (19 210) (20 231) |}]
@@ -105,6 +140,20 @@ module Datum = struct
     let v = weighted_average v1 v2 ~w in
     ((x, y), v)
 end
+
+module Data = struct
+  type t = Datum.t list
+end
+
+let error t data =
+  let open Float in
+  List.map data ~f:(fun ((x, y), value) ->
+    abs (eval t [x; y] - value))
+  |> Float.sum
+
+module B = Bigarray
+module B1 = B.Array1
+module B2 = B.Array2
 
 (* Fortran layout is 1-based. *)
 let bset b i j v =
@@ -121,26 +170,29 @@ let bget b i j =
   https://mmottl.github.io/lacaml/api/lacaml/Lacaml/D/index.html
 *)
 let lagrange ~degree data =
-  let monomials = E.all_monomials ~degree in
+  let monomials = all_monomials ~degree in
   let np = List.length data in
   let nm = List.length monomials in
   let points, values = List.unzip data in
   let m = B2.create B.Float64 B.Fortran_layout np nm in
   List.iteri points ~f:(fun i (x, y) ->
     List.iteri monomials ~f:(fun j p ->
-      bset m i j (E.eval p [x; y])));
+      bset m i j (eval p [x; y])));
   let b = B2.create B.Float64 B.Fortran_layout (max nm np) 1 in
   List.iteri values ~f:(fun i value -> bset b i 0 value);
-  let rank = Lacaml.D.gelsy m b in
-  ignore rank;
+  (* gelsy gives smaller error. *)
+  (*
+     let rank = Lacaml.D.gelsy m b in
+     ignore rank;
+  *)
+  Lacaml.D.gesv m b;
   let coeffs = List.init nm ~f:(fun i -> bget b i 0) in
   List.map2_exn monomials coeffs ~f:(fun p c ->
     (* Don't round, very sensitive. *)
     (* let c = Float.round_decimal c ~decimal_digits:13 in*)
-    E.to_maxima p * const c)
+    const c * p)
   |> sum
-  |> expand
-  |> eval
+  |> return
 
 let%expect_test _ =
   let data =
@@ -156,4 +208,4 @@ let%expect_test _ =
   let%bind t = lagrange data ~degree:2 in
   printf !"%s\n" (to_string t);
   [%expect {|
-    (-3.463542432163259E-15*y^2)+1.000000000000005*x*y-3.999999999999988*y+2.0*x^2-7.017996670400557E-15*x-3.00000000000001 |}]
+    (((((-3.0000000000000098) + ((-3.9999999999999876) * (y))) + ((-3.4635424321632592e-15) * ((y)**2))) + ((-7.0179966704005574e-15) * (x))) + ((1.0000000000000047) * ((x) * (y)))) + ((2.0000000000000004) * ((x)**2)) |}]
