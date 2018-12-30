@@ -1,4 +1,3 @@
-open Async
 
 module V = Vector.Float
 
@@ -38,4 +37,5 @@ val error : t -> Data.t -> float
 val lagrange
   :  degree:int
   -> Data.t
-  -> t Deferred.t
+  -> t
+

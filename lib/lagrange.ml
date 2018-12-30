@@ -128,14 +128,13 @@ let animate ~dir =
   in
   *)
   let data = perturbations in
-  let%bind states =
-    Deferred.List.map data ~f:(fun {Data. data; desc } ->
-      let%bind p = P.lagrange ~degree data in
+  let (states, errors) =
+    List.map data ~f:(fun {Data. data; desc } ->
+      let p = P.lagrange ~degree data in
       let error = P.error p data in
       debug !"%{Sexp} error = %f" desc error;
-      (A.State.of_poly p, error) (*  ~show_dots:(List.map data ~f:fst) *)
-      |> return)
+      A.State.of_poly p, error) (*  ~show_dots:(List.map data ~f:fst) *)
+    |> List.unzip
   in
-  let (states, errors) = List.unzip states in
   debug "total error = %f" (Float.sum errors);
   A.write ~dir ~config ~interpolate:false states

@@ -164,11 +164,6 @@ let bget b i j =
   let open Int in
   b.{i + 1, j + 1}
 
-(*
-  Lacaml doc:
-  http://www.netlib.org/lapack/explore-html/d7/d3b/group__double_g_esolve_ga385713b8bcdf85663ff9a45926fac423.html#ga385713b8bcdf85663ff9a45926fac423
-  https://mmottl.github.io/lacaml/api/lacaml/Lacaml/D/index.html
-*)
 let lagrange ~degree data =
   let monomials = all_monomials ~degree in
   let np = List.length data in
@@ -192,7 +187,6 @@ let lagrange ~degree data =
     (* let c = Float.round_decimal c ~decimal_digits:13 in*)
     const c * p)
   |> sum
-  |> return
 
 let%expect_test _ =
   let data =
@@ -205,7 +199,7 @@ let%expect_test _ =
     ]
     |> List.map ~f:(fun ((x, y), z) -> ((float x, float y), float z))
   in
-  let%bind t = lagrange data ~degree:2 in
+  let t = lagrange data ~degree:2 in
   printf !"%s\n" (to_string t);
   [%expect {|
     (((((-3.0000000000000098) + ((-3.9999999999999876) * (y))) + ((-3.4635424321632592e-15) * ((y)**2))) + ((-7.0179966704005574e-15) * (x))) + ((1.0000000000000047) * ((x) * (y)))) + ((2.0000000000000004) * ((x)**2)) |}]
