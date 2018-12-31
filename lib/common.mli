@@ -24,4 +24,10 @@ module Float : sig
   val product : t list -> t
 end
 
-val debug : ?should_debug:bool -> ('a, unit, string, unit) format4 -> 'a
+val debug : enabled:bool -> ('a, unit, string, unit) format4 -> 'a
+
+module List : sig
+  include module type of List
+
+  val product : 'a t t -> 'a t t
+end

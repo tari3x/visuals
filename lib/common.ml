@@ -46,5 +46,25 @@ module Float = struct
     List.fold ~init:1. ~f:( * )
 end
 
-let debug ?(should_debug = false) a =
-  ksprintf (fun s -> if should_debug then print_endline s) a
+let debug ~enabled a =
+  ksprintf (fun s -> if enabled then print_endline s) a
+
+module List = struct
+  include List
+
+  let rec product = function
+    | [] -> []
+    | [t] -> map t ~f:return
+    | t :: ts ->
+      List.cartesian_product t (product ts)
+      |> List.map ~f:(fun (x, t) -> x :: t)
+
+  let%expect_test _ =
+    product
+      [ [ "x1"; "x2"]
+      ; [ "y1" ]
+      ; [ "z1"; "z2"; "z3" ]
+      ]
+    |> printf !"%{sexp:string list list}\n";
+    [%expect {| ((x1 y1 z1) (x1 y1 z2) (x1 y1 z3) (x2 y1 z1) (x2 y1 z2) (x2 y1 z3)) |}]
+end

@@ -38,4 +38,3 @@ val lagrange
   :  degree:int
   -> Data.t
   -> t
-

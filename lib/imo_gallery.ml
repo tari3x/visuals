@@ -1,4 +1,4 @@
-open Core
+open! Core
 open Async
 open Std_internal
 

@@ -2,7 +2,7 @@ open Core
 open Async
 open Std_internal
 
-let debug a = debug ~should_debug:true a
+let debug a = debug ~enabled:true a
 
 let config =
   { Animation.Config.

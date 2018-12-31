@@ -7,6 +7,8 @@ module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
 
+let debug a = debug ~enabled:true a
+
 type t =
 | Const of float
 | Var of int
@@ -14,6 +16,35 @@ type t =
 | Product of t list
 | Pow of t * int
     [@@deriving variants]
+
+(*
+module Normal = struct
+  module Var = struct
+    type t = string [@@deriving sexp, compare]
+  end
+
+  module Mono = struct
+    module T = struct
+      type t = (Var.t * int) list [@@deriving sexp, compare]
+    end
+
+    include T
+    include Comparable.Make(T)
+  end
+
+  type t = (Mono.t * float) list
+
+  let ( + ) (t1 : t) (t2 : t) : t =
+    Mono.Map.of_alist_multi (t1 @ t2)
+    |> Map.to_alist
+    |> List.map ~f:(fun (mono, coeffs) ->
+      mono, Float.product coeffs)
+
+  let ( * ) (t1 : t) (t2 : t) : t =
+    List.cartesian_product t1 t2
+    |> List.map
+end
+*)
 
 let _descend t ~f =
   match t with
@@ -36,16 +67,28 @@ let split_const =
   | Const x -> `Fst x
   | t -> `Snd t)
 
+let split_sum = function
+  | Sum ts -> ts
+  | t -> [t]
+
+let split_product = function
+  | Product ts -> ts
+  | t -> [t]
+
 let sum ts =
   let sum = function
     | [] -> const 0.
     | [x] -> x
     | ts -> sum ts
   in
-  let cs, ts = split_const ts in
-  let c = Float.sum cs in
-  if Float.(c = 0.) then sum ts
-  else sum (const c :: ts)
+  let sum ts =
+    let cs, ts = split_const ts in
+    let c = Float.sum cs in
+    if Float.(c = 0.) then sum ts
+    else sum (const c :: ts)
+  in
+  List.concat_map ts ~f:split_sum
+  |> sum
 
 let product ts =
   let product = function
@@ -53,10 +96,19 @@ let product ts =
     | [x] -> x
     | ts -> product ts
   in
-  let cs, ts = split_const ts in
-  let c = Float.product cs in
-  if Float.(c = 1.) then product ts
-  else product (const c :: ts)
+  let product ts =
+    let ts = List.concat_map ts ~f:split_product in
+    let cs, ts =  split_const ts in
+    let c = Float.product cs in
+    if Float.(c = 1.) then product ts
+    else if Float.(c = 0.) then const 0.
+    else product (const c :: ts)
+  in
+  List.concat_map ts ~f:split_product
+  |> List.map ~f:split_sum
+  |> List.product
+  |> List.map ~f:product
+  |> sum
 
 let pow t n =
   if n = 0 then const 1.
@@ -84,6 +136,12 @@ let ( - ) t1 t2 =
 
 let var_x = var 1
 let var_y = var 2
+
+let%expect_test _ =
+  (const 3.) * ((const 1.) + (const (2.) * (pow (var 2) 2)))
+  |> to_string
+  |> print_endline;
+  [%expect {| (3.) + ((6.) * ((y)**2)) |}]
 
 let zero_line_between_two_points (x1, y1) (x2, y2) =
   if Float.(x2 = x1)
@@ -155,38 +213,75 @@ module B = Bigarray
 module B1 = B.Array1
 module B2 = B.Array2
 
-(* Fortran layout is 1-based. *)
-let bset b i j v =
-  let open Int in
-  b.{i + 1, j + 1} <- v
+module Lagrange_state = struct
+  type t =
+    { ps : string list
+    ; qs : string list
+    ; vs : V.t list
+    ; values : float list list
+    ; v : V.t
+    } [@@deriving sexp]
 
-let bget b i j =
-  let open Int in
-  b.{i + 1, j + 1}
+  let create ps qs vs v =
+    let values =
+      List.map ps ~f:(fun p ->
+        List.map vs ~f:(fun (x, y) ->
+          eval p [x; y]))
+    in
+    let ps = List.map ps ~f:to_string in
+    let qs = List.map qs ~f:to_string in
+    { ps; qs; vs; values; v }
+end
 
 let lagrange ~degree data =
-  let monomials = all_monomials ~degree in
-  let np = List.length data in
-  let nm = List.length monomials in
+  let num_points = List.length data in
+  let points_done = ref [] in
+  let add_point ps qs (x, y) =
+    Lagrange_state.create ps qs !points_done (x, y)
+    |> debug !"%{sexp:Lagrange_state.t}";
+    let eval q = eval q [x; y] in
+    let qs =
+      List.sort qs ~compare:(fun q1 q2 ->
+        Float.compare (Float.abs (eval q1)) (Float.abs (eval q2)))
+      |> List.rev
+    in
+    match qs with
+    | [] -> failwithf "degree %d is too low for %d points" degree num_points ()
+    | q :: qs ->
+      let q_val = eval q in
+      if Float.(q_val = 0.) then failwithf "No unique interpolation" ();
+      let new_p = scale q (1. /. q_val) in
+      let adjust p = p - scale new_p (eval p) in
+      let ps = List.map ps ~f:adjust in
+      let qs = List.map qs ~f:adjust in
+      (new_p :: ps), qs
+  in
+  let rec loop ps qs = function
+    | [] -> List.rev ps
+    | v :: vs ->
+      let ps, qs = add_point ps qs v in
+      points_done := v :: !points_done;
+      loop ps qs vs
+  in
+  let qs = List.take (all_monomials ~degree) num_points in
   let points, values = List.unzip data in
-  let m = B2.create B.Float64 B.Fortran_layout np nm in
-  List.iteri points ~f:(fun i (x, y) ->
-    List.iteri monomials ~f:(fun j p ->
-      bset m i j (eval p [x; y])));
-  let b = B2.create B.Float64 B.Fortran_layout (max nm np) 1 in
-  List.iteri values ~f:(fun i value -> bset b i 0 value);
-  (* gelsy gives smaller error. *)
-  let rank = Lacaml.D.gelsy m b in
-  ignore rank;
-  (*
-  Lacaml.D.gesv m b;
-  *)
-  let coeffs = List.init nm ~f:(fun i -> bget b i 0) in
-  List.map2_exn monomials coeffs ~f:(fun p c ->
-    (* Don't round, very sensitive. *)
-    (* let c = Float.round_decimal c ~decimal_digits:13 in*)
-    const c * p)
+  let ps = loop [] qs points in
+  List.map2_exn ps values ~f:scale
   |> sum
+
+let () =
+  let data =
+    [ (0, 1), -7
+    ; (2, 1), 3
+    ; (1, 3), -10
+    ; (-2, -1), 11
+    ; (-3, 2), 1
+    ; (-1, 2), -11
+    ]
+    |> List.map ~f:(fun ((x, y), z) -> ((float x, float y), float z))
+  in
+  let t = lagrange data ~degree:2 in
+  printf !"%s\n" (to_string t)
 
 let%expect_test _ =
   let data =
