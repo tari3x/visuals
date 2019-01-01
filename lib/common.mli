@@ -24,6 +24,13 @@ module Float : sig
   val product : t list -> t
 end
 
+module Int : sig
+  include module type of Int
+
+  val sum : t list -> t
+  val product : t list -> t
+end
+
 val debug : enabled:bool -> ('a, unit, string, unit) format4 -> 'a
 
 module List : sig

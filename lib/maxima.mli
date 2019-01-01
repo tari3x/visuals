@@ -6,6 +6,8 @@ module Expr : sig
   val to_gnuplot : t -> string
   val to_string : t -> string
 
+  val of_string : string -> t
+
   val var : int -> t
 
   val func : string -> t list -> t

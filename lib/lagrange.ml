@@ -27,7 +27,7 @@ let segment_length = 10
 (* let num_steps = 2000 *)
   (* spreading them out more makes it more washed out. *)
 let range_mult = 1.
-let degree = 15
+let degree = 5
 
 let set_value x =
   List.map ~f:(fun p -> (p, x))
@@ -48,8 +48,8 @@ let random n =
     in
     let x = random n_x in
     let y = random n_y in
-    (* let value = Float.(-200. + Random.float 400.) in *)
-    let value = 100. in
+    let value = Float.(-200. + Random.float 400.) in
+    (* let value = 100. in *)
     ((x, y), value))
 
 let weighted_average ~w points1 points2 =
@@ -68,13 +68,13 @@ end
 
 let perturbations =
   let open Float in
-  let ps = grid @ random 35 in
+  let ps = random 20 in
   let p1 = (2.7, 2.3) in
   let p2 = (3.5, 3.3) in
   let data value ~w =
     let p = Vector.Float.weighted_average p1 p2 ~w in
     let desc = [%message (value : float) (w : float)] in
-    let data = (p, value) :: ps in
+    let data = ps @ [ p, value] in
     { Data. data; desc }
   in
   (*
@@ -83,20 +83,10 @@ let perturbations =
   @
   *)
   let make step =
-    List.init 100 ~f:(fun i ->
+    List.init 1000 ~f:(fun i ->
       data 100. ~w:(step * float i))
   in
-  make 1e-13
-  @ make 1e-12
-    (*
-  @ make 1e-11
-  @ make 1e-10
-  @ make 1e-9
-  @ make 1e-8
-  @ make 1e-7
-  @ make 1e-6
-  @ make 1e-5
-    *)
+  make 1e-3
 
 let animate ~dir =
   (*
@@ -133,7 +123,8 @@ let animate ~dir =
       let p = P.lagrange ~degree data in
       let error = P.error p data in
       debug !"%{Sexp} error = %f" desc error;
-      A.State.of_poly p, error) (*  ~show_dots:(List.map data ~f:fst) *)
+      A.State.of_poly p (* ~show_dots:(List.map data ~f:fst) *),
+      error)
     |> List.unzip
   in
   debug "total error = %f" (Float.sum errors);

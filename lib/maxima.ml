@@ -5,6 +5,7 @@ module Expr = struct
   type t = string [@@deriving sexp]
 
   let to_string t = t
+  let of_string t = t
 
   let to_gnuplot t =
     String.substr_replace_all t ~pattern:"^" ~with_:"**"
@@ -37,7 +38,8 @@ module Expr = struct
     sprintf "%f * (%s)" x t
 
   let pow t power =
-    sprintf "(%s)**%d" t power
+    if power = 1 then t
+    else sprintf "(%s)**%d" t power
 
   let product = function
     | [] -> const 1.

@@ -46,8 +46,18 @@ module Float = struct
     List.fold ~init:1. ~f:( * )
 end
 
+module Int = struct
+  include Int
+
+  let sum =
+    List.fold ~init:0 ~f:(+)
+
+  let product =
+    List.fold ~init:1 ~f:( * )
+end
+
 let debug ~enabled a =
-  ksprintf (fun s -> if enabled then print_endline s) a
+  ksprintf (fun s -> if enabled then Core.printf "%s\n%!" s) a
 
 module List = struct
   include List

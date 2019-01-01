@@ -7,126 +7,88 @@ module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
 
-let debug a = debug ~enabled:true a
+let _debug a = debug ~enabled:true a
 
-type t =
-| Const of float
-| Var of int
-| Sum of t list
-| Product of t list
-| Pow of t * int
-    [@@deriving variants]
+module Var = struct
+  include String
 
-(*
-module Normal = struct
-  module Var = struct
-    type t = string [@@deriving sexp, compare]
+  let create n =
+    E.(var n |> to_string)
+end
+
+module Mono = struct
+  module T = struct
+    type t = (Var.t * int) list
+    [@@deriving sexp, compare]
   end
 
-  module Mono = struct
-    module T = struct
-      type t = (Var.t * int) list [@@deriving sexp, compare]
-    end
+  include T
 
-    include T
-    include Comparable.Make(T)
-  end
+  let one : t = []
 
-  type t = (Mono.t * float) list
+  let is_one = List.is_empty
 
-  let ( + ) (t1 : t) (t2 : t) : t =
-    Mono.Map.of_alist_multi (t1 @ t2)
-    |> Map.to_alist
-    |> List.map ~f:(fun (mono, coeffs) ->
-      mono, Float.product coeffs)
+  let var n : t =
+    [Var.create n, 1]
 
   let ( * ) (t1 : t) (t2 : t) : t =
-    List.cartesian_product t1 t2
-    |> List.map
+    Var.Map.of_alist_multi (t1 @ t2)
+    |> Map.to_alist
+    |> List.map ~f:(fun (var, powers) ->
+      var, Int.sum powers)
+
+  let to_maxima t =
+    List.map t ~f:(fun (v, n) ->
+      E.(pow (of_string v) n))
+    |> E.product
+
+  let eval (t : t) (values : float Var.Map.t) =
+    List.map t ~f:(fun (v, n) ->
+      Float.int_pow (Map.find_exn values v) n)
+    |> Float.product
+
+  include Comparable.Make(T)
 end
-*)
 
-let _descend t ~f =
-  match t with
-  | Const x -> Const x
-  | Var n -> Var n
-  | Sum ts -> Sum (List.map ts ~f)
-  | Product ts -> Product (List.map ts ~f)
-  | Pow (t, n) -> Pow (f t, n)
+type t = (Mono.t * float) list
 
-let rec to_maxima t =
-  match t with
-  | Const f -> E.const f
-  | Var i -> E.var i
-  | Sum ts -> E.sum (List.map ts ~f:to_maxima)
-  | Product ts -> E.product (List.map ts ~f:to_maxima)
-  | Pow (t, n) -> E.pow (to_maxima t) n
+let zero = []
 
-let split_const =
-  List.partition_map ~f:(function
-  | Const x -> `Fst x
-  | t -> `Snd t)
+let const x =
+  [Mono.one, x]
 
-let split_sum = function
-  | Sum ts -> ts
-  | t -> [t]
+let var n =
+  [Mono.var n, 1.]
 
-let split_product = function
-  | Product ts -> ts
-  | t -> [t]
+let group_sum t =
+  Mono.Map.of_alist_multi t
+  |> Map.to_alist
+  |> List.filter_map ~f:(fun (mono, coeffs) ->
+    let c = Float.sum coeffs in
+    if Float.(c = 0.) then None
+    else Some (mono, c))
 
-let sum ts =
-  let sum = function
-    | [] -> const 0.
-    | [x] -> x
-    | ts -> sum ts
-  in
-  let sum ts =
-    let cs, ts = split_const ts in
-    let c = Float.sum cs in
-    if Float.(c = 0.) then sum ts
-    else sum (const c :: ts)
-  in
-  List.concat_map ts ~f:split_sum
-  |> sum
+let ( + ) (t1 : t) (t2 : t) : t =
+  group_sum (t1 @ t2)
 
-let product ts =
-  let product = function
-    | [] -> const 1.
-    | [x] -> x
-    | ts -> product ts
-  in
-  let product ts =
-    let ts = List.concat_map ts ~f:split_product in
-    let cs, ts =  split_const ts in
-    let c = Float.product cs in
-    if Float.(c = 1.) then product ts
-    else if Float.(c = 0.) then const 0.
-    else product (const c :: ts)
-  in
-  List.concat_map ts ~f:split_product
-  |> List.map ~f:split_sum
-  |> List.product
-  |> List.map ~f:product
-  |> sum
+let ( * ) (t1 : t) (t2 : t) : t =
+  List.cartesian_product t1 t2
+  |> List.map ~f:(fun ((m1, c1), (m2, c2)) ->
+    (Mono.(m1 * m2), Float.(c1 * c2)))
+  |> group_sum
 
+let product = function
+  | [] -> (const 1.)
+  | ts -> List.reduce_exn ts ~f:( * )
+
+let sum = function
+  | [] -> zero
+  | ts -> List.reduce_exn ts ~f:(+)
+
+(* CR-someday: make efficient. *)
 let pow t n =
-  if n = 0 then const 1.
-  else if n = 1 then t
-  else pow t n
-
-let to_string t =
-  to_maxima t |> E.to_string
-
-let to_gnuplot t =
-  to_maxima t
-  |> E.to_gnuplot
-
-let ( * ) t1 t2 =
-  product [t1; t2]
-
-let ( + ) t1 t2 =
-  sum [t1; t2]
+  List.init n ~f:(fun _ -> t)
+  |> product
 
 let scale t x =
   product [ const x; t ]
@@ -137,11 +99,34 @@ let ( - ) t1 t2 =
 let var_x = var 1
 let var_y = var 2
 
+let to_maxima (t : t) =
+  List.map t ~f:(fun (m, c) ->
+    if Mono.is_one m then E.const c
+    else begin
+      let m = Mono.to_maxima m in
+      if Float.(c = 1.) then m
+      else E.(const c * m)
+    end)
+  |> E.sum
+
+let to_string t =
+  to_maxima t |> E.to_string
+
+let to_gnuplot t =
+  to_maxima t
+  |> E.to_gnuplot
+
 let%expect_test _ =
   (const 3.) * ((const 1.) + (const (2.) * (pow (var 2) 2)))
   |> to_string
   |> print_endline;
   [%expect {| (3.) + ((6.) * ((y)**2)) |}]
+
+let%expect_test _ =
+  (var 1) + (var 1)
+  |> to_string
+  |> print_endline;
+  [%expect {| (2.) * (x) |}]
 
 let zero_line_between_two_points (x1, y1) (x2, y2) =
   if Float.(x2 = x1)
@@ -151,20 +136,14 @@ let zero_line_between_two_points (x1, y1) (x2, y2) =
     var_y - const y1 - const slope * (var_x - const x1)
   end
 
-let ( * ) t1 t2 = product [t1; t2]
-  (* let ( + ) t1 t2 = sum [t1; t2] *)
-
-let eval t values =
-  let rec eval = function
-    | Const f -> f
-    | Var i -> List.nth_exn values Int.(i - 1)
-    | Sum ts -> List.map ts ~f:eval |> Float. sum
-    | Product ts -> List.map ts ~f:eval |> Float.product
-    | Pow (t, n) ->
-      if n = 0 then 1.
-      else Float.int_pow (eval t) n
+let eval (t : t) (values : float list) =
+  let values =
+    List.mapi values ~f:(fun i v -> Var.create Int.(i + 1), v)
+    |> Var.Map.of_alist_exn
   in
-  eval t
+  List.map t ~f:(fun (m, c) ->
+    Float.(c * Mono.eval m values))
+  |> Float.sum
 
 (* 2D only *)
 let all_monomials ~degree:n =
@@ -213,6 +192,7 @@ module B = Bigarray
 module B1 = B.Array1
 module B2 = B.Array2
 
+  (*
 module Lagrange_state = struct
   type t =
     { ps : string list
@@ -232,13 +212,16 @@ module Lagrange_state = struct
     let qs = List.map qs ~f:to_string in
     { ps; qs; vs; values; v }
 end
+  *)
 
 let lagrange ~degree data =
   let num_points = List.length data in
   let points_done = ref [] in
   let add_point ps qs (x, y) =
-    Lagrange_state.create ps qs !points_done (x, y)
-    |> debug !"%{sexp:Lagrange_state.t}";
+    (*
+       Lagrange_state.create ps qs !points_done (x, y)
+       |> debug !"%{sexp:Lagrange_state.t}";
+    *)
     let eval q = eval q [x; y] in
     let qs =
       List.sort qs ~compare:(fun q1 q2 ->
@@ -269,20 +252,6 @@ let lagrange ~degree data =
   List.map2_exn ps values ~f:scale
   |> sum
 
-let () =
-  let data =
-    [ (0, 1), -7
-    ; (2, 1), 3
-    ; (1, 3), -10
-    ; (-2, -1), 11
-    ; (-3, 2), 1
-    ; (-1, 2), -11
-    ]
-    |> List.map ~f:(fun ((x, y), z) -> ((float x, float y), float z))
-  in
-  let t = lagrange data ~degree:2 in
-  printf !"%s\n" (to_string t)
-
 let%expect_test _ =
   let data =
     [ (0, 1), -7
@@ -297,4 +266,4 @@ let%expect_test _ =
   let t = lagrange data ~degree:2 in
   printf !"%s\n" (to_string t);
   [%expect {|
-    (((((-3.0000000000000098) + ((-3.9999999999999876) * (y))) + ((-3.4635424321632592e-15) * ((y)**2))) + ((-7.0179966704005574e-15) * (x))) + ((1.0000000000000047) * ((x) * (y)))) + ((2.0000000000000004) * ((x)**2)) |}]
+      ((((-2.9999999999999929) + ((0.99999999999999289) * ((x) * (y)))) + ((2.) * ((x)**2))) + ((-4.) * (y))) + ((-3.5527136788005009e-15) * ((y)**2)) |}]
