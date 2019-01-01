@@ -19,8 +19,12 @@ val scale : t -> float -> t
 
 val zero_line_between_two_points : (float * float) -> (float * float) -> t
 
+val to_string : t -> string
 val to_maxima : t -> Maxima.Expr.t
 val to_gnuplot : t -> string
+
+(* 2D *)
+val all_monomials : degree:int -> t list
 
 module Datum : sig
   type t = V.t * float [@@deriving sexp]
