@@ -13,32 +13,34 @@ module Config : sig
     ; right_margin : int
     ; bottom_margin : int
     ; style : [ `zeroes | `heat ]
-    ; cbrange : int * int
+    ; cbrange : float * float
     ; show_dots : V.t list
     }
 end
 
 module State : sig
-  type t
+ type t =
+   { p : P.t
+   ; ps : P.t list
+   ; defs : (string * P.t) list
+   ; dots : V.t list
+   }
 
   val of_poly
     :  ?show_dots:V.t list
     -> P.t
     -> t
 
-  val of_maxima
-    :  ?show_dots:V.t list
-    -> E.t
-    -> t
-
   val collapse : t -> t
 
   val emerge : t -> P.t -> t Deferred.t
+
+  val interpolate : t list -> t list
 end
 
-val write
-  :  dir:string
-  -> config:Config.t
-  -> ?interpolate:bool
-  -> State.t list
-  -> unit Deferred.t
+type t =
+  { config : Config.t
+  ; states : State.t list
+  }
+
+val create : config:Config.t -> State.t list -> t

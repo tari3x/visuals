@@ -5,6 +5,8 @@
     async
     async_shell
     lacaml
+    camlimages.core
+    camlimages.png
   ))
   (inline_tests)
   (preprocess (pps (

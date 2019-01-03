@@ -25,7 +25,7 @@ let config =
   ; right_margin = 5
   ; bottom_margin = 2
   ; style = `heat
-  ; cbrange = (-10, 12)
+  ; cbrange = (-10., 12.)
   ; show_dots = []
   }
 
@@ -71,4 +71,6 @@ let animate ~dir =
       ~init:(A.State.of_poly p)
       ~f:A.State.emerge
   in
-  A.write ~dir ~config states
+  A.State.interpolate states
+  |> A.create ~config
+  |> Render_gnuplot.write ~dir

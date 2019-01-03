@@ -14,12 +14,30 @@ let%expect_test _ =
   |> print_endline;
   [%expect {| (2.) * (x) |}]
 
+let%expect_test _ =
+  pow (var 1) 4 + pow (var 2) 4
+  |> to_string
+  |> print_endline;
+  [%expect {| (x_4(x)) + (y_4(y)) |}]
+
  let%expect_test _ =
   all_monomials ~degree:2
   |> List.map ~f:to_string
-  |> printf !"%{sexp:string list}\n";
+  |> printf !"%{sexp:string list}";
   [%expect {|
     (1. y "(y)**2" x "(x) * (y)" "(x)**2") |}]
+
+ let%expect_test _ =
+   Mono.gnuplot_definitions ~degree:4
+   |> List.iter ~f:print_endline;
+   [%expect {|
+     y_4(y) = (y)**4
+     x_1_y_3(x,y) = (x) * ((y)**3)
+     x_2_y_2(x,y) = ((x)**2) * ((y)**2)
+     x_3_y_1(x,y) = ((x)**3) * (y)
+     x_4(x) = (x)**4
+                |}]
+
 
 let%expect_test _ =
   for i = 1 to 20 do

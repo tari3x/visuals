@@ -14,7 +14,7 @@ let config =
   ; right_margin = 0
   ; bottom_margin = 0
   ; style = `heat
-  ; cbrange = (-20, 25)
+  ; cbrange = (-20., 25.)
   ; show_dots = []
   }
 
@@ -56,5 +56,6 @@ let animate ~dir =
         let state = A.State.collapse state in
         return state)
   in
-  A.write ~dir ~config states
-
+  A.State.interpolate states
+  |> A.create ~config
+  |> Render_gnuplot.write ~dir

@@ -11,7 +11,7 @@ let config =
   ; right_margin = 0
   ; bottom_margin = 0
   ; style = `heat
-  ; cbrange = (-20, 25) (* (-10, 12) *)
+  ; cbrange = (-20., 25.) (* (-10, 12) *)
   ; show_dots = []
   }
 
@@ -54,4 +54,6 @@ let animate ~dir =
     Lines.poly c)
   in
   let%bind states = states covers in
-  A.write ~dir ~config states
+  A.State.interpolate states
+  |> A.create ~config
+  |> Render_gnuplot.write ~dir

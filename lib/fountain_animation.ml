@@ -10,7 +10,7 @@ let config =
   ; right_margin = 0
   ; bottom_margin = 0
   ; style = `heat
-  ; cbrange = (-15, 15)
+  ; cbrange = (-15., 15.)
   ; show_dots = []
   }
 
@@ -46,5 +46,7 @@ let animate ~dir =
       A.State.of_poly p (* ~show_dots:_points *)
     )
   in
-  A.write ~dir ~config ~interpolate:true states
+  A.State.interpolate states
+  |> A.create ~config
+  |> Render_gnuplot.write ~dir
 

@@ -13,7 +13,7 @@ let config =
   ; right_margin = 0
   ; bottom_margin = 0
   ; style = `heat
-  ; cbrange = (-15, 15)
+  ; cbrange = (-15., 15.)
   ; show_dots = []
   }
 
@@ -27,7 +27,7 @@ let segment_length = 10
 (* let num_steps = 2000 *)
   (* spreading them out more makes it more washed out. *)
 let range_mult = 1.
-let degree = 5
+let degree = 15
 
 let set_value x =
   List.map ~f:(fun p -> (p, x))
@@ -68,7 +68,7 @@ end
 
 let perturbations =
   let open Float in
-  let ps = random 20 in
+  let ps = grid @ random 20 in
   let p1 = (2.7, 2.3) in
   let p2 = (3.5, 3.3) in
   let data value ~w =
@@ -83,7 +83,7 @@ let perturbations =
   @
   *)
   let make step =
-    List.init 1000 ~f:(fun i ->
+    List.init 1 ~f:(fun i ->
       data 100. ~w:(step * float i))
   in
   make 1e-3
@@ -128,4 +128,10 @@ let animate ~dir =
     |> List.unzip
   in
   debug "total error = %f" (Float.sum errors);
-  A.write ~dir ~config ~interpolate:false states
+  debug !"%{Time}" (Time.now ());
+  let%bind () =
+    A.create ~config states
+    |> Render_camlimage.write ~dir
+  in
+  debug !"%{Time}" (Time.now ());
+  return ()

@@ -11,7 +11,7 @@ let config =
   ; right_margin = 0
   ; bottom_margin = 0
   ; style = `heat
-  ; cbrange = (-20, 25) (* (-10, 12) *)
+  ; cbrange = (-20., 25.) (* (-10, 12) *)
   ; show_dots = []
   }
 
@@ -29,4 +29,6 @@ let animate ~dir =
       let%bind state = A.State.emerge diagonals line in
       return (A.State.collapse state))
   in
-  A.write ~dir ~config states ~interpolate:true
+  A.State.interpolate states
+  |> A.create ~config
+  |> Render_gnuplot.write ~dir

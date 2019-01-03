@@ -8,11 +8,18 @@ module Matrix = Maxima.Matrix
 
 let _debug a = debug ~enabled:true a
 
+(* CR-someday: this will become [Atom] which is either variable with index or
+   arbitrary string. *)
 module Var = struct
   include String
 
   let create n =
     E.(var n |> to_string)
+
+  let call name =
+    sprintf "%s(%s, %s)" name (create 1) (create 2)
+
+  let verbatim t = t
 end
 
 module Mono = struct
@@ -30,21 +37,73 @@ module Mono = struct
   let var n : t =
     [Var.create n, 1]
 
+  let call name : t =
+    [Var.call name, 1]
+
+  let verbatim s : t =
+    [Var.verbatim s, 1]
+
+  (* Going via map keeps variables sorted. *)
   let ( * ) (t1 : t) (t2 : t) : t =
     Var.Map.of_alist_multi (t1 @ t2)
     |> Map.to_alist
     |> List.map ~f:(fun (var, powers) ->
       var, Int.sum powers)
 
-  let to_maxima t =
+  let pow t n =
+    if n = 0 then one
+    else List.map t ~f:(fun (v, m) -> (v, Int.(n * m)))
+
+  let degree t =
+    List.map t ~f:snd |> Int.sum
+
+  (* CR-someday: does this contain only vars? *)
+  let should_abbreviate t =
+    degree t > 8
+
+  let abbreviation t =
+    let vars =
+      List.map t ~f:fst
+      |> String.concat ~sep:","
+    in
+    let name =
+      List.map t ~f:(fun (v, n) -> sprintf "%s_%d" v n)
+      |> String.concat ~sep:"_"
+    in
+    sprintf "%s(%s)" name vars
+
+  let maxima_full t =
     List.map t ~f:(fun (v, n) ->
       E.(pow (of_string v) n))
     |> E.product
+
+  let to_maxima t =
+    if should_abbreviate t
+    then E.of_string (abbreviation t)
+    else maxima_full t
+
+  let gnuplot_definition t =
+    sprintf "%s = %s"
+      (abbreviation t)
+      (maxima_full t |> E.to_gnuplot)
 
   let eval (t : t) (values : float Var.Map.t) =
     List.map t ~f:(fun (v, n) ->
       Float.int_pow (Map.find_exn values v) n)
     |> Float.product
+
+  let all ~degree:n =
+    List.init Int.(n + 1) ~f:(fun i ->
+      List.init Int.(n + 1) ~f:(fun j ->
+        if Int.(i + j > n) then None
+        else Some (pow (var 1) i *  pow (var 2) j))
+      |> List.filter_opt)
+    |> List.concat
+
+  let gnuplot_definitions ~degree =
+    all ~degree
+    |> List.filter ~f:should_abbreviate
+    |> List.map ~f:gnuplot_definition
 
   include Comparable.Make(T)
 end
@@ -56,8 +115,17 @@ let zero = []
 let const x =
   [Mono.one, x]
 
+let mono m =
+  [m, 1.]
+
 let var n =
-  [Mono.var n, 1.]
+  mono (Mono.var n)
+
+let call name =
+  mono (Mono.call name)
+
+let verbatim s =
+  mono (Mono.verbatim s)
 
 let group_sum t =
   Mono.Map.of_alist_multi t
@@ -133,13 +201,8 @@ let eval (t : t) (values : float list) =
   |> Float.sum
 
 (* 2D only *)
-let all_monomials ~degree:n =
-  List.init Int.(n + 1) ~f:(fun i ->
-    List.init Int.(n + 1) ~f:(fun j ->
-      if Int.(i + j > n) then None
-      else Some (pow (var 1) i *  pow (var 2) j))
-    |> List.filter_opt)
-  |> List.concat
+let all_monomials ~degree =
+  Mono.all ~degree |> List.map ~f:mono
 
 module Datum = struct
   type t = V.t * float [@@deriving sexp]

@@ -1,9 +1,16 @@
 
 module V = Vector.Float
 
+module Mono : sig
+  val gnuplot_definitions : degree:int -> string list
+end
+
 type t
 
 val var : int -> t
+(* 2D *)
+val call : string -> t
+val verbatim : string -> t
 val const : float -> t
 
 val ( * ) : t -> t -> t
@@ -19,12 +26,14 @@ val scale : t -> float -> t
 
 val zero_line_between_two_points : (float * float) -> (float * float) -> t
 
+(* 2D *)
+val all_monomials : degree:int -> t list
+
 val to_string : t -> string
 val to_maxima : t -> Maxima.Expr.t
 val to_gnuplot : t -> string
 
-(* 2D *)
-val all_monomials : degree:int -> t list
+val eval : t -> float list -> float
 
 module Datum : sig
   type t = V.t * float [@@deriving sexp]

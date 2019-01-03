@@ -23,4 +23,8 @@ let command =
      let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
      fun () ->
        Lagrange.animate ~dir
+          (*
+       Lagrange.eval_test ();
+       Async.return ()
+          *)
     ]
