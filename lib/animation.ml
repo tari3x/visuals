@@ -6,20 +6,6 @@ module E = Maxima.Expr
 module D = E.Division_result
 module V = Vector.Float
 
-module Config = struct
-  type t =
-    { n_x : int
-    ; n_y : int
-    ; left_margin : int
-    ; top_margin : int
-    ; right_margin : int
-    ; bottom_margin : int
-    ; style : [ `zeroes | `heat ]
-    ; cbrange : float * float
-    ; show_dots : V.t list
-    }
-end
-
 let fun_id = ref 0
 
 let make_fun_name () =

@@ -1,8 +1,6 @@
 open Core
 open Std_internal
 
-(* Point range is [0; n - 1] *)
-
 let min_cover_size = 20
 
 type t = Line.t list [@@deriving sexp]
@@ -66,4 +64,3 @@ let imo_vh config =
 let random_regular_line config =
   (imo_vh config)
   |> List.random_element_exn
-

@@ -4,20 +4,6 @@ module P = Polynomial
 module E = Maxima.Expr
 module V = Vector.Float
 
-module Config : sig
-  type t =
-    { n_x : int
-    ; n_y : int
-    ; left_margin : int
-    ; top_margin : int
-    ; right_margin : int
-    ; bottom_margin : int
-    ; style : [ `zeroes | `heat ]
-    ; cbrange : float * float
-    ; show_dots : V.t list
-    }
-end
-
 module State : sig
  type t =
    { p : P.t

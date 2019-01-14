@@ -1,10 +1,6 @@
 
 module V = Vector.Float
 
-module Mono : sig
-  val gnuplot_definitions : degree:int -> string list
-end
-
 type t
 
 val var : int -> t
@@ -51,3 +47,17 @@ val lagrange
   :  degree:int
   -> Data.t
   -> t
+
+module Grid : sig
+  open Bigarray
+  type t = (float, float64_elt, c_layout) Array2.t
+end
+
+module Mono_cache : sig
+  type t
+
+  (* CR-someday: could be adding elements on demand. *)
+  val create : config:Config.t -> degree:int -> t
+end
+
+val eval_on_grid : t -> cache:Mono_cache.t -> Grid.t

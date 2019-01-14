@@ -2,9 +2,10 @@ open Core
 open Std_internal
 
 let config =
-  { Animation.Config.
+  { Config.
     n_x = 5
   ; n_y = 5
+  ; grid_size = (500, 500)
   ; left_margin = 0
   ; top_margin = 0
   ; right_margin = 0
@@ -12,6 +13,7 @@ let config =
   ; style = `heat
   ; cbrange = (-15., 15.)
   ; show_dots = []
+  ; degree = 10
   }
 
 let num_steps = 100
@@ -41,7 +43,7 @@ let animate ~dir =
           ~num_points_per_segment:10
           ~phase:(float (step + 12000) /. 40.)
       in
-      let p = P.lagrange ~degree:10 data in
+      let p = P.lagrange ~degree:config.degree data in
       let _points = List.map data ~f:fst in
       A.State.of_poly p (* ~show_dots:_points *)
     )

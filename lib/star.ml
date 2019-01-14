@@ -6,9 +6,10 @@ open Std_internal
    interesting. *)
 
 let config =
-  { Animation.Config.
+  { Config.
     n_x = 7
   ; n_y = 5
+  ; grid_size = (500, 500)
   ; left_margin = 0
   ; top_margin = 0
   ; right_margin = 0
@@ -16,6 +17,7 @@ let config =
   ; style = `heat
   ; cbrange = (-20., 25.)
   ; show_dots = []
+  ; degree = 0
   }
 
 let n_lines = 15

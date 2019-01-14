@@ -17,9 +17,10 @@ let target_lines : [ `both | `vertical ] = `both
   *)
 
 let config =
-  { Animation.Config.
+  { Config.
     n_x = 5
   ; n_y = 4
+  ; grid_size = (500, 500)
   ; left_margin = 2
   ; top_margin = 2
   ; right_margin = 5
@@ -27,6 +28,7 @@ let config =
   ; style = `heat
   ; cbrange = (-10., 12.)
   ; show_dots = []
+  ; degree = 0
   }
 
 let p =

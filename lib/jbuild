@@ -4,7 +4,6 @@
     core
     async
     async_shell
-    lacaml
     camlimages.core
     camlimages.png
   ))
@@ -12,5 +11,6 @@
   (preprocess (pps (
     ppx_jane
     ppx_inline_test
-  )))
+  ))
+  )
 ))

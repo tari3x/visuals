@@ -1,10 +1,12 @@
 open Core
+open Bigarray
 
 open Common
 
 module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
+module A2 = Array2
 
 let _debug a = debug ~enabled:true a
 
@@ -22,10 +24,21 @@ module Var = struct
   let verbatim t = t
 end
 
+(* CR-someday: massively inefficient. *)
+module Values = struct
+  type t = float Var.Map.t
+
+  let create values : t =
+    List.mapi values ~f:(fun i v -> Var.create Int.(i + 1), v)
+    |> Var.Map.of_alist_exn
+
+  let find_exn = Map.find_exn
+end
+
 module Mono = struct
   module T = struct
     type t = (Var.t * int) list
-    [@@deriving sexp, compare]
+    [@@deriving sexp, compare, hash]
   end
 
   include T
@@ -54,42 +67,14 @@ module Mono = struct
     if n = 0 then one
     else List.map t ~f:(fun (v, m) -> (v, Int.(n * m)))
 
-  let degree t =
-    List.map t ~f:snd |> Int.sum
-
-  (* CR-someday: does this contain only vars? *)
-  let should_abbreviate t =
-    degree t > 8
-
-  let abbreviation t =
-    let vars =
-      List.map t ~f:fst
-      |> String.concat ~sep:","
-    in
-    let name =
-      List.map t ~f:(fun (v, n) -> sprintf "%s_%d" v n)
-      |> String.concat ~sep:"_"
-    in
-    sprintf "%s(%s)" name vars
-
-  let maxima_full t =
+  let to_maxima t =
     List.map t ~f:(fun (v, n) ->
       E.(pow (of_string v) n))
     |> E.product
 
-  let to_maxima t =
-    if should_abbreviate t
-    then E.of_string (abbreviation t)
-    else maxima_full t
-
-  let gnuplot_definition t =
-    sprintf "%s = %s"
-      (abbreviation t)
-      (maxima_full t |> E.to_gnuplot)
-
-  let eval (t : t) (values : float Var.Map.t) =
+  let eval (t : t) (values : Values.t) =
     List.map t ~f:(fun (v, n) ->
-      Float.int_pow (Map.find_exn values v) n)
+      Float.int_pow (Values.find_exn values v) n)
     |> Float.product
 
   let all ~degree:n =
@@ -100,12 +85,8 @@ module Mono = struct
       |> List.filter_opt)
     |> List.concat
 
-  let gnuplot_definitions ~degree =
-    all ~degree
-    |> List.filter ~f:should_abbreviate
-    |> List.map ~f:gnuplot_definition
-
   include Comparable.Make(T)
+  include Hashable.Make(T)
 end
 
 type t = (Mono.t * float) list
@@ -192,10 +173,7 @@ let zero_line_between_two_points (x1, y1) (x2, y2) =
   end
 
 let eval (t : t) (values : float list) =
-  let values =
-    List.mapi values ~f:(fun i v -> Var.create Int.(i + 1), v)
-    |> Var.Map.of_alist_exn
-  in
+  let values = Values.create values in
   List.map t ~f:(fun (m, c) ->
     Float.(c * Mono.eval m values))
   |> Float.sum
@@ -285,3 +263,65 @@ let lagrange ~degree data =
   let ps = loop [] qs points in
   List.map2_exn ps values ~f:scale
   |> sum
+
+module Grid = struct
+  type t = (float, float64_elt, c_layout) A2.t
+
+  let create_empty (config : Config.t) =
+    let (w, h) = config.grid_size in
+    A2.create Bigarray.float64 C_layout w h
+
+  let create ~config ~eval =
+    let open Int in
+    let x_step, y_step = Config.value_steps config in
+    let t = create_empty config in
+    for i = 0 to A2.dim1 t - 1 do
+      for j = 0 to A2.dim2 t - 1 do
+        let open Float in
+        let x = x_step * float i in
+        let y = y_step * float j in
+        A2.set t i j (eval x y)
+      done
+    done;
+    t
+
+  let zero ~config =
+    let t = create_empty config in
+    A2.fill t 0.;
+    t
+end
+
+module Mono_cache = struct
+  type t =
+    { config : Config.t
+    ; cache: Grid.t Mono.Table.t
+    } [@@deriving fields]
+
+  let create ~config ~degree : t =
+    let cache =
+      Mono.all ~degree
+      |> List.map ~f:(fun mono ->
+        mono, Grid.create ~config ~eval:(fun x y ->
+          Mono.eval mono (Values.create [x; y])))
+      |> Mono.Table.of_alist_exn
+    in
+    { config; cache }
+
+  let find_exn t =
+    Hashtbl.find_exn t.cache
+end
+
+let eval_on_grid t ~cache =
+  let open Int in
+  let config = Mono_cache.config cache in
+  let grid = Grid.zero ~config in
+  List.iter t ~f:(fun (mono, weight) ->
+    let mono_values = Mono_cache.find_exn cache mono in
+    for i = 0 to A2.dim1 grid - 1 do
+      for j = 0 to A2.dim2 grid - 1 do
+        let mono_value = A2.get mono_values i j in
+        let grid_value = A2.get grid        i j in
+        A2.set grid i j Float.(grid_value + mono_value * weight)
+      done
+    done);
+  grid

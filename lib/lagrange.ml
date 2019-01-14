@@ -5,9 +5,10 @@ open Std_internal
 let debug a = debug ~enabled:true a
 
 let config =
-  { Animation.Config.
+  { Config.
     n_x = 10
   ; n_y = 10
+  ; grid_size = (500, 500)
   ; left_margin = 0
   ; top_margin = 0
   ; right_margin = 0
@@ -15,6 +16,7 @@ let config =
   ; style = `heat
   ; cbrange = (-15., 15.)
   ; show_dots = []
+  ; degree = 15
   }
 
   (*
@@ -27,7 +29,6 @@ let segment_length = 10
 (* let num_steps = 2000 *)
   (* spreading them out more makes it more washed out. *)
 let range_mult = 1.
-let degree = 15
 
 let set_value x =
   List.map ~f:(fun p -> (p, x))
@@ -38,7 +39,7 @@ let grid =
   |> set_value 0.
 
 let random n =
-  let { Animation.Config. n_x; n_y; _ } = config in
+  let { Config. n_x; n_y; _ } = config in
   let n_x = float n_x in
   let n_y = float n_y in
   List.init n ~f:(fun _ ->
@@ -83,7 +84,7 @@ let perturbations =
   @
   *)
   let make step =
-    List.init 1 ~f:(fun i ->
+    List.init 20 ~f:(fun i ->
       data 100. ~w:(step * float i))
   in
   make 1e-3
@@ -120,7 +121,7 @@ let animate ~dir =
   let data = perturbations in
   let (states, errors) =
     List.map data ~f:(fun {Data. data; desc } ->
-      let p = P.lagrange ~degree data in
+      let p = P.lagrange ~degree:config.degree data in
       let error = P.error p data in
       debug !"%{Sexp} error = %f" desc error;
       A.State.of_poly p (* ~show_dots:(List.map data ~f:fst) *),
@@ -135,3 +136,16 @@ let animate ~dir =
   in
   debug !"%{Time}" (Time.now ());
   return ()
+
+
+(* Performance
+
+   Baseline
+   ========
+
+   10 items
+   0m47.059s
+
+   1 item
+   4.7s
+*)

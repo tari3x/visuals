@@ -6,8 +6,6 @@ module P = Polynomial
 module E = Maxima.Expr
 module V = Vector.Float
 
-module Config = A.Config
-
 module Writer = struct
   type t =
     { config : Config.t
@@ -102,15 +100,10 @@ let make_frame
   | `heat ->
     fprintf w "splot(sgn(%s(x, y)) * log(abs(%s(x, y))))\n" f f
 
-let print_monomials (w : Writer.t) =
-  P.Mono.gnuplot_definitions ~degree:30
-  |> List.iter ~f:(fprintf w.writer "%s\n")
-
 let write ~dir ?batch_size {A. config; states } =
   let file_id = ref 0 in
   let new_writer () = Writer.create ~dir ~config ~file_id:!file_id in
   let%bind w = new_writer () in
-  print_monomials w;
   let rec loop w i = function
     | [] -> return ()
     | s :: states ->
