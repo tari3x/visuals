@@ -16,20 +16,18 @@ let target_lines : [ `both | `vertical ] = `both
     ]
   *)
 
-let config =
-  { Config.
-    n_x = 5
-  ; n_y = 4
-  ; grid_size = (500, 500)
-  ; left_margin = 2
+(*   ; left_margin = 2
   ; top_margin = 2
   ; right_margin = 5
   ; bottom_margin = 2
-  ; style = `heat
-  ; cbrange = (-10., 12.)
-  ; show_dots = []
-  ; degree = 0
-  }
+*)
+
+let config =
+  Config.create
+    ~grid_size:(5, 4)
+    ~image_width:500
+    ~cbrange:(-10., 12.)
+    ()
 
 let p =
   let l = P.zero_line_between_two_points in

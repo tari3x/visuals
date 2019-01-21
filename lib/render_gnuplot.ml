@@ -20,24 +20,20 @@ module Writer = struct
                  border lc rgb '#aa1100' lw 2\n" x y)
 
   let make_header { writer = w; config } =
-    let { Config.
-          n_x
-        ; n_y
-        ; left_margin
-        ; top_margin
-        ; right_margin
-        ; bottom_margin
-        ; _
-        } = config
-    in
+    let n_x, n_y = Config.domain_size config in
     let%bind header = Reader.file_contents "header.gp" in
     fprintf w "%s" header;
+    (*
     let x_start = -left_margin in
     let x_stop = n_x + right_margin in
     let y_start = -bottom_margin in
     let y_stop = n_y + top_margin in
-    add_dots w config.show_dots;
-    begin match config.style with
+    *)
+    let x_start = 0. in
+    let x_stop = n_x in
+    let y_start = 0. in
+    let y_stop = n_y in
+    begin match Config.style config with
     | `zeroes ->
       fprintf w "set contour\n";
       fprintf w "set samples 100\n";
@@ -49,15 +45,16 @@ module Writer = struct
       fprintf w "set samples 500\n";
       fprintf w "set isosamples 500\n"
     end;
-    fprintf w "set xrange [%d:%d]\n" x_start x_stop;
-    fprintf w "set yrange [%d:%d]\n" y_start y_stop;
-    let cb_x, cb_y = config.cbrange in
+    fprintf w "set xrange [%f:%f]\n" x_start x_stop;
+    fprintf w "set yrange [%f:%f]\n" y_start y_stop;
+    let cb_x, cb_y = Config.cbrange config in
     fprintf w "set cbrange [%f:%f]\n" cb_x cb_y;
     (* # set terminal pngcairo size 2000, 1500 enhanced font 'Verdana,10' *)
-    let x_units = n_x + left_margin + right_margin  - 1 in
-    let y_units = n_y + top_margin  + bottom_margin - 1 in
-    let width = 1600 in
-    let height = width * y_units / x_units in
+    (*
+       let x_units = n_x + left_margin + right_margin  - 1 in
+       let y_units = n_y + top_margin  + bottom_margin - 1 in
+    *)
+    let width, height = Config.image_size config in
     (* pngcairo is 3x slower, although slightly better quality.*)
     fprintf w
       "set terminal png size %d, %d enhanced\n"
@@ -94,7 +91,7 @@ let make_frame
   write_defs w defs;
   write_defs w [f, p];
   Writer.add_dots w dots;
-  match config.style with
+  match Config.style config with
   | `zeroes ->
     fprintf w "splot(%s(x, y))\n" f
   | `heat ->

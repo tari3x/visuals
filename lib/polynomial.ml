@@ -24,7 +24,7 @@ module Var = struct
   let verbatim t = t
 end
 
-(* CR-someday: massively inefficient. *)
+(* CR-someday: massively inefficient. Just specialize to 2D. *)
 module Values = struct
   type t = float Var.Map.t
 
@@ -77,6 +77,11 @@ module Mono = struct
       Float.int_pow (Values.find_exn values v) n)
     |> Float.product
 
+  let all_of_degree n =
+    List.init Int.(n + 1) ~f:(fun i ->
+      let j = Int.(n - i) in
+      (pow (var 1) i *  pow (var 2) j))
+
   let all ~degree:n =
     List.init Int.(n + 1) ~f:(fun i ->
       List.init Int.(n + 1) ~f:(fun j ->
@@ -84,6 +89,22 @@ module Mono = struct
         else Some (pow (var 1) i *  pow (var 2) j))
       |> List.filter_opt)
     |> List.concat
+
+        (*
+  let all ~degree:n =
+    List.init Int.(n + 1) ~f:all_of_degree
+    |> List.concat
+        *)
+
+  let first n =
+    let rec aux ~degree n =
+      let ts = all_of_degree degree in
+      let nd = List.length ts in
+      if n <= nd
+      then List.take ts n
+      else ts @ aux ~degree:(degree + 1) (n - nd)
+    in
+    aux ~degree:0 n
 
   include Comparable.Make(T)
   include Hashable.Make(T)
@@ -178,9 +199,15 @@ let eval (t : t) (values : float list) =
     Float.(c * Mono.eval m values))
   |> Float.sum
 
+let eval_point (t : t) (x, y) =
+  eval t [x; y]
+
 (* 2D only *)
 let all_monomials ~degree =
   Mono.all ~degree |> List.map ~f:mono
+
+let first_monomials n =
+  Mono.first n |> List.map ~f:mono
 
 module Datum = struct
   type t = V.t * float [@@deriving sexp]
@@ -202,37 +229,32 @@ let error t data =
     abs (eval t [x; y] - value))
   |> Float.sum
 
-  (*
-module Lagrange_state = struct
-  type t =
-    { ps : string list
-    ; qs : string list
-    ; vs : V.t list
-    ; values : float list list
-    ; v : V.t
-    } [@@deriving sexp]
-
-  let create ps qs vs v =
-    let values =
-      List.map ps ~f:(fun p ->
-        List.map vs ~f:(fun (x, y) ->
-          eval p [x; y]))
-    in
-    let ps = List.map ps ~f:to_string in
-    let qs = List.map qs ~f:to_string in
-    { ps; qs; vs; values; v }
-end
-  *)
-
 (* "On multivariate Lagrange interpolation" by Thomas Sauer and Yuan Xu. *)
-let lagrange ~degree data =
-  let num_points = List.length data in
-  let points_done = ref [] in
-  let add_point ps qs (x, y) =
+module Lagrange = struct
+  type poly = t
+
+  type t =
+    { ps : poly list
+    ; qs : poly list
+    ; vs : Datum.t list
+    }
+
+  (* CR-someday: the paper suggests a different basis which is more stable. *)
+  let init ~max_num_points =
     (*
-       Lagrange_state.create ps qs !points_done (x, y)
-       |> debug !"%{sexp:Lagrange_state.t}";
+    let rec min_degree degree =
+      if List.length (Mono.all ~degree) >= max_num_points
+      then degree
+      else min_degree Int.(degree + 1)
+    in
+    let degree = min_degree 0 in
+    let qs = all_monomials ~degree in
     *)
+    let qs = first_monomials max_num_points in
+    { qs; ps = []; vs = [] }
+
+  let add_point { ps; qs; vs } v =
+    let (x, y) = fst v in
     let eval q = eval q [x; y] in
     (* CR-someday: don't eval multiple times. *)
     let qs =
@@ -240,8 +262,10 @@ let lagrange ~degree data =
         Float.compare (Float.abs (eval q1)) (Float.abs (eval q2)))
       |> List.rev
     in
+    let vs = v :: vs in
+    let num_points = List.length vs in
     match qs with
-    | [] -> failwithf "degree %d is too low for %d points" degree num_points ()
+    | [] -> failwithf "max_num_points too low %d points" num_points ()
     | q :: qs ->
       let q_val = eval q in
       if Float.(q_val = 0.) then failwithf "No unique interpolation" ();
@@ -249,37 +273,39 @@ let lagrange ~degree data =
       let adjust p = p - scale new_p (eval p) in
       let ps = List.map ps ~f:adjust in
       let qs = List.map qs ~f:adjust in
-      (new_p :: ps), qs
-  in
-  let rec loop ps qs = function
-    | [] -> List.rev ps
-    | v :: vs ->
-      let ps, qs = add_point ps qs v in
-      points_done := v :: !points_done;
-      loop ps qs vs
-  in
-  let qs = List.take (all_monomials ~degree) num_points in
-  let points, values = List.unzip data in
-  let ps = loop [] qs points in
-  List.map2_exn ps values ~f:scale
-  |> sum
+      let ps = new_p :: ps in
+      { ps; qs; vs }
+
+  let add_data t ~data =
+    List.fold data ~init:t ~f:add_point
+
+  let create ~max_num_points data =
+    init ~max_num_points
+    |> add_data ~data
+
+  let result { ps; vs; qs = _ } =
+    let values = List.map vs ~f:snd in
+    List.map2_exn ps values ~f:scale
+    |> sum
+end
+
+let lagrange data =
+  Lagrange.create ~max_num_points:(List.length data) data
+  |> Lagrange.result
 
 module Grid = struct
   type t = (float, float64_elt, c_layout) A2.t
 
   let create_empty (config : Config.t) =
-    let (w, h) = config.grid_size in
+    let (w, h) = Config.image_size config in
     A2.create Bigarray.float64 C_layout w h
 
   let create ~config ~eval =
     let open Int in
-    let x_step, y_step = Config.value_steps config in
     let t = create_empty config in
     for i = 0 to A2.dim1 t - 1 do
       for j = 0 to A2.dim2 t - 1 do
-        let open Float in
-        let x = x_step * float i in
-        let y = y_step * float j in
+        let x, y = Config.image_to_domain config (i, j) in
         A2.set t i j (eval x y)
       done
     done;
@@ -297,18 +323,14 @@ module Mono_cache = struct
     ; cache: Grid.t Mono.Table.t
     } [@@deriving fields]
 
-  let create ~config ~degree : t =
-    let cache =
-      Mono.all ~degree
-      |> List.map ~f:(fun mono ->
-        mono, Grid.create ~config ~eval:(fun x y ->
-          Mono.eval mono (Values.create [x; y])))
-      |> Mono.Table.of_alist_exn
-    in
+  let create ~config : t =
+    let cache = Mono.Table.create () in
     { config; cache }
 
-  let find_exn t =
-    Hashtbl.find_exn t.cache
+  let find_or_add t mono =
+    Hashtbl.find_or_add t.cache mono ~default:(fun () ->
+      Grid.create ~config:t.config ~eval:(fun x y ->
+        Mono.eval mono (Values.create [x; y])))
 end
 
 let eval_on_grid t ~cache =
@@ -316,7 +338,7 @@ let eval_on_grid t ~cache =
   let config = Mono_cache.config cache in
   let grid = Grid.zero ~config in
   List.iter t ~f:(fun (mono, weight) ->
-    let mono_values = Mono_cache.find_exn cache mono in
+    let mono_values = Mono_cache.find_or_add cache mono in
     for i = 0 to A2.dim1 grid - 1 do
       for j = 0 to A2.dim2 grid - 1 do
         let mono_value = A2.get mono_values i j in

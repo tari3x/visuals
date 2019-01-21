@@ -1,5 +1,19 @@
 open Core
 
+module Color = struct
+  type t = Color.rgb =
+    { mutable r : int
+    ; mutable g : int
+    ; mutable b : int
+    } [@@deriving sexp]
+end
+
+let black =
+  {Color.r = 0; g = 0; b = 0; }
+
+let red =
+  { Color. r = 255; g = 0 ; b = 0 }
+
 let c x =
   let open Float in
   Int.of_float (255. * x)

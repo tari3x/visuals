@@ -2,44 +2,30 @@ open Core
 open Async
 open Std_internal
 
+module L = P.Lagrange
+
 let debug a = debug ~enabled:true a
 
 let config =
-  { Config.
-    n_x = 10
-  ; n_y = 10
-  ; grid_size = (500, 500)
-  ; left_margin = 0
-  ; top_margin = 0
-  ; right_margin = 0
-  ; bottom_margin = 0
-  ; style = `heat
-  ; cbrange = (-15., 15.)
-  ; show_dots = []
-  ; degree = 15
-  }
-
-  (*
-    let num_random = 1
-    let change_per_step = 1
-  *)
-  (* A single step is >3seconds *)
-let num_steps = 20
-let segment_length = 10
-(* let num_steps = 2000 *)
-  (* spreading them out more makes it more washed out. *)
-let range_mult = 1.
+  Config.create
+    ~grid_size:(10, 10)
+    ~cbrange:(-15., 15.)
+    ~image_width:1500
+    ()
 
 let set_value x =
   List.map ~f:(fun p -> (p, x))
 
-let grid =
+let grid_points =
   Lines.all_points config
   |> List.map ~f:Vector.Int.to_float
-  |> set_value 0.
+
+let grid =
+  set_value 0. grid_points
 
 let random n =
-  let { Config. n_x; n_y; _ } = config in
+  let range_mult = 1. in
+  let n_x, n_y = Config.grid_size config in
   let n_x = float n_x in
   let n_y = float n_y in
   List.init n ~f:(fun _ ->
@@ -49,11 +35,11 @@ let random n =
     in
     let x = random n_x in
     let y = random n_y in
-    let value = Float.(-200. + Random.float 400.) in
-    (* let value = 100. in *)
+     (* let value = Float.(-200. + Random.float 400.) in *)
+    let value = 100. in
     ((x, y), value))
 
-let weighted_average ~w points1 points2 =
+let _weighted_average ~w points1 points2 =
   List.map2 points1 points2 ~f:(P.Datum.weighted_average ~w)
   |> function
   | List.Or_unequal_lengths.Ok points -> points
@@ -63,78 +49,74 @@ let weighted_average ~w points1 points2 =
 module Data = struct
   type t =
     { data : P.Data.t
-    ; desc : Sexp.t
+    ; lagrange : L.t
+    ; desc : Sexp.t option
+    ; show_dots : V.t list
     }
+
+  let create data ~max_num_points =
+    let lagrange = L.create data ~max_num_points in
+    { data; lagrange; desc = None; show_dots = [] }
+
+  let add_data t ~data =
+    let lagrange = L.add_data t.lagrange ~data in
+    let data = t.data @ data in
+    { data; lagrange; desc = t.desc; show_dots = t.show_dots }
+
+  let set_desc t ~desc =
+    { t with desc = Some desc }
+
+  let set_dots t ~dots =
+    { t with show_dots = dots }
 end
 
-let perturbations =
-  let open Float in
-  let ps = grid @ random 20 in
-  let p1 = (2.7, 2.3) in
-  let p2 = (3.5, 3.3) in
-  let data value ~w =
-    let p = Vector.Float.weighted_average p1 p2 ~w in
-    let desc = [%message (value : float) (w : float)] in
-    let data = ps @ [ p, value] in
-    { Data. data; desc }
-  in
+let perturbations () =
+  let static_points = grid @ random 10 in
+  let num_dynamic = 1 in
+  let max_num_points = List.length static_points + num_dynamic in
+  let static = Data.create static_points ~max_num_points in
   (*
-  List.init 100 ~f:(fun i ->
-    data (float i) ~w:0.)
-  @
+     let p1 = (2.7, 2.3) in
+     let p2 = (3.5, 3.3) in
   *)
-  let make step =
-    List.init 20 ~f:(fun i ->
-      data 100. ~w:(step * float i))
+  let p1 = (0.,  4.5) in
+  let p2 = (10., 4.5) in
+  debug !"%{Sexp}" [%message (p1 : V.t) (p2 : V.t)];
+  let data value ~w =
+    debug "computing lagrange for w = %f" w;
+    let p = Vector.Float.weighted_average p1 p2 ~w in
+    Data.add_data static ~data:[p, value]
+    |> Data.set_desc ~desc:[%message (value : float) (w : float)]
+    |> Data.set_dots ~dots:[p]
   in
-  make 1e-3
+  let open Float in
+  let step = 1e-3 in
+  (* let num_steps = V.length (p1 - p2) / step in *)
+  let num_steps = 1 in
+  List.init num_steps ~f:(fun i ->
+    data 0. ~w:(step * float i))
 
 let animate ~dir =
-  (*
-  let segment () =
-    let num_random = 1 + Random.int 36 in
-    (* let num_random = 3 in *)
-    let change_per_step = 2 in
-    (*
-    let change_per_step =
-      1 +
-        if Random.int 2 = 0
-        then Random.int (min 4 num_random)
-        else Random.int num_random
-    in
-    *)
-    let rec gen_points i ps =
-      if i = 0 then []
-      else begin
-        let ps = List.drop ps change_per_step @ random change_per_step in
-        (grid @ ps) :: gen_points (i - 1) ps
-      end
-    in
-    gen_points segment_length (random num_random)
-  in
-  let points =
-    List.init (num_steps / segment_length) ~f:(fun _ -> segment ())
-    |> List.concat
-    |> interpolate ~weighted_average ~num_steps:100
-  in
-  *)
-  let data = perturbations in
+  let data = perturbations () in
   let (states, errors) =
-    List.map data ~f:(fun {Data. data; desc } ->
-      let p = P.lagrange ~degree:config.degree data in
+    List.map data ~f:(fun {Data. data; lagrange; desc; show_dots } ->
+      let p = L.result lagrange in
+      let value = List.last_exn show_dots |> P.eval_point p in
+      let color = Render_camlimage.value_color ~config value in
       let error = P.error p data in
-      debug !"%{Sexp} error = %f" desc error;
-      A.State.of_poly p (* ~show_dots:(List.map data ~f:fst) *),
+      debug
+        !"%{Sexp}"
+        [%message (desc : Sexp.t option) (error : float) (value : float)
+            (color : Color.t)];
+      A.State.of_poly p ~show_dots,
       error)
     |> List.unzip
   in
   debug "total error = %f" (Float.sum errors);
-  debug !"%{Time}" (Time.now ());
   let%bind () =
     A.create ~config states
     |> Render_camlimage.write ~dir
   in
-  debug !"%{Time}" (Time.now ());
   return ()
 
 

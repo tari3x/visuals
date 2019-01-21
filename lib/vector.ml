@@ -43,4 +43,7 @@ module Int = struct
 
   let to_float (x, y) =
     (float x, float y)
+
+  let of_float (x, y) =
+    (Int.of_float x, Int.of_float y)
 end

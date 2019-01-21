@@ -24,12 +24,14 @@ val zero_line_between_two_points : (float * float) -> (float * float) -> t
 
 (* 2D *)
 val all_monomials : degree:int -> t list
+val first_monomials : int -> t list
 
 val to_string : t -> string
 val to_maxima : t -> Maxima.Expr.t
 val to_gnuplot : t -> string
 
 val eval : t -> float list -> float
+val eval_point : t -> V.t -> float
 
 module Datum : sig
   type t = V.t * float [@@deriving sexp]
@@ -43,10 +45,19 @@ end
 
 val error : t -> Data.t -> float
 
-val lagrange
-  :  degree:int
-  -> Data.t
-  -> t
+val lagrange : Data.t -> t
+
+(* The expert option if you only want to move a few points *)
+module Lagrange : sig
+  type poly = t
+  type t
+
+  val create : max_num_points:int -> Data.t -> t
+
+  val add_data : t -> data:Data.t -> t
+
+  val result : t -> poly
+end
 
 module Grid : sig
   open Bigarray
@@ -56,8 +67,7 @@ end
 module Mono_cache : sig
   type t
 
-  (* CR-someday: could be adding elements on demand. *)
-  val create : config:Config.t -> degree:int -> t
+  val create : config:Config.t -> t
 end
 
 val eval_on_grid : t -> cache:Mono_cache.t -> Grid.t

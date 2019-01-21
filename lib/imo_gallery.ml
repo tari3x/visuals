@@ -3,19 +3,10 @@ open Async
 open Std_internal
 
 let config =
-  { Config.
-    n_x = 7
-  ; n_y = 5
-  ; grid_size = (500, 500)
-  ; left_margin = 0
-  ; top_margin = 0
-  ; right_margin = 0
-  ; bottom_margin = 0
-  ; style = `heat
-  ; cbrange = (-20., 25.) (* (-10, 12) *)
-  ; show_dots = []
-  ; degree = 0
-  }
+  Config.create
+    ~grid_size:(7, 5)
+    ~cbrange:(-20., 25.) (* (-10, 12) *)
+    ()
 
 let imo_lines = Lines.imo_vh config |> List.map ~f:Line.poly
 

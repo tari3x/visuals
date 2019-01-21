@@ -5,13 +5,14 @@ let min_cover_size = 20
 
 type t = Line.t list [@@deriving sexp]
 
-let all_points { Config. n_x; n_y; _ } =
+let all_points config =
+  let n_x, n_y = Config.grid_size config in
   List.cartesian_product
     (List.init n_x ~f:Fn.id)
     (List.init n_y ~f:Fn.id)
 
 let all_diagonals config : t =
-  let { Config. n_x; n_y; _ } = config in
+  let n_x, n_y = Config.grid_size config in
   let all_points = all_points config in
   let dirs = [ (1, 1); (1, -1) ] in
   List.init (n_x + n_y) ~f:(fun i ->
@@ -50,10 +51,12 @@ let poly t =
   List.map t ~f:Line.poly
   |> P.product
 
-let horizontal_lines { Config. n_x; _ } =
+let horizontal_lines config =
+  let n_x, _ = Config.grid_size config in
   List.init n_x ~f:(fun i -> (0, i), (i, 0))
 
-let vertical_lines { Config. n_y; _ } =
+let vertical_lines config =
+  let _, n_y = Config.grid_size config in
   List.init n_y ~f:(fun i -> (i, 0), (0, i))
 
 let imo_vh config =

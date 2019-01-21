@@ -1,28 +1,22 @@
 open Core
 open Std_internal
 
+let n_x = 5
+let n_y = 5
+
 let config =
-  { Config.
-    n_x = 5
-  ; n_y = 5
-  ; grid_size = (500, 500)
-  ; left_margin = 0
-  ; top_margin = 0
-  ; right_margin = 0
-  ; bottom_margin = 0
-  ; style = `heat
-  ; cbrange = (-15., 15.)
-  ; show_dots = []
-  ; degree = 10
-  }
+  Config.create
+    ~grid_size:(n_x, n_y)
+    ~cbrange:(-15., 15.)
+    ()
 
 let num_steps = 100
 
 let center =
-  (float config.n_x /. 2., float config.n_y /. 2.)
+  (float n_x /. 2., float n_y /. 2.)
 
 let radius =
-  Float.max (float config.n_x) (float config.n_y) (*  /. 2. *)
+  Float.max (float n_x) (float n_y) (*  /. 2. *)
 
 let set_value x =
   List.map ~f:(fun p -> (p, x))
@@ -43,7 +37,7 @@ let animate ~dir =
           ~num_points_per_segment:10
           ~phase:(float (step + 12000) /. 40.)
       in
-      let p = P.lagrange ~degree:config.degree data in
+      let p = P.lagrange data in
       let _points = List.map data ~f:fst in
       A.State.of_poly p (* ~show_dots:_points *)
     )

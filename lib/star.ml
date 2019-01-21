@@ -5,28 +5,22 @@ open Std_internal
 (* CR: make sure lines don't repeat. Keep some straight lines to keep it
    interesting. *)
 
+let n_x = 7
+let n_y = 5
+
 let config =
-  { Config.
-    n_x = 7
-  ; n_y = 5
-  ; grid_size = (500, 500)
-  ; left_margin = 0
-  ; top_margin = 0
-  ; right_margin = 0
-  ; bottom_margin = 0
-  ; style = `heat
-  ; cbrange = (-20., 25.)
-  ; show_dots = []
-  ; degree = 0
-  }
+  Config.create
+    ~grid_size:(n_x, n_y)
+    ~cbrange:(-20., 25.)
+    ()
 
 let n_lines = 15
 let n_steps = 50
 
 let rec random_line () =
   let point () =
-    let x = Random.int config.n_x in
-    let y = Random.int config.n_y in
+    let x = Random.int n_x in
+    let y = Random.int n_y in
     (float x, float y)
   in
   let p1 = point () in
