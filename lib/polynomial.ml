@@ -90,11 +90,11 @@ module Mono = struct
       |> List.filter_opt)
     |> List.concat
 
-        (*
-  let all ~degree:n =
+  (*
+    let all ~degree:n =
     List.init Int.(n + 1) ~f:all_of_degree
     |> List.concat
-        *)
+  *)
 
   let first n =
     let rec aux ~degree n =
@@ -181,6 +181,9 @@ let to_maxima (t : t) =
 let to_string t =
   to_maxima t |> E.to_string
 
+let sexp_of_t t =
+  to_string t |> String.sexp_of_t
+
 let to_gnuplot t =
   to_maxima t
   |> E.to_gnuplot
@@ -192,6 +195,8 @@ let zero_line_between_two_points (x1, y1) (x2, y2) =
     let slope = Float.((y2 - y1) / (x2 - x1)) in
     var_y - const y1 - const slope * (var_x - const x1)
   end
+
+let monomials = List.map ~f:List.return
 
 let eval (t : t) (values : float list) =
   let values = Values.create values in
@@ -220,7 +225,7 @@ module Datum = struct
 end
 
 module Data = struct
-  type t = Datum.t list
+  type t = Datum.t list [@@deriving sexp]
 end
 
 let error t data =
@@ -229,31 +234,29 @@ let error t data =
     abs (eval t [x; y] - value))
   |> Float.sum
 
+module Basis = struct
+  type t =
+    { degree : int
+    ; size : int
+    }
+end
+
 (* "On multivariate Lagrange interpolation" by Thomas Sauer and Yuan Xu. *)
 module Lagrange = struct
-  type poly = t
+  type poly = t [@@deriving sexp_of]
 
   type t =
     { ps : poly list
     ; qs : poly list
     ; vs : Datum.t list
-    }
+    } [@@deriving sexp_of]
 
   (* CR-someday: the paper suggests a different basis which is more stable. *)
-  let init ~max_num_points =
-    (*
-    let rec min_degree degree =
-      if List.length (Mono.all ~degree) >= max_num_points
-      then degree
-      else min_degree Int.(degree + 1)
-    in
-    let degree = min_degree 0 in
-    let qs = all_monomials ~degree in
-    *)
-    let qs = first_monomials max_num_points in
+  let init {Basis. degree; size} =
+    let qs = List.take (all_monomials ~degree) size in
     { qs; ps = []; vs = [] }
 
-  let add_point { ps; qs; vs } v =
+  let add_point ({ ps; qs; vs } as t) v =
     let (x, y) = fst v in
     let eval q = eval q [x; y] in
     (* CR-someday: don't eval multiple times. *)
@@ -268,7 +271,9 @@ module Lagrange = struct
     | [] -> failwithf "max_num_points too low %d points" num_points ()
     | q :: qs ->
       let q_val = eval q in
-      if Float.(q_val = 0.) then failwithf "No unique interpolation" ();
+      if Float.(q_val = 0.)
+      then failwithf
+        !"No unique interpolation: %{sexp:t}, %{sexp:Datum.t}" t v ();
       let new_p = scale q (1. /. q_val) in
       let adjust p = p - scale new_p (eval p) in
       let ps = List.map ps ~f:adjust in
@@ -279,8 +284,8 @@ module Lagrange = struct
   let add_data t ~data =
     List.fold data ~init:t ~f:add_point
 
-  let create ~max_num_points data =
-    init ~max_num_points
+  let create ~basis data =
+    init basis
     |> add_data ~data
 
   let result { ps; vs; qs = _ } =
@@ -289,8 +294,9 @@ module Lagrange = struct
     |> sum
 end
 
-let lagrange data =
-  Lagrange.create ~max_num_points:(List.length data) data
+let lagrange ~degree data =
+  let basis = { Basis. degree; size = List.length data } in
+  Lagrange.create ~basis data
   |> Lagrange.result
 
 module Grid = struct
@@ -347,3 +353,16 @@ let eval_on_grid t ~cache =
       done
     done);
   grid
+
+module Lagrange_state = struct
+  type t =
+    { ps : string list
+    ; qs : string list
+    ; v : V.t
+    } [@@deriving sexp]
+
+  let _create ps qs v =
+    let ps = List.map ps ~f:to_string in
+    let qs = List.map qs ~f:to_string in
+    { ps; qs; v }
+end

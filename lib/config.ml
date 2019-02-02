@@ -61,6 +61,11 @@ let image_to_domain t (i, j) =
   let y = domain_y * (j / image_y) in
   x, y
 
+let domain_centre t =
+  let open Float in
+  let domain_x, domain_y = domain_size t in
+  domain_x / 2., domain_y / 2.
+
 module For_tests = struct
   let t =
     create

@@ -25,7 +25,7 @@ let%expect_test _ =
   |> List.map ~f:to_string
   |> printf !"%{sexp:string list}";
   [%expect {|
-    (1. y x "(y)**2" "(x) * (y)" "(x)**2") |}]
+    (1. y "(y)**2" x "(x) * (y)" "(x)**2") |}]
 
  let%expect_test _ =
   first_monomials 8
@@ -52,7 +52,7 @@ let%expect_test _ =
     ]
     |> List.map ~f:(fun ((x, y), z) -> ((float x, float y), float z))
   in
-  let t = lagrange data in
+  let t = lagrange data ~degree:2 in
   printf !"%s\n" (to_string t);
   [%expect {|
       ((((-2.9999999999999929) + ((0.99999999999999645) * ((x) * (y)))) + ((1.9999999999999991) * ((x)**2))) + ((-4.) * (y))) + ((-3.5527136788005009e-15) * ((y)**2)) |}]

@@ -1,4 +1,3 @@
-
 module Style : sig
   type t = [ `zeroes | `heat ]
 end
@@ -16,6 +15,8 @@ val create
 val grid_size : t -> int * int
 val image_size : t -> int * int
 val domain_size : t -> float * float
+
+val domain_centre : t -> Vector.Float.t
 
 val domain_to_image : t -> Vector.Float.t -> Vector.Int.t
 

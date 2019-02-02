@@ -22,6 +22,8 @@ val scale : t -> float -> t
 
 val zero_line_between_two_points : (float * float) -> (float * float) -> t
 
+val monomials : t -> t list
+
 (* 2D *)
 val all_monomials : degree:int -> t list
 val first_monomials : int -> t list
@@ -40,19 +42,29 @@ module Datum : sig
 end
 
 module Data : sig
-  type t = Datum.t list
+  type t = Datum.t list [@@deriving sexp]
 end
 
 val error : t -> Data.t -> float
 
-val lagrange : Data.t -> t
+module Basis : sig
+  type t =
+    { degree : int
+    ; size : int
+    }
+end
+
+val lagrange : degree:int -> Data.t -> t
 
 (* The expert option if you only want to move a few points *)
 module Lagrange : sig
   type poly = t
   type t
 
-  val create : max_num_points:int -> Data.t -> t
+  val create
+    :  basis:Basis.t
+    -> Data.t
+    -> t
 
   val add_data : t -> data:Data.t -> t
 

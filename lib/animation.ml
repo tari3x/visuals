@@ -8,7 +8,7 @@ module V = Vector.Float
 
 let fun_id = ref 0
 
-let make_fun_name () =
+let _make_fun_name () =
   incr fun_id;
   sprintf "f%d" !fun_id
 
@@ -34,6 +34,7 @@ module State = struct
     ; defs = t.defs
     }
 
+  (* CR: make interpolation fast for camlimage. *)
   let interpolate_two t1 t2 =
     let num_steps = 110 in
     let p1 = product t1 in
@@ -42,15 +43,23 @@ module State = struct
     let epsilon = P.const 0.0000001 in
     let p1 = P.(p1 + epsilon) in
     let p2 = P.(p2 + epsilon) in
-    let f1 = make_fun_name () in
-    let f2 = make_fun_name () in
+    (*
+       let f1 = make_fun_name () in
+       let f2 = make_fun_name () in
+    *)
     List.init num_steps ~f:(fun n ->
+      let defs = [] in
+      (*
       let defs =
         if n > 0 then []
         else [ (f1, p1); (f2, p2) ]
       in
+      *)
       let alpha = float n /. float num_steps in
-      let p = P.(scale (call f1) (1. -. alpha) + scale (call f2) alpha) in
+      let p = P.(scale p1 (1. -. alpha) + scale p2 alpha) in
+      (*
+         let p = P.(scale (call f1) (1. -. alpha) + scale (call f2) alpha) in
+      *)
       { p; ps = t1.ps; dots = t1.dots; defs })
 
   let rec interpolate = function

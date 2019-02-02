@@ -13,10 +13,10 @@ let color =
 
 let draw_dot ~config image v =
   let x, y = Config.domain_to_image config v in
-  let grid_x, grid_y = Config.image_size config in
-  for i = x to x + 5 do
-    for j = y to y + 5 do
-      if 0 <= i && i < grid_x && 0 <= j && j < grid_y
+  let image_x, image_y = Config.image_size config in
+  for i = x to x + 10 do
+    for j = y to y + 10 do
+      if 0 <= i && i < image_x && 0 <= j && j < image_y
       then Rgb24.set image i j Colors.red
     done
   done
@@ -25,10 +25,12 @@ let value_color ~(config : Config.t) p_value =
   let open Float in
   let (min_value, max_value) = Config.cbrange config in
   let value_range = max_value - min_value in
-  let sign = robust_sign p_value |> Sign.to_float in
-  if p_value = 0. then color 0.
+  (* Offset it a bit so we are less likely to hit an exact zero in log *)
+  let p_value = p_value + 1e-7 in
+  let sgn = robust_sign p_value |> Sign.to_float in
+  if Float.(sgn = 0.) then color 0.
   else begin
-    let value = sign * log (abs p_value) in
+    let value = sgn * log (abs p_value) in
     let value = max value min_value in
     let value = min value max_value in
     let w = (value - min_value) / value_range in

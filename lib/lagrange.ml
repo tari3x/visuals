@@ -6,6 +6,8 @@ module L = P.Lagrange
 
 let debug a = debug ~enabled:true a
 
+let degree = 15
+
 let config =
   Config.create
     ~grid_size:(10, 10)
@@ -49,13 +51,14 @@ let _weighted_average ~w points1 points2 =
 module Data = struct
   type t =
     { data : P.Data.t
-    ; lagrange : L.t
+    ; lagrange : L.t sexp_opaque
     ; desc : Sexp.t option
     ; show_dots : V.t list
-    }
+    } [@@deriving sexp]
 
-  let create data ~max_num_points =
-    let lagrange = L.create data ~max_num_points in
+  let create data ~max_size =
+    let basis = { P.Basis. degree; size = max_size } in
+    let lagrange = L.create data ~basis in
     { data; lagrange; desc = None; show_dots = [] }
 
   let add_data t ~data =
@@ -66,48 +69,38 @@ module Data = struct
   let set_desc t ~desc =
     { t with desc = Some desc }
 
-  let set_dots t ~dots =
+  let _set_dots t ~dots =
     { t with show_dots = dots }
 end
 
 let perturbations () =
   let static_points = grid @ random 10 in
-  let num_dynamic = 1 in
-  let max_num_points = List.length static_points + num_dynamic in
-  let static = Data.create static_points ~max_num_points in
-  (*
-     let p1 = (2.7, 2.3) in
-     let p2 = (3.5, 3.3) in
-  *)
-  let p1 = (0.,  4.5) in
-  let p2 = (10., 4.5) in
-  debug !"%{Sexp}" [%message (p1 : V.t) (p2 : V.t)];
+  let max_size = 111 in
+  let static = Data.create static_points ~max_size in
+  let p1 = (-10., 4.5) in
+  let p2 = (20., 4.5) in
+  debug !"%{Sexp#hum}" [%message (static : Data.t)];
+  debug !"%{Sexp#hum}" [%message (p1 : V.t) (p2 : V.t)];
   let data value ~w =
     debug "computing lagrange for w = %f" w;
     let p = Vector.Float.weighted_average p1 p2 ~w in
     Data.add_data static ~data:[p, value]
     |> Data.set_desc ~desc:[%message (value : float) (w : float)]
-    |> Data.set_dots ~dots:[p]
+    (* |> Data.set_dots ~dots:[p] *)
   in
   let open Float in
-  let step = 1e-3 in
   (* let num_steps = V.length (p1 - p2) / step in *)
-  let num_steps = 1 in
+  let num_steps = 3000 in
+  let step = 1. / float num_steps in
   List.init num_steps ~f:(fun i ->
     data 0. ~w:(step * float i))
 
 let animate ~dir =
   let data = perturbations () in
   let (states, errors) =
-    List.map data ~f:(fun {Data. data; lagrange; desc; show_dots } ->
+    List.map data ~f:(fun {Data. data; lagrange; desc = _; show_dots } ->
       let p = L.result lagrange in
-      let value = List.last_exn show_dots |> P.eval_point p in
-      let color = Render_camlimage.value_color ~config value in
       let error = P.error p data in
-      debug
-        !"%{Sexp}"
-        [%message (desc : Sexp.t option) (error : float) (value : float)
-            (color : Color.t)];
       A.State.of_poly p ~show_dots,
       error)
     |> List.unzip
@@ -118,16 +111,3 @@ let animate ~dir =
     |> Render_camlimage.write ~dir
   in
   return ()
-
-
-(* Performance
-
-   Baseline
-   ========
-
-   10 items
-   0m47.059s
-
-   1 item
-   4.7s
-*)

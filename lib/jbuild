@@ -6,6 +6,7 @@
     async_shell
     camlimages.core
     camlimages.png
+    opencl
   ))
   (inline_tests)
   (preprocess (pps (
