@@ -1,12 +1,11 @@
 open Core
-open Bigarray
+open Float_array
 
 open Common
 
 module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
-module A2 = Array2
 
 let _debug a = debug ~enabled:true a
 
@@ -25,7 +24,7 @@ module Var = struct
 end
 
 (* CR-someday: massively inefficient. Just specialize to 2D. *)
-module Values = struct
+module Args = struct
   type t = float Var.Map.t
 
   let create values : t =
@@ -72,9 +71,9 @@ module Mono = struct
       E.(pow (of_string v) n))
     |> E.product
 
-  let eval (t : t) (values : Values.t) =
+  let eval (t : t) (args : Args.t) =
     List.map t ~f:(fun (v, n) ->
-      Float.int_pow (Values.find_exn values v) n)
+      Float.int_pow (Args.find_exn args v) n)
     |> Float.product
 
   let all_of_degree n =
@@ -110,38 +109,42 @@ module Mono = struct
   include Hashable.Make(T)
 end
 
-type t = (Mono.t * float) list
+module Monos = struct
+  type t = (Mono.t * float) list
+end
 
-let zero = []
+type t = float Mono.Map.t
 
-let const x =
-  [Mono.one, x]
+let zero : t = Mono.Map.empty
 
-let mono m =
-  [m, 1.]
+let const x : t =
+  Mono.Map.singleton Mono.one x
 
-let var n =
+let mono m : t =
+  Mono.Map.singleton m 1.
+
+let var n : t =
   mono (Mono.var n)
 
-let call name =
+let call name : t =
   mono (Mono.call name)
 
-let verbatim s =
+let verbatim s : t =
   mono (Mono.verbatim s)
 
-let group_sum t =
-  Mono.Map.of_alist_multi t
-  |> Map.to_alist
-  |> List.filter_map ~f:(fun (mono, coeffs) ->
+let group_sum (monos : Monos.t) : t =
+  Mono.Map.of_alist_multi monos
+  |> Map.filter_map ~f:(fun coeffs ->
     let c = Float.sum coeffs in
     if Float.(c = 0.) then None
-    else Some (mono, c))
+    else Some c)
 
+(* CR-someday: [Map.merge]. *)
 let ( + ) (t1 : t) (t2 : t) : t =
-  group_sum (t1 @ t2)
+  group_sum (Map.to_alist t1 @ Map.to_alist t2)
 
 let ( * ) (t1 : t) (t2 : t) : t =
-  List.cartesian_product t1 t2
+  List.cartesian_product (Map.to_alist t1) (Map.to_alist t2)
   |> List.map ~f:(fun ((m1, c1), (m2, c2)) ->
     (Mono.(m1 * m2), Float.(c1 * c2)))
   |> group_sum
@@ -169,7 +172,8 @@ let var_x = var 1
 let var_y = var 2
 
 let to_maxima (t : t) =
-  List.map t ~f:(fun (m, c) ->
+  Map.to_alist t
+  |> List.map ~f:(fun (m, c) ->
     if Mono.is_one m then E.const c
     else begin
       let m = Mono.to_maxima m in
@@ -198,10 +202,11 @@ let zero_line_between_two_points (x1, y1) (x2, y2) =
 
 let monomials = List.map ~f:List.return
 
-let eval (t : t) (values : float list) =
-  let values = Values.create values in
-  List.map t ~f:(fun (m, c) ->
-    Float.(c * Mono.eval m values))
+let eval (t : t) (args : float list) =
+  let args = Args.create args in
+  Map.to_alist t
+  |> List.map ~f:(fun (m, c) ->
+    Float.(c * Mono.eval m args))
   |> Float.sum
 
 let eval_point (t : t) (x, y) =
@@ -299,47 +304,155 @@ let lagrange ~degree data =
   Lagrange.create ~basis data
   |> Lagrange.result
 
-module Grid = struct
-  type t = (float, float64_elt, c_layout) A2.t
+module Eval_ctx = struct
+  open Opencl
 
-  let create_empty (config : Config.t) =
-    let (w, h) = Config.image_size config in
-    A2.create Bigarray.float64 C_layout w h
+  module GPU_mem = struct
+    type t = (float, float64_elt) Cl.Mem.t
+  end
 
-  let create ~config ~eval =
-    let open Int in
-    let t = create_empty config in
-    for i = 0 to A2.dim1 t - 1 do
-      for j = 0 to A2.dim2 t - 1 do
-        let x, y = Config.image_to_domain config (i, j) in
-        A2.set t i j (eval x y)
-      done
-    done;
-    t
-
-  let zero ~config =
-    let t = create_empty config in
-    A2.fill t 0.;
-    t
-end
-
-module Mono_cache = struct
   type t =
     { config : Config.t
-    ; cache: Grid.t Mono.Table.t
+    ; context : Cl.Context.t
+    ; monos_g : GPU_mem.t
+    ; result_h : A2.t
+    ; result_g : GPU_mem.t
+    ; coeffs_h : A1.t
+    ; coeffs_g : GPU_mem.t
+    ; queue : Cl.Command_queue.t
+    ; kernel : Cl.Kernel.t
     } [@@deriving fields]
 
-  let create ~config : t =
-    let cache = Mono.Table.create () in
-    { config; cache }
+  let build program device =
+    try Cl.build_program program [device] "";
+    with _ ->
+      begin
+        let build_log =
+          Cl.get_program_build_info program device
+            Cl.Program_build_info.build_log
+        in
+        let build_status =
+          Cl.get_program_build_info program device
+            Cl.Program_build_info.build_status
+        in
+        Printf.printf "%s %s\n%!" build_log
+          (Cl.Build_status.to_string build_status)
+      end
 
-  let find_or_add t mono =
-    Hashtbl.find_or_add t.cache mono ~default:(fun () ->
-      Grid.create ~config:t.config ~eval:(fun x y ->
-        Mono.eval mono (Values.create [x; y])))
+  let create ~config ~num_monos : t =
+    let open Int in
+    let platforms = Cl.get_platform_ids () in
+    let platform = List.hd_exn platforms in
+
+    let devices = Cl.get_device_ids platform [Cl.Device_type.ALL] in
+    let device = List.hd_exn devices in
+
+    let context = Cl.create_context [] [device] in
+    let queue = Cl.create_command_queue context device [] in
+    let program = Cl.create_program_with_source context ["
+      __kernel void poly_eval_kernel (
+        __global const double* monos,
+        __global const double* coeffs,
+        __global double* result,
+        const int result_size,
+        const int num_monos)
+      {
+        int i = get_global_id(0);
+
+        result[i] = 0;
+
+        for(int k = 0; k < num_monos; k++){
+          int monos_idx = k * result_size + i;
+          result[i] += monos[monos_idx] * coeffs[k];
+        }
+      }"]
+    in
+    build program device;
+    let kernel = Cl.create_kernel program "poly_eval_kernel" in
+    let x_size, y_size = Config.image_size config in
+    let result_size = x_size * y_size in
+    (* CR: ask the GPU. *)
+    let work_group_size = 128 in
+    if result_size % work_group_size <> 0
+    then failwith "result size must be a multiple of max_work_group_size";
+    let monos_h  = A3.create num_monos x_size y_size in
+    let result_h = A2.create x_size y_size in
+    let coeffs_h = A1.create num_monos in
+    let monos = Mono.first num_monos |> List.sort ~compare:Mono.compare in
+    List.iteri monos ~f:(fun k mono ->
+      let eval x y = Mono.eval mono (Args.create [x; y]) in
+      for i = 0 to x_size - 1 do
+        for j = 0 to y_size - 1 do
+          let x, y = Config.image_to_domain config (i, j) in
+          monos_h.{k, i, j} <- eval x y
+        done
+      done);
+    let monos_g =
+      Cl.create_buffer context
+        Cl.Mem_flags.([READ_ONLY])
+        (Cl.Buffer_contents.SIZE (Bigarray.float64,
+                                  Array3.dim1 monos_h
+                                  * Array3.dim2 monos_h
+                                  * Array3.dim3 monos_h))
+    in
+    let result_g =
+      Cl.create_buffer context
+        Cl.Mem_flags.([WRITE_ONLY])
+        (Cl.Buffer_contents.SIZE (Bigarray.float64,
+                                  Array2.dim1 result_h * Array2.dim2 result_h))
+    in
+    let coeffs_g =
+      Cl.create_buffer context
+        Cl.Mem_flags.([READ_ONLY])
+        (Cl.Buffer_contents.SIZE (Bigarray.float64, Array1.dim coeffs_h))
+    in
+    Cl.set_kernel_arg kernel 0 (Cl.Arg_value.MEM monos_g);
+    Cl.set_kernel_arg kernel 1 (Cl.Arg_value.MEM coeffs_g);
+    Cl.set_kernel_arg kernel 2 (Cl.Arg_value.MEM result_g);
+    Cl.set_kernel_arg kernel 3 (Cl.Arg_value.SCALAR
+                                  (int32, Int32.of_int_exn result_size));
+    Cl.set_kernel_arg kernel 4 (Cl.Arg_value.SCALAR
+                                  (int32, Int32.of_int_exn num_monos));
+    let event =
+      Cl.enqueue_write_buffer queue monos_g true (genarray_of_array3 monos_h) []
+    in
+    Cl.release_event event;
+    { config
+    ; context
+    ; monos_g
+    ; result_h
+    ; result_g
+    ; coeffs_h
+    ; coeffs_g
+    ; queue
+    ; kernel
+    }
+
+  let eval t p =
+    for k = 0 to num_monos - 1 do
+      coeffs_h.{k} <- float (n + k + 1);
+    done;
+    let event =
+      Cl.enqueue_write_buffer queue coeffs_g true (genarray_of_array1 coeffs_h) []
+    in
+    Cl.release_event event;
+    let event =
+      Cl.enqueue_nd_range_kernel
+        queue
+        kernel
+        None
+        [result_size]
+        (Some [work_group_size])
+        []
+    in
+    Cl.release_event event;
+    let event =
+      Cl.enqueue_read_buffer queue result_g true (genarray_of_array2 result_h) []
+    in
+    Cl.release_event event;
 end
 
-let eval_on_grid t ~cache =
+let eval_grid cache t =
   let open Int in
   let config = Mono_cache.config cache in
   let grid = Grid.zero ~config in
@@ -353,16 +466,3 @@ let eval_on_grid t ~cache =
       done
     done);
   grid
-
-module Lagrange_state = struct
-  type t =
-    { ps : string list
-    ; qs : string list
-    ; v : V.t
-    } [@@deriving sexp]
-
-  let _create ps qs v =
-    let ps = List.map ps ~f:to_string in
-    let qs = List.map qs ~f:to_string in
-    { ps; qs; v }
-end

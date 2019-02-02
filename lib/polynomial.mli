@@ -1,3 +1,4 @@
+open Float_array
 
 module V = Vector.Float
 
@@ -71,15 +72,12 @@ module Lagrange : sig
   val result : t -> poly
 end
 
-module Grid : sig
-  open Bigarray
-  type t = (float, float64_elt, c_layout) Array2.t
-end
-
-module Mono_cache : sig
+module Eval_ctx : sig
   type t
 
   val create : config:Config.t -> t
+
+  val release : t -> unit
 end
 
-val eval_on_grid : t -> cache:Mono_cache.t -> Grid.t
+val values : Eval_ctx.t -> t -> A2.t
