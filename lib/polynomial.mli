@@ -2,6 +2,12 @@ open Float_array
 
 module V = Vector.Float
 
+module Var : sig
+  type t
+
+  val create : int -> t
+end
+
 type t
 
 val var : int -> t
@@ -26,7 +32,6 @@ val zero_line_between_two_points : (float * float) -> (float * float) -> t
 val monomials : t -> t list
 
 (* 2D *)
-val all_monomials : degree:int -> t list
 val first_monomials : int -> t list
 
 val to_string : t -> string
@@ -35,6 +40,19 @@ val to_gnuplot : t -> string
 
 val eval : t -> float list -> float
 val eval_point : t -> V.t -> float
+
+val subst : t -> var:Var.t -> by:t -> t
+
+module Basis : sig
+  module Kind : sig
+    type t
+
+    val mono : degree:int -> t
+    val bernstein : degree:int -> domain:(V.t * V.t) -> t
+  end
+
+  val create : Kind.t -> t list
+end
 
 module Datum : sig
   type t = V.t * float [@@deriving sexp]
@@ -48,14 +66,7 @@ end
 
 val error : t -> Data.t -> float
 
-module Basis : sig
-  type t =
-    { degree : int
-    ; size : int
-    }
-end
-
-val lagrange : degree:int -> Data.t -> t
+val lagrange : basis:Basis.Kind.t -> Data.t -> t
 
 (* The expert option if you only want to move a few points *)
 module Lagrange : sig
@@ -63,7 +74,8 @@ module Lagrange : sig
   type t
 
   val create
-    :  basis:Basis.t
+    :  basis:Basis.Kind.t
+    -> size_unused:int
     -> Data.t
     -> t
 
@@ -75,7 +87,7 @@ end
 module Eval_ctx : sig
   type t
 
-  val create : config:Config.t -> t
+  val create : config:Config.t -> degree:int -> t
 
   val release : t -> unit
 end

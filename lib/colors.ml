@@ -6,6 +6,9 @@ module Color = struct
     ; mutable g : int
     ; mutable b : int
     } [@@deriving sexp]
+
+  let graphics_color { r; g; b } =
+    Graphics.rgb r g b
 end
 
 let black =

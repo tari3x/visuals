@@ -1,6 +1,7 @@
 (library (
   (name nullstellen_lib)
   (libraries (
+    graphics
     core
     async
     async_shell

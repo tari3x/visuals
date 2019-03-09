@@ -54,10 +54,23 @@ module Int = struct
 
   let product =
     List.fold ~init:1 ~f:( * )
+
+  let rec factorial n =
+    if n < 0 then failwith "factorial argument must not be negative"
+    else if n = 0 then 1
+    else n * factorial (n - 1)
+
+  let%expect_test _ =
+    printf "%d" (factorial 10);
+      [%expect {|
+          3628800 |}]
 end
 
 let debug ~enabled a =
   ksprintf (fun s -> if enabled then Core.printf "%s\n%!" s) a
+
+let debug_s ~enabled s =
+  if enabled then Core.printf !"%{sexp:Sexp.t}\n%!" s
 
 module List = struct
   include List

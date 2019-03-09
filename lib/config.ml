@@ -45,8 +45,6 @@ let domain_to_image t (x, y) =
   let domain_x, domain_y = t.domain_size in
   let i = image_x * (x / domain_x) in
   let j = image_y * (y / domain_y) in
-  (* use mathematical orientation. *)
-  let j = image_y - j - 1. in
   int_of_float i, int_of_float j
 
 let image_to_domain t (i, j) =
@@ -55,8 +53,6 @@ let image_to_domain t (i, j) =
   let domain_x, domain_y = t.domain_size in
   let i = float i in
   let j = float j in
-  (* use mathematical orientation. *)
-  let j = image_y - j - 1. in
   let x = domain_x * (i / image_x) in
   let y = domain_y * (j / image_y) in
   x, y
@@ -65,6 +61,10 @@ let domain_centre t =
   let open Float in
   let domain_x, domain_y = domain_size t in
   domain_x / 2., domain_y / 2.
+
+let domain t =
+  let domain_x, domain_y = domain_size t in
+  (0., 0.), (domain_x, domain_y)
 
 module For_tests = struct
   let t =

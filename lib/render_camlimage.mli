@@ -1,8 +1,7 @@
 open Async
 
-val value_color : config:Config.t -> float -> Color.Rgb.t
-
 val write
   :  dir:string
+  -> degree:int
   -> Animation.t
   -> unit Deferred.t

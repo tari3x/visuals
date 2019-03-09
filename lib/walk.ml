@@ -39,7 +39,7 @@ let random n =
 let animate ~dir =
   let open P in
   let data = grid @ random 10 in
-  let p = P.lagrange data ~degree in
+  let p = P.lagrange data ~basis:(P.Basis.Kind.mono ~degree) in
   let ps =
     p :: List.concat_map (P.monomials p) ~f:(fun p_m ->
       [p - p_m; p])

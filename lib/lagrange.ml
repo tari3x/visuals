@@ -12,7 +12,7 @@ let config =
   Config.create
     ~grid_size:(10, 10)
     ~cbrange:(-15., 15.)
-    ~image_width:1500
+    ~image_width:896
     ()
 
 let set_value x =
@@ -57,8 +57,13 @@ module Data = struct
     } [@@deriving sexp]
 
   let create data ~max_size =
-    let basis = { P.Basis. degree; size = max_size } in
-    let lagrange = L.create data ~basis in
+    (* let basis = P.Basis.Kind.mono ~degree in *)
+    let (v1, v2) = Config.domain config in
+    let v_margin = (1., 1.) in
+    let v1 = V.(v1 - v_margin) in
+    let v2 = V.(v2 + v_margin) in
+    let basis = P.Basis.Kind.bernstein ~degree ~domain:(v1, v2) in
+    let lagrange = L.create data ~basis ~size_unused:max_size in
     { data; lagrange; desc = None; show_dots = [] }
 
   let add_data t ~data =
@@ -108,6 +113,6 @@ let animate ~dir =
   debug "total error = %f" (Float.sum errors);
   let%bind () =
     A.create ~config states
-    |> Render_camlimage.write ~dir
+    |> Render_camlimage.write ~dir ~degree
   in
   return ()

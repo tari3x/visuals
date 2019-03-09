@@ -14,7 +14,7 @@ open Async
  * hack gnuplot to remove margins
 *)
 
-let command =
+let draw =
   let open Command.Let_syntax in
   Command.async
     ~readme:(fun () -> "")
@@ -27,4 +27,24 @@ let command =
        Lagrange.eval_test ();
        Async.return ()
           *)
+    ]
+
+let window =
+  let open Command.Let_syntax in
+  Command.async
+    ~readme:(fun () -> "")
+    ~summary:""
+    [%map_open
+     let () = return () in
+     fun () ->
+       let open Async in
+       Window.run ();
+       return ()
+    ]
+
+let command =
+  Command.group
+    ~summary:""
+    [ "draw", draw
+    ; "window", window
     ]

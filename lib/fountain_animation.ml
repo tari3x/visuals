@@ -37,7 +37,7 @@ let animate ~dir =
           ~num_points_per_segment:10
           ~phase:(float (step + 12000) /. 40.)
       in
-      let p = P.lagrange ~degree:15 data in
+      let p = P.lagrange ~basis:(P.Basis.Kind.mono ~degree:15) data in
       let _points = List.map data ~f:fst in
       A.State.of_poly p (* ~show_dots:_points *)
     )
@@ -45,4 +45,3 @@ let animate ~dir =
   A.State.interpolate states
   |> A.create ~config
   |> Render_gnuplot.write ~dir
-
