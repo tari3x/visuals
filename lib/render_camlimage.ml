@@ -30,9 +30,9 @@ let write_state
   let values = P.values ctx p in
   for i = 0 to Int.(width - 1) do
     for j = 0 to Int.(height - 1) do
+      let p_value = values.{i, j} in
       (* use mathematical orientation. *)
       let j = Int.(height - 1 - j) in
-      let p_value = values.{i, j} in
       let color = Render.value_color ~config p_value in
       Rgb24.set image i j color;
     done;

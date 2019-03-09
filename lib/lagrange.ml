@@ -48,40 +48,9 @@ let _weighted_average ~w points1 points2 =
   (* CR: *)
   | Unequal_lengths -> points1
 
-module Data = struct
-  type t =
-    { data : P.Data.t
-    ; lagrange : L.t sexp_opaque
-    ; desc : Sexp.t option
-    ; show_dots : V.t list
-    } [@@deriving sexp]
-
-  let create data ~max_size =
-    (* let basis = P.Basis.Kind.mono ~degree in *)
-    let (v1, v2) = Config.domain config in
-    let v_margin = (1., 1.) in
-    let v1 = V.(v1 - v_margin) in
-    let v2 = V.(v2 + v_margin) in
-    let basis = P.Basis.Kind.bernstein ~degree ~domain:(v1, v2) in
-    let lagrange = L.create data ~basis ~size_unused:max_size in
-    { data; lagrange; desc = None; show_dots = [] }
-
-  let add_data t ~data =
-    let lagrange = L.add_data t.lagrange ~data in
-    let data = t.data @ data in
-    { data; lagrange; desc = t.desc; show_dots = t.show_dots }
-
-  let set_desc t ~desc =
-    { t with desc = Some desc }
-
-  let _set_dots t ~dots =
-    { t with show_dots = dots }
-end
-
 let perturbations () =
   let static_points = grid @ random 10 in
-  let max_size = 111 in
-  let static = Data.create static_points ~max_size in
+  let static = Data.create static_points ~degree in
   let p1 = (-10., 4.5) in
   let p2 = (20., 4.5) in
   debug !"%{Sexp#hum}" [%message (static : Data.t)];

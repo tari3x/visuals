@@ -7,7 +7,7 @@ module E = Maxima.Expr
 module V = Vector.Float
 module Matrix = Maxima.Matrix
 
-let debug a = debug_s ~enabled:true a
+let debug a = debug_s ~enabled:false a
 
 (* CR-someday: this will become [Atom] which is either variable with index or
    arbitrary string. *)
