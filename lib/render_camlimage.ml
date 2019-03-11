@@ -27,7 +27,7 @@ let write_state
   let p = P.product (p :: ps) in
   let filename = dir ^/ sprintf "frame%06d.png" !file_id in
   let image = Rgb24.make width height Colors.black in
-  let values = P.values ctx p in
+  let values = Eval.values ctx p in
   for i = 0 to Int.(width - 1) do
     for j = 0 to Int.(height - 1) do
       let p_value = values.{i, j} in
@@ -47,7 +47,7 @@ let write_state
   Png.save filename [] (Images.Rgb24 image)
 
 let write ~dir ~degree { A. config; states } =
-  let ctx = P.Eval_ctx.create ~config ~degree in
+  let ctx = Eval.Ctx.create ~config ~degree in
   List.iter states ~f:(write_state ~dir ~config ~ctx);
-  P.Eval_ctx.release ctx;
+  Eval.Ctx.release ctx;
   Async.return ()

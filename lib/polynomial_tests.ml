@@ -24,7 +24,7 @@ let%expect_test _ =
   [%expect {| ((x)**4) + ((y)**4) |}]
 
 let%expect_test _ =
-  Basis.create (Basis.Kind.mono ~degree:2)
+  Basis.mono ~degree:2
   |> List.map ~f:to_string
   |> printf !"%{sexp:string list}";
   [%expect {|
@@ -33,7 +33,7 @@ let%expect_test _ =
 let unit_domain = ((0., 0.), (1., 1.))
 
 let%expect_test _ =
-  Basis.create (Basis.Kind.bernstein ~degree:1 ~domain:unit_domain)
+  Basis.bernstein ~degree:1 ~domain:unit_domain
   |> List.map ~f:to_string
   |> printf !"%{sexp:string list}";
   [%expect {|
@@ -57,13 +57,12 @@ let%expect_test _ =
   for i = 1 to 20
   do begin
     let num_mono =
-      List.length (Basis.create (Basis.Kind.mono ~degree:i))
+      List.length (Basis.mono ~degree:i)
     in
     let num_bernstein =
-      List.length (Basis.create
-                     (Basis.Kind.bernstein ~degree:i ~domain:unit_domain))
+      List.length (Basis.bernstein ~degree:i ~domain:unit_domain)
     in
-    assert (num_mono = num_bernstein);
+    assert Int.(num_mono = num_bernstein);
     printf "(%d %d) " i num_mono;
   end
   done;
@@ -82,16 +81,16 @@ let lagrange_data =
   |> List.map ~f:(fun ((x, y), z) -> ((float x, float y), float z))
 
 let%expect_test _ =
-  let t = lagrange lagrange_data ~basis:(Basis.Kind.mono ~degree:2) in
+  let t = Lagrange.simple lagrange_data ~basis:(Basis.mono ~degree:2) in
   printf !"%s\n" (to_string t);
   [%expect {|
       ((((-2.9999999999999929) + ((0.99999999999999645) * ((x) * (y)))) + ((1.9999999999999991) * ((x)**2))) + ((-4.) * (y))) + ((-3.5527136788005009e-15) * ((y)**2)) |}]
 
 let%expect_test _ =
   let t =
-    lagrange
+    Lagrange.simple
       lagrange_data
-      ~basis:(Basis.Kind.bernstein ~degree:2 ~domain:unit_domain)
+      ~basis:(Basis.bernstein ~degree:2 ~domain:unit_domain)
   in
   printf !"%s\n" (to_string t);
   [%expect {|

@@ -11,4 +11,4 @@ val frame
   -> num_segments:int
   -> num_points_per_segment:int
   -> phase:float
-  -> P.Datum.t list
+  -> Lagrange.Datum.t list

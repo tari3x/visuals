@@ -1,6 +1,6 @@
 open Std_internal
 
-module L = P.Lagrange
+module L = Lagrange
 
 let debug a = debug ~enabled:true a
 
@@ -14,7 +14,7 @@ let config =
     ()
 
 let animate ~dir =
-  P.Basis.create (P.Basis.Kind.mono ~degree)
+  P.Basis.mono ~degree
   |> List.map ~f:A.State.of_poly
   |> List.permute
   |> A.create ~config

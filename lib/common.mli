@@ -1,6 +1,8 @@
 open Core
 open Async
 
+include module type of Int.Replace_polymorphic_compare
+
 val weighted_average : float -> float -> w:float -> float
 
 val interpolate
@@ -22,6 +24,8 @@ module Float : sig
 
   val sum : t list -> t
   val product : t list -> t
+  val average_exn : t list -> t
+  val sign_val : t -> t
 end
 
 module Int : sig
@@ -35,7 +39,6 @@ end
 val debug : enabled:bool -> ('a, unit, string, unit) format4 -> 'a
 
 val debug_s : enabled:bool -> Sexp.t -> unit
-
 
 module List : sig
   include module type of List

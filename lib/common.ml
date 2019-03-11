@@ -1,6 +1,8 @@
 open Core
 open Async
 
+include Int.Replace_polymorphic_compare
+
 let () = Random.init 150
 
 let weighted_average x1 x2 ~w =
@@ -44,6 +46,12 @@ module Float = struct
 
   let product =
     List.fold ~init:1. ~f:( * )
+
+  let average_exn xs =
+    sum xs / float (List.length xs)
+
+  let sign_val t =
+    robust_sign t |> Sign.to_float
 end
 
 module Int = struct

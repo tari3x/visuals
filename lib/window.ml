@@ -88,8 +88,8 @@ module State = struct
       P.Basis.Kind.bernstein ~degree ~domain:(Config.domain config)
     in
     *)
-    let basis = P.Basis.Kind.mono ~degree in
-    P.lagrange ~basis data
+    let basis = P.Basis.mono ~degree in
+    Lagrange.simple ~basis data
 
   let draw_dots { zeroes; nonzero = _; prev = _ } =
     G.set_color G.white;
@@ -134,7 +134,7 @@ end
 
 let draw_poly ctx p =
   debug "poly: %s" (P.to_string p);
-  let values = P.values ctx p in
+  let values = Eval.values ctx p in
   let image =
     Array.init (A2.dim1 values) ~f:(fun j ->
       Array.init (A2.dim2 values) ~f:(fun i ->
@@ -146,7 +146,7 @@ let draw_poly ctx p =
   G.draw_image image 0 0
 
 let run () =
-  let ctx = P.Eval_ctx.create ~config ~degree in
+  let ctx = Eval.Ctx.create ~config ~degree in
   let events = Events.create () in
   let draw state =
     Or_error.try_with (fun () ->

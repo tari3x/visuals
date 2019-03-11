@@ -39,9 +39,9 @@ let random n =
 let animate ~dir =
   let open P in
   let data = grid @ random 10 in
-  let p = P.lagrange data ~basis:(P.Basis.Kind.mono ~degree) in
+  let p = Lagrange.simple data ~basis:(P.Basis.mono ~degree) in
   let ps =
-    p :: List.concat_map (P.monomials p) ~f:(fun p_m ->
+    p :: List.concat_map (P.monomials p) ~f:(fun (p_m, _) ->
       [p - p_m; p])
   in
   let states = List.map ps ~f:A.State.of_poly in
