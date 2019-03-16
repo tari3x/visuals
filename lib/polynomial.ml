@@ -172,11 +172,11 @@ let pow t n =
   List.init n ~f:(fun _ -> t)
   |> product
 
-let scale t x =
+let scale t ~by:x =
   product [ const x; t ]
 
 let ( - ) t1 t2 =
-  sum [t1; scale t2 (-1.)]
+  sum [t1; scale t2 ~by:(-1.)]
 
 let var_x = var 1
 let var_y = var 2
@@ -262,10 +262,10 @@ module Basis = struct
       t
       |> subst
           ~var:(Var.create 1)
-          ~by:(scale (var_x - const x1) Float.(1. / (x2 - x1)))
+          ~by:(scale (var_x - const x1) ~by:Float.(1. / (x2 - x1)))
       |> subst
           ~var:(Var.create 2)
-          ~by:(scale (var_y - const y1) Float.(1. / (y2 - y1)))
+          ~by:(scale (var_y - const y1) ~by:Float.(1. / (y2 - y1)))
     )
 
 end

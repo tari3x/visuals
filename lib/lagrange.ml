@@ -3,7 +3,7 @@ open Std_internal
 
 (* "On multivariate Lagrange interpolation" by Thomas Sauer and Yuan Xu. *)
 
-let debug a = debug_s ~enabled:false a
+let debug a = debug_s ~enabled:true a
 
 module Datum = struct
   type t = V.t * float [@@deriving sexp]
@@ -42,42 +42,61 @@ type self = t [@@deriving sexp_of]
 let init basis =
   { qs = basis; ps = []; vs = [] }
 
+let balanced_q qs ~cutoff ~ev =
+  let open Float in
+  let qs =
+    List.filter_map qs ~f:(fun q ->
+      let qv = ev q in
+      if abs qv <= cutoff then None
+      else Some (qv, q))
+  in
+  (*
+  let w_abs_tot =
+    List.map qs ~f:(fun (w, _) -> Float.abs w)
+    |> Float.sum
+  in
+  *)
+  debug [%message (qs : (float * P.t) list)];
+  List.map qs ~f:(fun (w, q) -> P.scale q ~by:w)
+  |> P.sum
+  (* |> P.scale ~by:(1. / w_abs_tot) *)
+
 let add_point ({ ps; qs; vs } as t) v =
   let open Float in
   let (x, y) = fst v in
   let ev q = P.eval q [x; y] in
   let ev_abs q = Float.abs (ev q) in
   let num_points = List.length vs in
-  let choose_q qs =
+  let next_q qs =
     match qs with
     | [] -> failwithf "max_num_points too low %d points" num_points ()
     | q :: qs ->
-      let cap = List.map (q :: qs) ~f:ev_abs |> Float.average_exn in
-      if cap = 0.
-      then failwithf !"cap = 0 %{sexp:self}, %{sexp:Datum.t}" t v ();
+      let cutoff = List.map (q :: qs) ~f:ev_abs |> Float.average_exn in
+      (* let cutoff = cutoff / 3. in *)
+      debug [%message (cutoff : float)];
+      if cutoff = 0.
+      then failwithf !"cutoff = 0 %{sexp:self}, %{sexp:Datum.t}" t v ();
       let qv = ev q in
+      debug [%message (qv : float)];
       let q =
-        if Float.abs qv >= cap then q
+        if Float.abs qv >= cutoff then q
         else begin
-          let q' =
-            List.find qs ~f:(fun q -> ev_abs q > cap)
-            |> function
-              | Some q -> q
-              | None ->
-                failwithf !"no q' %{sexp:self}, %{sexp:Datum.t}" t v ();
-          in
+          let q' = balanced_q qs ~cutoff ~ev in
+          debug [%message (q' : P.t)];
           let qv' = ev q' in
+          debug [%message (qv' : float)];
           let qv' = if qv * qv' >= 0. then qv' else (-qv') in
-          let a = (cap - qv') / (qv - qv') in
-          P.(scale q a + scale q' Float.(1. - a))
+          let a = (cutoff - qv') / (qv - qv') in
+          debug [%message (a : float)];
+          P.(scale q ~by:a + scale q' ~by:Float.(1. - a))
         end
       in
       q, qs
   in
   let vs = v :: vs in
-  let q, qs = choose_q qs in
-  let new_p = P.(scale q (1. /. ev q)) in
-  let adjust p = P.(p - scale new_p (ev p)) in
+  let q, qs = next_q qs in
+  let new_p = P.(scale q ~by:(1. /. ev q)) in
+  let adjust p = P.(p - scale new_p ~by:(ev p)) in
   let ps = List.map ps ~f:adjust in
   let qs = List.map qs ~f:adjust in
   let ps = new_p :: ps in
@@ -95,7 +114,7 @@ let create ~basis data =
 
 let result { ps; vs; qs = _ } =
   let values = List.map vs ~f:snd in
-  List.map2_exn ps values ~f:P.scale
+  List.map2_exn ps values ~f:(fun p w -> P.scale p ~by:w)
   |> P.sum
 
 let simple ~basis data =

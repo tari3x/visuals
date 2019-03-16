@@ -29,7 +29,7 @@ val pow : t -> int -> t
 val product : t list -> t
 val sum : t list -> t
 
-val scale : t -> float -> t
+val scale : t -> by:float -> t
 
 val zero_line_between_two_points : (float * float) -> (float * float) -> t
 

@@ -2,7 +2,7 @@ open Core
 open Async
 open Std_internal
 
-let debug a = debug_s ~enabled:false a
+let debug a = debug_s ~enabled:true a
 
 module L = Lagrange
 
@@ -28,7 +28,8 @@ let flyby () =
   let num_steps = 100 in
   let step = 1. / float num_steps in
   List.init num_steps ~f:(fun i ->
-    data ~w:(step * float i))
+    data ~w:(step * float i)
+  )
 
 let animate ~dir =
   let data = flyby () in

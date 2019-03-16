@@ -56,7 +56,7 @@ module State = struct
       in
       *)
       let alpha = float n /. float num_steps in
-      let p = P.(scale p1 (1. -. alpha) + scale p2 alpha) in
+      let p = P.(scale p1 ~by:(1. -. alpha) + scale p2 ~by:alpha) in
       (*
          let p = P.(scale (call f1) (1. -. alpha) + scale (call f2) alpha) in
       *)
