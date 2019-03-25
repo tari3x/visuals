@@ -21,13 +21,11 @@ let draw_dot ~config image v =
 module Ctx = struct
   type t =
     { eval : Eval.Ctx.t
-    ; render : Render.Ctx.t
     }
 
   let create ~config ~degree =
     let eval = Eval.Ctx.create ~config ~degree in
-    let render = Render.Ctx.create ~config in
-    { eval; render }
+    { eval }
 end
 
 (* CR: zeroes still happen. *)
@@ -46,14 +44,14 @@ let write_state
       let p_value = values.{i, j} in
       (* use mathematical orientation. *)
       let j = Int.(height - 1 - j) in
-      let color = Render.value_color ctx.render p_value in
+      let color = Render.value_color p_value in
       Rgb24.set image i j color;
     done;
   done;
   List.iter dots ~f:(fun dot ->
     let i, j = Config.domain_to_image config dot in
     let p_value = A2.get values i j in
-    let color = Render.value_color ctx.render p_value in
+    let color = Render.value_color p_value in
     debug !"%{Sexp}" [%message (p_value : float) (color : Color.t)];
     draw_dot ~config image dot
   );

@@ -19,13 +19,15 @@ module Probe = struct
   end
 
   let summary t =
+    let zero = Time_ns.Span.zero in
     let n = List.length t.finished in
-    let total =
-      if n = 0 then Time_ns.Span.zero
-      else List.reduce_exn t.finished ~f:Time_ns.Span.(+)
-    in
-    let average = Time_ns.Span.scale total Float.(1. / float n) in
-    { Summary. average; total }
+    if n = 0
+    then { Summary. total = zero; average = zero }
+    else begin
+      let total = List.reduce_exn t.finished ~f:Time_ns.Span.(+) in
+      let average = Time_ns.Span.scale total Float.(1. / float n) in
+      { average; total }
+    end
 end
 
 type t = Probe.t String.Table.t [@@deriving sexp]

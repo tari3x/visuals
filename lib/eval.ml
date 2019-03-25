@@ -51,6 +51,7 @@ module Ctx = struct
 
   let create ~config ~degree : t =
     let open Int in
+    let (min_value, max_value) = Config.cbrange config in
     let num_monos = P.Basis.mono ~degree |> List.length in
     let platforms = Cl.get_platform_ids () in
     let platform = List.hd_exn platforms in
@@ -60,6 +61,8 @@ module Ctx = struct
 
     let context = Cl.create_context [] [device] in
     let queue = Cl.create_command_queue context device [] in
+    (* 1e-7: Offset it a bit so we are less likely to hit an exact zero in
+       log *)
     let code = sprintf
       {|
           __kernel void poly_eval_kernel (
@@ -70,14 +73,33 @@ module Ctx = struct
             {
               int i = get_global_id(0);
 
+              double min_value = %f;
+              double max_value = %f;
+              double value_range = %f;
+              double num_monos = %d;
               double r = 0;
 
-              for(int k = 0; k < %d; k++)
+              for(int k = 0; k < num_monos; k++)
                 r += coeffs[k] * monos[k * result_size + i];
+                // done;
 
-                result[i] = r;
-              }
+              r = r + 1e-7;
+              if (r > 0) // then
+                r = log(r);
+              if (r < 0) // then
+                r = -log(-r);
+
+              r = max(r, min_value);
+              r = min(r, max_value);
+
+              r = (r - min_value) / value_range;
+
+              result[i] = r;
+            }
           |}
+      min_value
+      max_value
+      (max_value -. min_value)
       num_monos
     in
     let program = Cl.create_program_with_source context [code] in

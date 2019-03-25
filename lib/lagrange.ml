@@ -1,8 +1,6 @@
 open Core
 open Std_internal
 
-(* "On multivariate Lagrange interpolation" by Thomas Sauer and Yuan Xu. *)
-
 let debug a = debug_s ~enabled:false a
 
 module Datum = struct
@@ -25,7 +23,6 @@ let error t data =
     abs (P.eval t [x; y] - value))
   |> Float.sum
 
-
 (* Invariant:
    1. [ps @ qs] are a basis.
    2. [ps] are orthonormal w.r.t [vs]
@@ -44,7 +41,6 @@ let init basis =
 
 let balanced_q qs ~ev =
   let open Float in
-  (* let min_weight = 1. in *)
   let qs =
     List.map qs ~f:(fun q ->
       (ev q, q))
@@ -59,6 +55,7 @@ let balanced_q qs ~ev =
   |> P.sum
   |> P.scale ~by:(1. / w_abs_tot)
 
+(** "On multivariate Lagrange interpolation" by Thomas Sauer and Yuan Xu. *)
 let add_point { ps; qs; vs } v =
   let open Float in
   let (x, y) = fst v in

@@ -157,13 +157,11 @@ let colors =
 module Ctx = struct
   type t =
     { eval : Eval.Ctx.t
-    ; render : Render.Ctx.t
     }
 
   let create () =
     let eval = Eval.Ctx.create ~config ~degree in
-    let render = Render.Ctx.create ~config in
-    { eval; render }
+    { eval }
 end
 
 let draw_poly (ctx : Ctx.t) p =
@@ -174,7 +172,7 @@ let draw_poly (ctx : Ctx.t) p =
     for j = 0 to A2.dim2 values - 1 do
       let color =
         A2.get_flipped values i j
-        |> Render.value_graphics_color ctx.render
+        |> Render.value_graphics_color
       in
       colors.(j).(i) <- color;
     done
