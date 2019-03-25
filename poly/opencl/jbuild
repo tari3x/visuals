@@ -1,0 +1,9 @@
+ (library (
+  (name opencl)
+  (libraries (
+  ))
+  (flags (-w +a-50))
+  (c_names (cl_stubs))
+  (c_flags ())
+  (c_library_flags (-lOpenCL))  
+))

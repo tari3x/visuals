@@ -21,6 +21,8 @@ _build
 *.cmxs
 *.cmjs
 
+*.exe
+
 # backup files
 *~
 *#
