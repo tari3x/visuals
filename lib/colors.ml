@@ -279,11 +279,14 @@ let gnuplot_colors =
   ; (0.9980,0.9883,0.0000)
   ; (1.0000,1.0000,0.0000)
   |]
-|> Array.map ~f:(fun (r, g, b) ->
-  let r = c r in
-  let g = c g in
-  let b = c b in
-  { Color. r; g; b })
+  |> Array.map ~f:(fun (r, g, b) ->
+    let r = c r in
+    let g = c g in
+    let b = c b in
+    { Color. r; g; b })
 
-let gnuplot_color w =
-  gnuplot_colors.(c w)
+let graphics_colors =
+  Array.map gnuplot_colors ~f:Color.graphics_color
+
+let num_colors = Array.length gnuplot_colors
+

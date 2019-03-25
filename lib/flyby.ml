@@ -17,7 +17,7 @@ let config =
 
 let flyby () =
   let open Float in
-  let basis = P.[ const 1.; y; x ] in
+  let basis = P.[ const 500.; y; x ] in
   let data ~w : Data.t =
     debug [%message (w : float)];
     let p1 = (5., 5.) in
@@ -37,6 +37,7 @@ let animate ~dir =
     List.map data ~f:(fun {Data. data = _; lagrange; desc = _; show_dots } ->
       let p = L.result lagrange in
       A.State.of_poly p ~show_dots)
+    |> List.take ~n:1
   in
   let%bind () =
     A.create ~config states

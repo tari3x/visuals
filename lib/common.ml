@@ -5,6 +5,14 @@ include Int.Replace_polymorphic_compare
 
 let () = Random.init 150
 
+module type Ring = sig
+  type t [@@deriving sexp, compare]
+
+  val ( + ) : t -> t -> t
+  val ( - ) : t -> t -> t
+  val ( * ) : t -> t -> t
+end
+
 let weighted_average x1 x2 ~w =
   let open Float in
   (1. - w) * x1 + w * x2
@@ -82,6 +90,9 @@ let debug_s ~enabled s =
 
 module List = struct
   include List
+
+  let take t ~n =
+    take t n
 
   let rec product = function
     | [] -> []

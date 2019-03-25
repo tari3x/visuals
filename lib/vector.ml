@@ -1,14 +1,5 @@
 open Core
-
 open Common
-
-module type Ring = sig
-  type t [@@deriving sexp, compare]
-
-  val ( + ) : t -> t -> t
-  val ( - ) : t -> t -> t
-  val ( * ) : t -> t -> t
-end
 
 module Make (R : Ring) = struct
   module T = struct

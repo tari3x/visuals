@@ -5,7 +5,9 @@ module Color : sig
   val graphics_color : t -> Graphics.color
 end
 
-val gnuplot_color : float -> Color.t
+val num_colors : int
+val gnuplot_colors : Color.t array
+val graphics_colors : Graphics.color array
 
 val black : Color.t
 

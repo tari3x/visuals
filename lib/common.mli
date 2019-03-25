@@ -3,6 +3,14 @@ open Async
 
 include module type of Int.Replace_polymorphic_compare
 
+module type Ring = sig
+  type t [@@deriving sexp, compare]
+
+  val ( + ) : t -> t -> t
+  val ( - ) : t -> t -> t
+  val ( * ) : t -> t -> t
+end
+
 val weighted_average : float -> float -> w:float -> float
 
 val interpolate
@@ -44,4 +52,7 @@ module List : sig
   include module type of List
 
   val product : 'a t t -> 'a t t
+
+  val take : 'a t -> n:int -> 'a t
 end
+

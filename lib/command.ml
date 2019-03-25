@@ -22,7 +22,7 @@ let draw =
     [%map_open
      let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
      fun () ->
-       Flyby.animate ~dir
+       Grid.animate ~dir
           (*
        Lagrange.eval_test ();
        Async.return ()

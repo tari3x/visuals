@@ -49,10 +49,11 @@ let _weighted_average ~w points1 points2 =
   | Unequal_lengths -> points1
 
 let perturbations () =
+  let basis = List.take (P.Basis.mono ~degree) ~n:113 in
   let static_points = grid @ random 10 in
-  let static = Data.create static_points ~degree in
-  let p1 = (-10., 4.5) in
-  let p2 = (20., 4.5) in
+  let static = Data.create ~basis static_points ~degree in
+  let p1 = (-2., 4.5) in
+  let p2 = (12., 4.5) in
   debug !"%{Sexp#hum}" [%message (static : Data.t)];
   debug !"%{Sexp#hum}" [%message (p1 : V.t) (p2 : V.t)];
   let data value ~w =

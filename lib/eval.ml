@@ -176,11 +176,13 @@ module Ctx = struct
         (Some [t.work_group_size])
         []
     in
+    Cl.wait_for_events [event];
     Cl.release_event event;
     let event =
       Cl.enqueue_read_buffer t.queue t.result_g true
         (genarray_of_array2 t.result_h) []
     in
+    Cl.wait_for_events [event];
     Cl.release_event event;
     t.result_h
 

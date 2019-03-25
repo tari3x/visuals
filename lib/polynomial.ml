@@ -102,7 +102,7 @@ module Mono = struct
       let ts = all_of_degree degree in
       let nd = List.length ts in
       if n <= nd
-      then List.take ts n
+      then List.take ts ~n
       else ts @ aux ~degree:(degree + 1) (n - nd)
     in
     aux ~degree:0 n
@@ -236,7 +236,11 @@ let first_monomials n =
 
 module Basis = struct
   let mono ~degree =
-    Mono.all ~degree |> List.map ~f:mono
+    let monos =
+      Mono.all ~degree
+      |> List.map ~f:mono
+    in
+    const 500. :: List.drop monos 1
 
   (* "The Multivariate Bernstein Basis Polynomials and Their Kernels" by
      K. Jetter. *)

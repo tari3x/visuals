@@ -1,11 +1,11 @@
 open Core
 open Std_internal
 
-let debug a = debug ~enabled:true a
+let debug a = debug ~enabled:false a
 
 module G = Graphics
 
-let degree = 1
+let degree = 3
 
 let config =
   Config.create
@@ -16,12 +16,11 @@ let config =
 
 module Event = struct
   type t = G.status =
-    {
-      mouse_x : int;
-      mouse_y : int;
-      button : bool;
-      keypressed : bool;
-      key : char;
+    { mouse_x : int
+    ; mouse_y : int
+    ; button : bool
+    ; keypressed : bool
+    ; key : char
     } [@@deriving sexp]
 end
 
@@ -39,6 +38,12 @@ module State = struct
     | Move_nonzero of V.t
     | Undo
         [@@deriving sexp]
+
+    let should_animate = function
+      | Add_zero _
+      | Undo -> false
+      | Move_zero _
+      | Move_nonzero _ -> true
   end
 
   let create () =
@@ -91,11 +96,22 @@ module State = struct
     let basis = P.Basis.mono ~degree in
     Lagrange.simple ~basis data
 
+  let poly t =
+    Probe.with_probe "poly" (fun () -> poly t)
+
   let draw_dots { zeroes; nonzero = _; prev = _ } =
     G.set_color G.white;
     List.iter zeroes ~f:(fun v ->
       let (i, j) = Config.domain_to_image config v in
       G.draw_circle i j 10)
+
+  let weighted_average ~w t1 t2 =
+    let v_avg = V.weighted_average ~w in
+    let { zeroes = zs1; nonzero = nz1; prev = _ } = t1 in
+    let { zeroes = zs2; nonzero = nz2; prev } = t2 in
+    let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
+    let nonzero = v_avg nz1 nz2 in
+    { zeroes; nonzero; prev }
 end
 
 module Events = struct
@@ -132,21 +148,43 @@ module Events = struct
     else mouse_event ()
 end
 
-let draw_poly ctx p =
+let colors =
+  let image_x, image_y = Config.image_size config in
+  Array.init image_y ~f:(fun _ ->
+    Array.init image_x ~f:(fun _ ->
+       Graphics.rgb 0 0 0))
+
+module Ctx = struct
+  type t =
+    { eval : Eval.Ctx.t
+    ; render : Render.Ctx.t
+    }
+
+  let create () =
+    let eval = Eval.Ctx.create ~config ~degree in
+    let render = Render.Ctx.create ~config in
+    { eval; render }
+end
+
+let draw_poly (ctx : Ctx.t) p =
   debug "poly: %s" (P.to_string p);
-  let values = Eval.values ctx p in
-  let image =
-    Array.init (A2.dim1 values) ~f:(fun j ->
-      Array.init (A2.dim2 values) ~f:(fun i ->
-        let p_value = A2.get_flipped values i j in
-        Render.value_color ~config p_value
-        |> Color.graphics_color))
-    |> G.make_image
-  in
-  G.draw_image image 0 0
+  let values = Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p) in
+  Probe.start "colors";
+  for i = 0 to A2.dim1 values - 1 do
+    for j = 0 to A2.dim2 values - 1 do
+      let color =
+        A2.get_flipped values i j
+        |> Render.value_graphics_color ctx.render
+      in
+      colors.(j).(i) <- color;
+    done
+  done;
+  Probe.stop "colors";
+  let image = Probe.with_probe "image" (fun () -> G.make_image colors) in
+  Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
 
 let run () =
-  let ctx = Eval.Ctx.create ~config ~degree in
+  let ctx = Ctx.create () in
   let events = Events.create () in
   let draw state =
     Or_error.try_with (fun () ->
@@ -154,17 +192,26 @@ let run () =
     |> Or_error.iter_error ~f:(Core.eprintf !"%{Error#hum}\n%!");
     State.draw_dots state
   in
-  let rec loop state =
-    draw state;
+  let rec loop states =
+    List.iter states ~f:draw;
+    let state = List.last_exn states in
+    Probe.print_and_clear ();
     let event = G.wait_next_event [ Button_down; Key_pressed ] in
     debug !"event: %{sexp:Event.t}" event;
     match Events.feed_event events event with
-    | None -> loop state
+    | None -> loop [state]
     | Some update ->
       debug !"update: %{sexp:State.Update.t}" update;
-      let state = State.update state update in
-      loop state
+      let new_state = State.update state update in
+      let states =
+        if State.Update.should_animate update
+        then interpolate [ state; new_state ]
+          ~num_steps:20
+          ~weighted_average:State.weighted_average
+        else [new_state]
+      in
+      loop states
   in
   let image_x, image_y = Config.image_size config in
   G.open_graph (sprintf " %dx%d" image_x image_y);
-  loop (State.create ())
+  loop [State.create ()]
