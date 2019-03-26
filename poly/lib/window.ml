@@ -5,7 +5,7 @@ let debug a = debug ~enabled:false a
 
 module G = Graphics
 
-let degree = 3
+let degree = 2
 
 let config =
   Config.create
