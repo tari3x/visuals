@@ -22,6 +22,19 @@ module A2 = struct
     t.{i, j}
 end
 
+module A2_int = struct
+  include (Array2 : module type of Array2
+    with type ('a, 'b, 'c) t := ('a, 'b, 'c) Array2.t)
+
+  type t = (int, int_elt, c_layout) Array2.t
+
+  let create = create int C_layout
+
+  let get_flipped t i j =
+    let j = dim2 t - j - 1 in
+    t.{i, j}
+end
+
 module A3 = struct
   include (Array3 : module type of Array3
     with type ('a, 'b, 'c) t := ('a, 'b, 'c) Array3.t)

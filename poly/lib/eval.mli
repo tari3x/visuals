@@ -10,4 +10,4 @@ module Ctx : sig
   val release : t -> unit
 end
 
-val values : Ctx.t -> P.t -> A2.t
+val values : Ctx.t -> P.t -> A2_int.t

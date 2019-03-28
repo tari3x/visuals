@@ -1,11 +1,10 @@
 open Core
 open Std_internal
 
-let color_index value =
-  Int.of_float value
+let _debug a = debug_s ~enabled:true a
 
 let value_color value =
-  Colors.gnuplot_colors.(color_index value)
+  Colors.gnuplot_colors.(value)
 
 let value_graphics_color value =
-  Colors.graphics_colors.(color_index value)
+  Colors.graphics_colors.(value)

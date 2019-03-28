@@ -52,7 +52,7 @@ let write_state
     let i, j = Config.domain_to_image config dot in
     let p_value = A2.get values i j in
     let color = Render.value_color p_value in
-    debug !"%{Sexp}" [%message (p_value : float) (color : Color.t)];
+    debug !"%{Sexp}" [%message (p_value : int) (color : Color.t)];
     draw_dot ~config image dot
   );
   Png.save filename [] (Images.Rgb24 image)

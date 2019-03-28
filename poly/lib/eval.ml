@@ -14,6 +14,11 @@ module Ctx = struct
     type t = (float, float64_elt) Cl.Mem.t
   end
 
+  module Cl_mem_int = struct
+    type t = (int, int_elt) Cl.Mem.t
+  end
+
+
   type t =
     { config : Config.t
     ; work_group_size : int
@@ -21,8 +26,8 @@ module Ctx = struct
     ; monos : P.t list
     ; monos_g : Cl_mem.t
     ; result_size : int
-    ; result_h : A2.t
-    ; result_g : Cl_mem.t
+    ; result_h : A2_int.t
+    ; result_g : Cl_mem_int.t
     ; coeffs_h : A1.t
     ; coeffs_g : Cl_mem.t
     ; queue : Cl.Command_queue.t
@@ -68,7 +73,7 @@ module Ctx = struct
           __kernel void poly_eval_kernel (
             __global const double* monos,
             __global const double* coeffs,
-            __global double* result,
+            __global long* result,
             const int result_size)
             {
               int i = get_global_id(0);
@@ -114,7 +119,7 @@ module Ctx = struct
     if result_size % work_group_size <> 0
     then failwith "result size must be a multiple of max_work_group_size";
     let monos_h  = A3.create num_monos x_size y_size in
-    let result_h = A2.create x_size y_size in
+    let result_h = A2_int.create x_size y_size in
     let coeffs_h = A1.create num_monos in
     let monos = P.first_monomials num_monos |> List.sort ~compare:P.compare in
     let monos_size =
@@ -130,7 +135,7 @@ module Ctx = struct
     let result_g =
       Cl.create_buffer context
         Cl.Mem_flags.([WRITE_ONLY])
-        (Cl.Buffer_contents.SIZE (Bigarray.float64,
+        (Cl.Buffer_contents.SIZE (Bigarray.int,
                                   A2.dim1 result_h * A2.dim2 result_h))
     in
     let coeffs_g =

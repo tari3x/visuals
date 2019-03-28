@@ -1,3 +1,3 @@
 
-val value_color          : float -> Color.Rgb.t
-val value_graphics_color : float -> Graphics.color
+val value_color          : int -> Color.Rgb.t
+val value_graphics_color : int -> Graphics.color
