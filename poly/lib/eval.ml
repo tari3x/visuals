@@ -76,7 +76,8 @@ module Ctx = struct
               double min_value = %f;
               double max_value = %f;
               double value_range = %f;
-              double num_monos = %d;
+              int num_monos = %d;
+              int last_color = %d;
               double r = 0;
 
               for(int k = 0; k < num_monos; k++)
@@ -94,20 +95,21 @@ module Ctx = struct
 
               r = (r - min_value) / value_range;
 
-              result[i] = r;
+              result[i] = r * last_color;
             }
           |}
       min_value
       max_value
       (max_value -. min_value)
       num_monos
+      (Colors.num_colors - 1)
     in
     let program = Cl.create_program_with_source context [code] in
     build program device;
     let kernel = Cl.create_kernel program "poly_eval_kernel" in
     let x_size, y_size = Config.image_size config in
     let result_size = x_size * y_size in
-    (* CR: ask the GPU. *)
+    (* CR-someday: ask the GPU. *)
     let work_group_size = 256 in
     if result_size % work_group_size <> 0
     then failwith "result size must be a multiple of max_work_group_size";

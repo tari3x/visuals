@@ -80,7 +80,7 @@ let add_point { ps; qs; vs } v =
   let ps = new_p :: ps in
   { ps; qs; vs }
 
-let add_data t ~data =
+let add t ~data =
   List.fold data ~init:t ~f:(fun t v ->
     let t = add_point t v in
     debug [%message (t : t)];
@@ -88,7 +88,7 @@ let add_data t ~data =
 
 let create ~basis data =
   init basis
-  |> add_data ~data
+  |> add ~data
 
 let result { ps; vs; qs = _ } =
   let values = List.map vs ~f:snd in

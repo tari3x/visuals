@@ -28,7 +28,7 @@ let create ?basis data ~degree =
   { data; lagrange; desc = None; show_dots = [] }
 
 let add_data t ~data =
-  let lagrange = L.add_data t.lagrange ~data in
+  let lagrange = L.add t.lagrange ~data in
   let data = t.data @ data in
   { data; lagrange; desc = t.desc; show_dots = t.show_dots }
 

@@ -4,8 +4,9 @@ open Std_internal
 let debug a = debug ~enabled:false a
 
 module G = Graphics
+module L = Lagrange
 
-let degree = 2
+let degree = 5
 
 let config =
   Config.create
@@ -28,6 +29,8 @@ module State = struct
   type t =
     { zeroes : V.t list
     ; nonzero : V.t
+    (* all but the last zero *)
+    ; lagrange_base : L.t
     ; prev : t
     }
 
@@ -46,10 +49,20 @@ module State = struct
       | Move_nonzero _ -> true
   end
 
+  let lagrange ~zeroes ~nonzero =
+   let zeroes = List.map zeroes ~f:(fun v -> v, 0.) in
+   let data = (nonzero, 100.) :: zeroes in
+   let basis = P.Basis.mono ~degree in
+   L.create ~basis data
+
   let create () =
+    let nonzero = Config.domain_centre config in
+    let zeroes = [] in
+    let lagrange_base = lagrange ~zeroes ~nonzero in
     let rec t =
       { zeroes = []
-      ; nonzero = Config.domain_centre config
+      ; nonzero
+      ; lagrange_base
       ; prev = t
       }
     in
@@ -59,14 +72,17 @@ module State = struct
     let
         { zeroes
         ; nonzero
+        ; lagrange_base
         ; prev
         } = t
     in
     match update with
     | Undo -> prev
     | Add_zero v ->
+      let lagrange_base = lagrange ~zeroes ~nonzero in
       { zeroes = v :: zeroes
       ; nonzero
+      ; lagrange_base
       ; prev = t
       }
     | Move_zero v ->
@@ -77,41 +93,43 @@ module State = struct
       in
       { zeroes
       ; nonzero
+      ; lagrange_base
       ; prev
       }
     | Move_nonzero v ->
+      let old_zeroes = List.tl zeroes |> Option.value ~default:[] in
+      let lagrange_base = lagrange ~zeroes:old_zeroes ~nonzero in
       { zeroes
       ; nonzero = v
+      ; lagrange_base
       ; prev
       }
 
-  let poly { zeroes; nonzero; prev = _ } =
-    let zeroes = List.map zeroes ~f:(fun v -> v, 0.) in
-    let data =  zeroes @ [ nonzero, 100. ] in
-    (*
-    let basis =
-      P.Basis.Kind.bernstein ~degree ~domain:(Config.domain config)
+  let poly { zeroes; nonzero = _; lagrange_base; prev = _ } =
+    let lagrange =
+      match zeroes with
+      | [] -> lagrange_base
+      | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
     in
-    *)
-    let basis = P.Basis.mono ~degree in
-    Lagrange.simple ~basis data
+    Lagrange.result lagrange
 
   let poly t =
     Probe.with_probe "poly" (fun () -> poly t)
 
-  let draw_dots { zeroes; nonzero = _; prev = _ } =
+  let draw_dots { zeroes; lagrange_base = _; nonzero = _; prev = _ } =
     G.set_color G.white;
     List.iter zeroes ~f:(fun v ->
       let (i, j) = Config.domain_to_image config v in
       G.draw_circle i j 10)
 
+  (* CR-someday: this is only correct if only the last zero has moved. *)
   let weighted_average ~w t1 t2 =
     let v_avg = V.weighted_average ~w in
-    let { zeroes = zs1; nonzero = nz1; prev = _ } = t1 in
-    let { zeroes = zs2; nonzero = nz2; prev } = t2 in
+    let { zeroes = zs1; nonzero = nz1; lagrange_base = _; prev = _ } = t1 in
+    let { zeroes = zs2; nonzero = nz2; lagrange_base; prev } = t2 in
     let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
     let nonzero = v_avg nz1 nz2 in
-    { zeroes; nonzero; prev }
+    { zeroes; nonzero; lagrange_base; prev }
 end
 
 module Events = struct

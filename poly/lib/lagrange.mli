@@ -19,7 +19,7 @@ val create
   -> Data.t
   -> t
 
-val add_data : t -> data:Data.t -> t
+val add : t -> data:Data.t -> t
 
 val result : t -> P.t
 
