@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Js_of_ocaml
 open Js
 open! Printf
 open Std_internal
@@ -54,7 +55,7 @@ let faye_url =
 
 let create ~sexp_of_a =
   let faye = new%js constr (string faye_url) in
-  let buffers = Hashtbl.create (module Channel) () in
+  let buffers = Hashtbl.create (module Channel) in
   { faye; sexp_of_a; buffers }
 
 let get_buffer t channel =

@@ -269,11 +269,11 @@ let create config ~sexp_of_a =
     ; faye
     ; client_id = Client_id.create ()
     ; box_ids = []
-    ; boxes = Hashtbl.create (module Box_id) ()
+    ; boxes = Hashtbl.create (module Box_id)
     ; server_offset = Time.Span.zero
     ; viewport_scale = 1.
     ; on_change = []
-    ; clients = Hashtbl.create (module Client_id) ()
+    ; clients = Hashtbl.create (module Client_id)
     ; sexp_of_a
     }
   in

@@ -4,8 +4,10 @@
   See LICENSE file for copyright notice.
 *)
 
+open Js_of_ocaml
 open Js
 open Typed_array
+open Js_of_ocaml
 open Js_std
 
 module BaseAudioContext : sig

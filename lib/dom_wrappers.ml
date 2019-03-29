@@ -6,6 +6,7 @@
 
 open Base
 open Lwt
+open Js_of_ocaml
 open Js
 open Common
 open Geometry

@@ -238,8 +238,8 @@ module Make(Elt : Elt) = struct
   let create ~(config : Config.t) ~sound elts =
     let t =
       { config; sound
-      ; rains = Hashtbl.create (module Rain.Id) ()
-      ; elts  = Hashtbl.create (module E.Id) ()
+      ; rains = Hashtbl.create (module Rain.Id)
+      ; elts  = Hashtbl.create (module E.Id)
       ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
       ; drop_count = 0
       }

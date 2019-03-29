@@ -234,6 +234,11 @@ let eval_point (t : t) (x, y) =
 let first_monomials n =
   Mono.first n |> List.map ~f:mono
 
+let signature (t : t) =
+  List.map t ~f:snd
+  |> List.map ~f:Float.abs
+  |> Float.sum
+
 module Basis = struct
   let mono ~degree =
     let monos =

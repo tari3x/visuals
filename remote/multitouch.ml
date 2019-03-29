@@ -91,8 +91,8 @@ type t =
   }
 
 let create () =
-  let groups = Hashtbl.create (module Box_id) () in
-  let positions = Hashtbl.create (module Pointer_id) () in
+  let groups = Hashtbl.create (module Box_id) in
+  let positions = Hashtbl.create (module Pointer_id) in
   { groups; positions }
 
 let active t =

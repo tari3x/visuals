@@ -6,6 +6,7 @@
 
 open Base
 open Lwt
+open Js_of_ocaml
 open Js
 
 include Printf
@@ -109,8 +110,8 @@ end
 module Sequence = struct
   include Sequence
 
-  let max_elt_exn xs ~cmp =
-    max_elt xs ~cmp |> Option.value_exn
+  let max_elt_exn xs ~compare =
+    max_elt xs ~compare |> Option.value_exn
 end
 
 module List = struct
@@ -126,8 +127,8 @@ module List = struct
     filter xs ~f:(fun x ->
       not (List.mem ys x ~equal))
 
-  let max_elt_exn xs ~cmp =
-    max_elt xs ~cmp |> Option.value_exn
+  let max_elt_exn xs ~compare =
+    max_elt xs ~compare |> Option.value_exn
 end
 
 module Typed_array = struct

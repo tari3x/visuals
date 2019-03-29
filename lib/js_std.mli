@@ -4,6 +4,8 @@
   See LICENSE file for copyright notice.
 *)
 
+open Js_of_ocaml
+
 module MediaStreamConstraints : sig
   type witness
   class type js = object

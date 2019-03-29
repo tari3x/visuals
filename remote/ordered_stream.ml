@@ -112,7 +112,7 @@ let create ~max_buffer_size =
   let id = Id.create () in
   let reader, write = Lwt_stream.create () in
   { id
-  ; buffers = Hashtbl.create (module Id) ()
+  ; buffers = Hashtbl.create (module Id)
   ; next_send = 0
   ; reader
   ; write

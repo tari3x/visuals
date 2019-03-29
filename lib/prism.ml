@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Js_of_ocaml
 open Common
 open Geometry
 open Dom_wrappers

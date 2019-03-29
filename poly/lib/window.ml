@@ -1,12 +1,12 @@
 open Core
 open Std_internal
 
-let debug a = debug ~enabled:false a
+let debug a = debug_s ~enabled:true a
 
 module G = Graphics
 module L = Lagrange
 
-let degree = 5
+let degree = 2
 
 let config =
   Config.create
@@ -111,7 +111,10 @@ module State = struct
       | [] -> lagrange_base
       | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
     in
-    Lagrange.result lagrange
+    let result = Lagrange.result lagrange in
+    let signature = P.signature result in
+    debug [%message (signature : float)];
+    result
 
   let poly t =
     Probe.with_probe "poly" (fun () -> poly t)
@@ -183,7 +186,6 @@ module Ctx = struct
 end
 
 let draw_poly (ctx : Ctx.t) p =
-  debug "poly: %s" (P.to_string p);
   let values = Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p) in
   Probe.start "colors";
   for i = 0 to A2.dim1 values - 1 do
@@ -213,11 +215,11 @@ let run () =
     let state = List.last_exn states in
     Probe.print_and_clear ();
     let event = G.wait_next_event [ Button_down; Key_pressed ] in
-    debug !"event: %{sexp:Event.t}" event;
+    debug [%message (event : Event.t)];
     match Events.feed_event events event with
     | None -> loop [state]
     | Some update ->
-      debug !"update: %{sexp:State.Update.t}" update;
+      debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
       let states =
         if State.Update.should_animate update

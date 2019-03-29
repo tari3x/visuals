@@ -216,11 +216,11 @@ let ctl t box =
       let color = Box.color box in
       let touches = Box.touches box ~coordinates:`canvas in
       List.filter_map touches ~f:(fun point ->
-        List.min_elt t.elts ~cmp:(fun s1 s2 ->
+        List.min_elt t.elts ~compare:(fun s1 s2 ->
           Float.compare
             (Elt.distance_to_point ~point s1)
             (Elt.distance_to_point ~point s2)))
-      |> List.dedup_and_sort
+      |> List.dedup_and_sort ~compare:Polymorphic_compare.compare
       |> List.iter ~f:(fun elt -> Skin.human_touch t.skin elt color)
     end
   | Ctl.Rain_control ->

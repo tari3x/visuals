@@ -6,6 +6,7 @@
 
 open Base
 open Common
+open Js_of_ocaml
 
 module Angle = struct
   type t = float [@@deriving sexp]

@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Js_of_ocaml
 open Js
 
 let _ =

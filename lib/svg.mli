@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Js_of_ocaml
 open Common
 open Geometry
 open Prism
