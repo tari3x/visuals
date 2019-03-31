@@ -234,9 +234,9 @@ let eval_point (t : t) (x, y) =
 let first_monomials n =
   Mono.first n |> List.map ~f:mono
 
-let signature (t : t) =
-  List.map t ~f:snd
-  |> List.map ~f:Float.abs
+let distance (t1 : t) (t2 : t) =
+  List.map2_exn t1 t2 ~f:(fun (_, w1) (_, w2) ->
+    Float.(abs (w1 - w2)))
   |> Float.sum
 
 module Basis = struct

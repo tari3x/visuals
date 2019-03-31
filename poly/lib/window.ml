@@ -1,4 +1,11 @@
+(*
+  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+  This file is distributed under a BSD license.
+  See LICENSE file for copyright notice.
+*)
+
 open Core
+open Async
 open Std_internal
 
 let debug a = debug_s ~enabled:true a
@@ -111,10 +118,7 @@ module State = struct
       | [] -> lagrange_base
       | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
     in
-    let result = Lagrange.result lagrange in
-    let signature = P.signature result in
-    debug [%message (signature : float)];
-    result
+    Lagrange.result lagrange
 
   let poly t =
     Probe.with_probe "poly" (fun () -> poly t)
@@ -133,6 +137,10 @@ module State = struct
     let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
     let nonzero = v_avg nz1 nz2 in
     { zeroes; nonzero; lagrange_base; prev }
+
+  (* CR: optimize. *)
+  let distance t1 t2 =
+    P.distance (poly t1) (poly t2)
 end
 
 module Events = struct
@@ -221,12 +229,16 @@ let run () =
     | Some update ->
       debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
-      let states =
+      let%bind states =
         if State.Update.should_animate update
-        then interpolate [ state; new_state ]
-          ~num_steps:20
-          ~weighted_average:State.weighted_average
-        else [new_state]
+        then
+          Motion.smooth_speed
+            ~point:(fun w -> State.weighted_average state new_state ~w)
+            ~distance:State.distance
+            ~max_acceleration_rate:1.1
+            ~desired_step_size:0.05
+          |> Pipe.to_list
+        else return [new_state]
       in
       loop states
   in

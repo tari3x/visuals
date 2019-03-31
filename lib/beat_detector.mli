@@ -8,12 +8,12 @@ open Common
 
 type t
 
-val create : time:Time.t -> t
+val create : unit -> t
 
 val add_sample : t -> time:Time.t -> value:float -> unit
 
 val in_beat : t -> bool
 
 module Debug : sig
-  val ewma : t -> float
+  val ewma : t -> float option
 end

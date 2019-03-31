@@ -47,7 +47,7 @@ val eval_point : t -> V.t -> float
 
 val subst : t -> var:Var.t -> by:t -> t
 
-val signature : t -> float
+val distance : t -> t -> float
 
 module Basis : sig
   val mono : degree:int -> t list

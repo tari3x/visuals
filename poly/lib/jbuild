@@ -8,7 +8,7 @@
     camlimages.core
     camlimages.png
     opencl
-    visuals
+    common_lib
   ))
   (inline_tests)
   (preprocess (pps (

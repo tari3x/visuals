@@ -210,7 +210,7 @@ let draw t ctx =
     Ctx.set_fill_color ctx color;
     let value = bin_volume_exn t i in
     let width = bin_w i in
-    let ewma = Beat_detector.Debug.ewma beat in
+    let ewma = Beat_detector.Debug.ewma beat |> Option.value ~default:0. in
     draw_bin ~value ~width ~ewma ()
   );
   draw_bin ~value:0. ~width:empty_w ();
@@ -256,8 +256,7 @@ let create_from_src ~ctx ~src =
   (* 1024 by default *)
   let num_bins = analyser##.frequencyBinCount in
   let bins = new%js uint8Array num_bins in
-  let time = Time.now () in
-  let beats = Array.init num_bins ~f:(fun _i -> Beat_detector.create ~time) in
+  let beats = Array.init num_bins ~f:(fun _i -> Beat_detector.create ()) in
   { analyser
   ; bins
   ; beats

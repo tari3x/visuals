@@ -1,2 +1,4 @@
+open Async
 
-val run : unit -> unit
+val run : unit -> unit Deferred.t
+

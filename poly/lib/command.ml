@@ -37,9 +37,7 @@ let window =
     [%map_open
      let () = return () in
      fun () ->
-       let open Async in
-       Window.run ();
-       return ()
+       Window.run ()
     ]
 
 let command =

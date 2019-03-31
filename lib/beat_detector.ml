@@ -5,10 +5,10 @@
 *)
 
 open Base
+open Common_lib
 open Common
 
-let half_life =
-  Time.Span.of_sec 10.
+let half_life = 10.
 
 type t =
   { mutable value : float
@@ -16,9 +16,9 @@ type t =
   ; ewma : Ewma.t
   }
 
-let create ~time =
+let create () =
   let value = 0. in
-  let ewma = Ewma.create ~half_life ~time ~value in
+  let ewma = Ewma.create ~half_life in
   { value
   ; beat_max = None
   ; ewma
@@ -26,11 +26,11 @@ let create ~time =
 
 let add_sample t ~time ~value =
   let open Float in
-  Ewma.add_sample t.ewma ~time ~value;
+  Ewma.add_sample t.ewma ~param:(Time.to_sec time) ~value;
   let beat_max =
     match t.beat_max with
     | None ->
-      if value > 2. * Ewma.value t.ewma
+      if value > 2. * Ewma.value_exn t.ewma
       then Some value
       else None
     | Some beat_max ->
