@@ -7,10 +7,10 @@ ROOT=${shell git rev-parse --show-toplevel}
 all: a.exe
 
 a.exe: FORCE
-	jbuilder build main.exe --dev --display quiet 
+	dune build main.exe --display quiet 
 	cp ${ROOT}/_build/default/poly/bin/main.exe $@
 
 clean:
-	jbuilder clean
+	dune clean
 
 FORCE:

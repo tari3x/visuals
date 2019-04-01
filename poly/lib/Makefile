@@ -4,4 +4,4 @@ SRC=$(wildcard *.ml *.mli)
 
 all: 
 	cd ../bin/ && make
-	jbuilder runtest
+	dune runtest

@@ -139,8 +139,26 @@ module State = struct
     { zeroes; nonzero; lagrange_base; prev }
 
   (* CR: optimize. *)
-  let distance t1 t2 =
-    P.distance (poly t1) (poly t2)
+  let _distance t1 t2 =
+    let image_x, image_y = Config.image_size config in
+    let icon_x = 8 in
+    let icon_y = 8 in
+    let x_ratio = image_x / icon_x in
+    let y_ratio = image_y / icon_y in
+    let p1 = poly t1 in
+    let p2 = poly t2 in
+    let count = ref 0 in
+    for i = 0 to icon_x - 1 do
+      for j = 0 to icon_y - 1 do
+        let i = i * x_ratio in
+        let j = j * y_ratio in
+        let x, y = Config.image_to_domain config (i, j) in
+        let v1 = P.eval_point p1 (x, y) in
+        let v2 = P.eval_point p2 (x, y) in
+        if Float.(v1 * v2 < 0.) then incr count;
+      done
+    done;
+    Float.(float !count / (float icon_x * float icon_y))
 end
 
 module Events = struct
@@ -232,12 +250,18 @@ let run () =
       let%bind states =
         if State.Update.should_animate update
         then
+          interpolate [ state; new_state ]
+            ~weighted_average:State.weighted_average
+            ~num_steps:20
+          |> return
+          (*
           Motion.smooth_speed
             ~point:(fun w -> State.weighted_average state new_state ~w)
             ~distance:State.distance
-            ~max_acceleration_rate:1.1
+            ~max_distance:0.05
             ~desired_step_size:0.05
           |> Pipe.to_list
+          *)
         else return [new_state]
       in
       loop states
