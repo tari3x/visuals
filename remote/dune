@@ -1,0 +1,5 @@
+(library
+ (name remote)
+ (libraries base lwt js_of_ocaml js_of_ocaml-lwt visuals)
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx)))

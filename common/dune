@@ -1,0 +1,7 @@
+;; No js_of_ocaml here
+
+(library
+ (name common_lib)
+ (libraries base lwt)
+ (preprocess
+  (pps ppx_jane)))
