@@ -4,10 +4,11 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Async
 open Common
 
-let _debug a = debug_s ~enabled:true a
+let debug a = debug_s ~enabled:false a
 
 let smooth_speed
     ~point:create_point
@@ -16,35 +17,42 @@ let smooth_speed
     ~desired_step_size =
   let open Float in
   let reader, writer = Pipe.create () in
-  let move param point step =
+  let min_distance = 0.5 * max_distance in
+  let move ~param point ~step =
     let param = min 1. (param + step) in
     let new_point = create_point param in
     let distance = distance point new_point in
     param, new_point, distance
   in
-  let next param point =
-    let rec loop ~step =
-      let param, point, distance = move param point step in
-      if distance <= max_distance
-      then param, point
-      else begin
-        let step = step * 0.9 in
-        loop ~step
-      end
+  let step param point ~step_prior =
+    debug [%message "starting search" (step_prior : float)];
+    let test step =
+      debug [%message (step : float)];
+      let _, _, distance = move ~param point ~step in
+      if      distance > max_distance then 1
+      else if distance < min_distance then -1
+      else 0
     in
-    loop ~step:desired_step_size
+    Bisection.Float.search
+      ~bounds:(0., desired_step_size)
+      ~test
+      ~start:step_prior
+      ()
   in
-  let rec loop param point =
+  let rec loop param point ~step_prior =
     let%bind () = Pipe.write writer point in
-    if param >= 1. then return ()
+    if param >= 1. then begin
+      Pipe.close writer;
+      return ()
+    end
     else begin
-      let param, point = next param point in
-      loop param point
+      Probe.start "motion";
+      let step = step param point ~step_prior in
+      (* CR-someday: we compute the last point twice. *)
+      let param, point, _ = move ~param point ~step in
+      Probe.stop "motion";
+      loop param point ~step_prior:step
     end
   in
-  don't_wait_for begin
-    let%bind () = loop 0. (create_point 0.) in
-    Pipe.close writer;
-    return ()
-  end;
+  don't_wait_for (loop 0. (create_point 0.) ~step_prior:desired_step_size);
   reader

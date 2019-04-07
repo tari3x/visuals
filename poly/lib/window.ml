@@ -13,7 +13,7 @@ let debug a = debug_s ~enabled:true a
 module G = Graphics
 module L = Lagrange
 
-let degree = 2
+let degree = 5
 
 let config =
   Config.create
@@ -139,7 +139,7 @@ module State = struct
     { zeroes; nonzero; lagrange_base; prev }
 
   (* CR: optimize. *)
-  let _distance t1 t2 =
+  let distance t1 t2 =
     let image_x, image_y = Config.image_size config in
     let icon_x = 8 in
     let icon_y = 8 in
@@ -234,38 +234,32 @@ let run () =
     Or_error.try_with (fun () ->
       State.poly state |> draw_poly ctx)
     |> Or_error.iter_error ~f:(Core.eprintf !"%{Error#hum}\n%!");
-    State.draw_dots state
+    State.draw_dots state;
+    state
   in
   let rec loop states =
-    List.iter states ~f:draw;
+    let%bind states = Pipe.map states ~f:draw |> Pipe.to_list in
     let state = List.last_exn states in
     Probe.print_and_clear ();
     let event = G.wait_next_event [ Button_down; Key_pressed ] in
     debug [%message (event : Event.t)];
     match Events.feed_event events event with
-    | None -> loop [state]
+    | None -> loop (Pipe.singleton state)
     | Some update ->
       debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
-      let%bind states =
+      let states =
         if State.Update.should_animate update
         then
-          interpolate [ state; new_state ]
-            ~weighted_average:State.weighted_average
-            ~num_steps:20
-          |> return
-          (*
           Motion.smooth_speed
             ~point:(fun w -> State.weighted_average state new_state ~w)
             ~distance:State.distance
             ~max_distance:0.05
             ~desired_step_size:0.05
-          |> Pipe.to_list
-          *)
-        else return [new_state]
+        else Pipe.singleton new_state
       in
       loop states
   in
   let image_x, image_y = Config.image_size config in
   G.open_graph (sprintf " %dx%d" image_x image_y);
-  loop [State.create ()]
+  loop (Pipe.singleton (State.create ()))
