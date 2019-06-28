@@ -13,13 +13,14 @@ let debug a = debug_s ~enabled:true a
 module G = Graphics
 module L = Lagrange
 
-let degree = 5
+let degree = 4
 
 let config =
   Config.create
     ~grid_size:(10, 10)
     ~cbrange:(-10., 10.)
     ~image_width:1024
+    ~rendering_degree:degree
     ()
 
 module Event = struct
@@ -46,12 +47,16 @@ module State = struct
     | Add_zero of V.t
     | Move_zero of V.t
     | Move_nonzero of V.t
+    | Rotate_zeroes
     | Undo
+    | Finish
         [@@deriving sexp]
 
     let should_animate = function
       | Add_zero _
-      | Undo -> false
+      | Undo
+      | Rotate_zeroes
+      | Finish -> false
       | Move_zero _
       | Move_nonzero _ -> true
   end
@@ -79,11 +84,12 @@ module State = struct
     let
         { zeroes
         ; nonzero
-        ; lagrange_base
+        ; lagrange_base = _
         ; prev
         } = t
     in
     match update with
+    | Finish -> t
     | Undo -> prev
     | Add_zero v ->
       let lagrange_base = lagrange ~zeroes ~nonzero in
@@ -94,6 +100,18 @@ module State = struct
       }
     | Move_zero v ->
       let zeroes =
+        match List.rev zeroes with
+        | [] -> [ v ]
+        | _:: vs -> List.rev (v :: vs)
+      in
+      let lagrange_base = lagrange ~zeroes ~nonzero in
+      { zeroes
+      ; nonzero
+      ; lagrange_base
+      ; prev
+      }
+      (*
+      let zeroes =
         match zeroes with
         | [] -> [ v ]
         | _ :: vs -> v :: vs
@@ -103,6 +121,7 @@ module State = struct
       ; lagrange_base
       ; prev
       }
+      *)
     | Move_nonzero v ->
       let old_zeroes = List.tl zeroes |> Option.value ~default:[] in
       let lagrange_base = lagrange ~zeroes:old_zeroes ~nonzero in
@@ -111,6 +130,13 @@ module State = struct
       ; lagrange_base
       ; prev
       }
+    | Rotate_zeroes ->
+      match List.rev zeroes with
+      | [] -> t
+      | v :: vs ->
+        let zeroes = v :: List.rev vs in
+        let lagrange_base = lagrange ~zeroes ~nonzero in
+        { zeroes; nonzero; lagrange_base; prev = t }
 
   let poly { zeroes; nonzero = _; lagrange_base; prev = _ } =
     let lagrange =
@@ -123,7 +149,7 @@ module State = struct
   let poly t =
     Probe.with_probe "poly" (fun () -> poly t)
 
-  let draw_dots { zeroes; lagrange_base = _; nonzero = _; prev = _ } =
+  let _draw_dots { zeroes; lagrange_base = _; nonzero = _; prev = _ } =
     G.set_color G.white;
     List.iter zeroes ~f:(fun v ->
       let (i, j) = Config.domain_to_image config v in
@@ -133,13 +159,14 @@ module State = struct
   let weighted_average ~w t1 t2 =
     let v_avg = V.weighted_average ~w in
     let { zeroes = zs1; nonzero = nz1; lagrange_base = _; prev = _ } = t1 in
-    let { zeroes = zs2; nonzero = nz2; lagrange_base; prev } = t2 in
+    let { zeroes = zs2; nonzero = nz2; lagrange_base = _; prev } = t2 in
     let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
     let nonzero = v_avg nz1 nz2 in
+    let lagrange_base = lagrange ~zeroes ~nonzero in
     { zeroes; nonzero; lagrange_base; prev }
 
   (* CR: optimize. *)
-  let distance t1 t2 =
+  let _distance t1 t2 =
     let image_x, image_y = Config.image_size config in
     let icon_x = 8 in
     let icon_y = 8 in
@@ -190,6 +217,8 @@ module Events = struct
       t.key <- key;
       match key with
       | 'u' -> Some Undo
+      | 'f' -> Some Finish
+      | 'r' -> Some Rotate_zeroes
       | _ -> mouse_event ()
     end
     else mouse_event ()
@@ -204,14 +233,31 @@ let colors =
 module Ctx = struct
   type t =
     { eval : Eval.Ctx.t
+    ; mutable recording : Animation.t option
     }
 
-  let create () =
-    let eval = Eval.Ctx.create ~config ~degree in
-    { eval }
+  let create ~record =
+    let eval = Eval.Ctx.create ~config in
+    let recording =
+      if record then Some (Animation.create ~config []) else None
+    in
+    { eval; recording }
+
+  let record_frame t p =
+    t.recording <- Option.map t.recording ~f:(fun recording ->
+      let state = Animation.State.of_poly p in
+      { recording with states = state :: recording.states })
+
+  let write_animation_exn t file =
+    match t.recording with
+    | None -> failwith "did not record recording"
+    | Some recording ->
+      let recording = { recording with states = List.rev recording.states } in
+      Writer.save_sexp file (Animation.sexp_of_t recording)
 end
 
 let draw_poly (ctx : Ctx.t) p =
+  Ctx.record_frame ctx p;
   let values = Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p) in
   Probe.start "colors";
   for i = 0 to A2.dim1 values - 1 do
@@ -227,14 +273,14 @@ let draw_poly (ctx : Ctx.t) p =
   let image = Probe.with_probe "image" (fun () -> G.make_image colors) in
   Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
 
-let run () =
-  let ctx = Ctx.create () in
+let run ~record_to =
+  let ctx = Ctx.create ~record:(Option.is_some record_to) in
   let events = Events.create () in
   let draw state =
     Or_error.try_with (fun () ->
       State.poly state |> draw_poly ctx)
     |> Or_error.iter_error ~f:(Core.eprintf !"%{Error#hum}\n%!");
-    State.draw_dots state;
+    (* State.draw_dots state; *)
     state
   in
   let rec loop states =
@@ -245,21 +291,43 @@ let run () =
     debug [%message (event : Event.t)];
     match Events.feed_event events event with
     | None -> loop (Pipe.singleton state)
+    | Some Finish -> return ()
     | Some update ->
       debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
       let states =
         if State.Update.should_animate update
         then
+          interpolate
+            ~weighted_average:State.weighted_average
+            ~num_steps:20
+            [ state; new_state ]
+          |> Pipe.of_list
+          (*
           Motion.smooth_speed
             ~point:(fun w -> State.weighted_average state new_state ~w)
             ~distance:State.distance
-            ~max_distance:0.05
-            ~desired_step_size:0.05
+            ~max_distance:0.02 (* 0.05, 0.2 *)
+            ~desired_step_size:0.02 (* 0.05, 0.2 *)
+          *)
         else Pipe.singleton new_state
       in
       loop states
   in
   let image_x, image_y = Config.image_size config in
   G.open_graph (sprintf " %dx%d" image_x image_y);
-  loop (Pipe.singleton (State.create ()))
+  let%bind () = loop (Pipe.singleton (State.create ())) in
+  match record_to with
+  | None -> return ()
+  | Some file -> Ctx.write_animation_exn ctx file
+
+let command =
+  let open Command.Let_syntax in
+  Command.async
+    ~readme:(fun () -> "")
+    ~summary:""
+    [%map_open
+     let record_to = flag "-record-to" (optional Filename.arg_type) ~doc:"" in
+     fun () ->
+       run ~record_to
+    ]

@@ -1,10 +1,11 @@
 open Core
+open Async
 open Std_internal
 
 module A = Animation
 module P = Polynomial
 
-let debug a = debug ~enabled:true a
+let debug a = debug_s ~enabled:true a
 
 let file_id = ref 0
 
@@ -23,8 +24,8 @@ module Ctx = struct
     { eval : Eval.Ctx.t
     }
 
-  let create ~config ~degree =
-    let eval = Eval.Ctx.create ~config ~degree in
+  let create ~config =
+    let eval = Eval.Ctx.create ~config in
     { eval }
 end
 
@@ -41,24 +42,37 @@ let write_state
   let values = Eval.values ctx.eval p in
   for i = 0 to Int.(width - 1) do
     for j = 0 to Int.(height - 1) do
-      let p_value = values.{i, j} in
-      (* use mathematical orientation. *)
-      let j = Int.(height - 1 - j) in
-      let color = Render.value_color p_value in
-      Rgb24.set image i j color;
+      A2.get_flipped values i j
+      |> Render.value_color
+      |> Rgb24.set image i j;
     done;
   done;
   List.iter dots ~f:(fun dot ->
     let i, j = Config.domain_to_image config dot in
     let p_value = A2.get values i j in
     let color = Render.value_color p_value in
-    debug !"%{Sexp}" [%message (p_value : int) (color : Color.t)];
+    debug [%message (p_value : int) (color : Color.t)];
     draw_dot ~config image dot
   );
   Png.save filename [] (Images.Rgb24 image)
 
-let write ~dir ~degree { A. config; states } =
-  let ctx = Ctx.create ~config ~degree in
+let write ~dir { A. config; states } =
+  let ctx = Ctx.create ~config in
   List.iter states ~f:(write_state ~dir ~config ~ctx);
   Eval.Ctx.release ctx.eval;
   Async.return ()
+
+let command =
+  let open Command.Let_syntax in
+  Command.async
+    ~readme:(fun () -> "")
+    ~summary:""
+    [%map_open
+     let file = anon ("file" %: Filename.arg_type)
+     and dir = flag "-dir" (required Filename.arg_type) ~doc:""
+     in
+     fun () ->
+       let open Deferred.Let_syntax in
+       let%bind animation = Reader.load_sexp_exn file Animation.t_of_sexp in
+       write ~dir animation
+    ]

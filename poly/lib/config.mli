@@ -2,13 +2,14 @@ module Style : sig
   type t = [ `zeroes | `heat ]
 end
 
-type t
+type t [@@deriving sexp]
 
 val create
   :  grid_size:int * int
   -> ?image_width : int
   -> cbrange:float * float
   -> ?style:Style.t
+  -> ?rendering_degree:int
   -> unit
   -> t
 
@@ -33,3 +34,6 @@ val image_to_domain
 val style : t -> Style.t
 
 val cbrange : t -> float * float
+
+val rendering_degree_exn : t -> int
+

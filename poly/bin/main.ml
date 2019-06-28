@@ -1,4 +1,4 @@
 open Core
 
 ;;
-Command.run Nullstellen_lib.Command.command
+Command.run Nullstellen_lib.Main.command

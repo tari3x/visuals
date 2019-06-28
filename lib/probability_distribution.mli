@@ -6,7 +6,7 @@
 
 type 'a t [@@deriving sexp]
 
-(* Fails if the total sum of weights is zero or if any weight is negative. *)
+(* Fails if the sum of weights is zero or if any weight is negative. *)
 val create_exn : ('a * float) list -> 'a t
 
 val draw : 'a t -> 'a

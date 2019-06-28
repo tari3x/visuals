@@ -206,9 +206,6 @@ let to_maxima (t : t) =
 let to_string t =
   to_maxima t |> E.to_string
 
-let sexp_of_t t =
-  to_string t |> String.sexp_of_t
-
 let to_gnuplot t =
   to_maxima t
   |> E.to_gnuplot

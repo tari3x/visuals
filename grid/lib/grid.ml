@@ -220,7 +220,7 @@ let ctl t box =
           Float.compare
             (Elt.distance_to_point ~point s1)
             (Elt.distance_to_point ~point s2)))
-      |> List.dedup_and_sort ~compare:Polymorphic_compare.compare
+      |> List.dedup_and_sort ~compare:Poly.compare
       |> List.iter ~f:(fun elt -> Skin.human_touch t.skin elt color)
     end
   | Ctl.Rain_control ->

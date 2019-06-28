@@ -13,6 +13,7 @@ let config =
     ~grid_size:(10, 10)
     ~cbrange:(-15., 15.)
     ~image_width:896
+    ~rendering_degree:degree
     ()
 
 let set_value x =
@@ -83,6 +84,6 @@ let animate ~dir =
   debug "total error = %f" (Float.sum errors);
   let%bind () =
     A.create ~config states
-    |> Render_camlimage.write ~dir ~degree
+    |> Render_camlimage.write ~dir
   in
   return ()

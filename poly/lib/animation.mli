@@ -27,6 +27,6 @@ end
 type t =
   { config : Config.t
   ; states : State.t list
-  }
+  } [@@deriving sexp]
 
 val create : config:Config.t -> State.t list -> t

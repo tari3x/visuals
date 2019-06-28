@@ -11,6 +11,7 @@ let config =
     ~grid_size:(10, 10)
     ~cbrange:(-15., 15.)
     ~image_width:896
+    ~rendering_degree:degree
     ()
 
 let animate ~dir =
@@ -18,4 +19,4 @@ let animate ~dir =
   |> List.map ~f:A.State.of_poly
   |> List.permute
   |> A.create ~config
-  |> Render_camlimage.write ~dir ~degree
+  |> Render_camlimage.write ~dir

@@ -19,7 +19,7 @@ module State = struct
     ; ps : P.t list
     ; defs : (string * P.t) list
     ; dots : V.t list
-    }
+    } [@@deriving sexp]
 
   let of_poly ?(show_dots = []) p =
     { p; ps = []; dots = show_dots; defs = []}
@@ -82,7 +82,7 @@ end
 type t =
   { config : Config.t
   ; states : State.t list
-  }
+  } [@@deriving sexp]
 
 let create ~config states  =
   { config; states }

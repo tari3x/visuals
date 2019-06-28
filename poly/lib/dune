@@ -1,6 +1,12 @@
 (library
  (name nullstellen_lib)
- (libraries graphics core async async_shell camlimages.core camlimages.png
+ (libraries
+   graphics
+   core
+   async
+   async_shell
+   camlimages.core
+   camlimages.png
    opencl)
  (inline_tests)
  (preprocess

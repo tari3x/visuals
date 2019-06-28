@@ -6,10 +6,10 @@
 
 open Common
 
+(* CR: not accurate *)
 (* Returns a value that varies like distance to a moving point on a circle, from
    a position off centre. Randomizes period length and the position after each
-   period.
-*)
+   period. *)
 
 type t
 

@@ -13,6 +13,7 @@ type t =
   ; grid_size: int * int
   ; style : Style.t
   ; cbrange : float * float
+  ; rendering_degree : int option
   } [@@deriving sexp, fields]
 
 let create
@@ -20,6 +21,7 @@ let create
     ?(image_width = 500)
     ~cbrange
     ?(style = `heat)
+    ?rendering_degree
     () =
   (* Point range is [0; n - 1] *)
   let grid_x, grid_y = grid_size in
@@ -34,6 +36,7 @@ let create
   ; image_size
   ; style
   ; cbrange
+  ; rendering_degree
   }
 
 let image_size t =
@@ -66,6 +69,9 @@ let domain t =
   let domain_x, domain_y = domain_size t in
   (0., 0.), (domain_x, domain_y)
 
+let rendering_degree_exn t =
+  Option.value_exn t.rendering_degree ~here:[%here]
+
 module For_tests = struct
   let t =
     create
@@ -78,7 +84,7 @@ module For_tests = struct
     printf !"%{sexp:t}" t;
     [%expect {|
       ((domain_size (9 9)) (image_size (500 500)) (grid_size (10 10)) (style heat)
-       (cbrange (0 0))) |}]
+       (cbrange (0 0)) (rendering_degree ())) |}]
 
   let%test_unit _ =
     let v1 = (134, 25) in

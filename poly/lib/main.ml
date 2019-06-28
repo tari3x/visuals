@@ -14,6 +14,18 @@ open Async
  * hack gnuplot to remove margins
 *)
 
+(* CL to GL
+  https://software.intel.com/en-us/articles/opencl-and-opengl-interoperability-tutorial
+
+  https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
+  https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/clCreateFromGLTexture.html
+  https://www.khronos.org/registry/OpenCL/sdk/1.0/docs/man/xhtml/cl_image_format.html
+  https://anteru.net/blog/2012/getting-started-with-opencl-part-3/
+  https://www.khronos.org/registry/OpenCL/sdk/1.0/docs/man/xhtml/read_imagef2d.html
+  https://www.khronos.org/registry/OpenCL/sdk/2.1/docs/man/xhtml/read_imagef2d.html
+  https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/vectorDataTypes.html
+*)
+
 let draw =
   let open Command.Let_syntax in
   Command.async
@@ -29,20 +41,10 @@ let draw =
           *)
     ]
 
-let window =
-  let open Command.Let_syntax in
-  Command.async
-    ~readme:(fun () -> "")
-    ~summary:""
-    [%map_open
-     let () = return () in
-     fun () ->
-       Window.run ()
-    ]
-
 let command =
   Command.group
     ~summary:""
     [ "draw", draw
-    ; "window", window
+    ; "window", Window.command
+    ; "render-animation", Render_camlimage.command
     ]

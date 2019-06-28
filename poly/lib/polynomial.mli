@@ -8,7 +8,7 @@ module Var : sig
   val create : int -> t
 end
 
-type t [@@deriving compare, sexp_of]
+type t [@@deriving compare, sexp]
 
 include Comparable.S with type t := t
 

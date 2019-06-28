@@ -5,7 +5,7 @@ open Float_array
 module Ctx : sig
   type t
 
-  val create : config:Config.t -> degree:int -> t
+  val create : config:Config.t -> t
 
   val release : t -> unit
 end

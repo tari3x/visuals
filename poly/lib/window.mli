@@ -1,4 +1,3 @@
 open Async
 
-val run : unit -> unit Deferred.t
-
+val command : Command.t

@@ -18,7 +18,6 @@ module Ctx = struct
     type t = (int, int_elt) Cl.Mem.t
   end
 
-
   type t =
     { config : Config.t
     ; work_group_size : int
@@ -54,8 +53,9 @@ module Ctx = struct
           (Cl.Build_status.to_string build_status)
       end
 
-  let create ~config ~degree : t =
+  let create ~config : t =
     let open Int in
+    let degree = Config.rendering_degree_exn config in
     let (min_value, max_value) = Config.cbrange config in
     let num_monos = P.Basis.mono ~degree |> List.length in
     let platforms = Cl.get_platform_ids () in
@@ -100,6 +100,7 @@ module Ctx = struct
 
               r = (r - min_value) / value_range;
 
+              // printf ("%%f\n", r);
               result[i] = r * last_color;
             }
           |}
@@ -176,8 +177,8 @@ module Ctx = struct
     ; kernel
     }
 
-  let create ~config ~degree =
-    try create ~config ~degree
+  let create ~config =
+    try create ~config
     with Cl.Cl_error cl_error ->
       failwithf "error %s.\n%!" (Cl.Cl_error.to_string cl_error) ()
 
