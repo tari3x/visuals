@@ -84,7 +84,7 @@ module State = struct
     let
         { zeroes
         ; nonzero
-        ; lagrange_base = _
+        ; lagrange_base
         ; prev
         } = t
     in
@@ -100,18 +100,6 @@ module State = struct
       }
     | Move_zero v ->
       let zeroes =
-        match List.rev zeroes with
-        | [] -> [ v ]
-        | _:: vs -> List.rev (v :: vs)
-      in
-      let lagrange_base = lagrange ~zeroes ~nonzero in
-      { zeroes
-      ; nonzero
-      ; lagrange_base
-      ; prev
-      }
-      (*
-      let zeroes =
         match zeroes with
         | [] -> [ v ]
         | _ :: vs -> v :: vs
@@ -121,7 +109,6 @@ module State = struct
       ; lagrange_base
       ; prev
       }
-      *)
     | Move_nonzero v ->
       let old_zeroes = List.tl zeroes |> Option.value ~default:[] in
       let lagrange_base = lagrange ~zeroes:old_zeroes ~nonzero in
@@ -166,7 +153,7 @@ module State = struct
     { zeroes; nonzero; lagrange_base; prev }
 
   (* CR: optimize. *)
-  let _distance t1 t2 =
+  let distance t1 t2 =
     let image_x, image_y = Config.image_size config in
     let icon_x = 8 in
     let icon_y = 8 in
@@ -298,18 +285,11 @@ let run ~record_to =
       let states =
         if State.Update.should_animate update
         then
-          interpolate
-            ~weighted_average:State.weighted_average
-            ~num_steps:20
-            [ state; new_state ]
-          |> Pipe.of_list
-          (*
           Motion.smooth_speed
             ~point:(fun w -> State.weighted_average state new_state ~w)
             ~distance:State.distance
             ~max_distance:0.02 (* 0.05, 0.2 *)
             ~desired_step_size:0.02 (* 0.05, 0.2 *)
-          *)
         else Pipe.singleton new_state
       in
       loop states
