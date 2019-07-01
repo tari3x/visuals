@@ -6,7 +6,7 @@ include Int.Replace_polymorphic_compare
 let () = Random.init 150
 
 module type Ring = sig
-  type t [@@deriving sexp, compare]
+  type t [@@deriving sexp, compare, equal]
 
   val ( + ) : t -> t -> t
   val ( - ) : t -> t -> t

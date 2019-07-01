@@ -2,12 +2,11 @@ open Core
 open Common
 
 module Make (R : Ring) = struct
-  module T = struct
-    type t = R.t * R.t [@@deriving sexp, compare]
-  end
+  type t = R.t * R.t [@@deriving sexp, compare, equal]
 
-  include T
-  include Comparable.Make(T)
+  (* include Comparable.Make(T) *)
+
+  let (=) = equal
 
   let ( + ) (x1, y1) (x2, y2) : t =
     R.(x1 + x2, y1 + y2)
@@ -27,7 +26,12 @@ module Make (R : Ring) = struct
     (x, y)
 end
 
-module Float = Make(Float)
+module Float = struct
+  include Make(Float)
+
+  let length (x, y) =
+    Float.(sqrt (x**2. + y**2.))
+end
 
 module Int = struct
   include Make(Int)

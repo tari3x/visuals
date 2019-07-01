@@ -236,6 +236,9 @@ let distance (t1 : t) (t2 : t) =
     Float.(abs (w1 - w2)))
   |> Float.sum
 
+let weighted_average t1 t2 ~w =
+  scale t1 ~by:Float.(1. - w) + scale t2 ~by:w
+
 module Basis = struct
   let mono ~degree =
     let monos =

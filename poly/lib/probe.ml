@@ -65,4 +65,3 @@ let with_probe name f =
 let print_and_clear () =
   print_s [%message (summary () : Summary.t)];
   Hashtbl.clear t
-

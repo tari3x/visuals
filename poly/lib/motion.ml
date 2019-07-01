@@ -40,18 +40,21 @@ let smooth_speed
       ()
   in
   let rec loop param point ~step_prior =
-    let%bind () = Pipe.write writer point in
-    if param >= 1. then begin
-      Pipe.close writer;
-      return ()
-    end
+    if Pipe.is_closed writer then return ()
     else begin
-      Probe.start "motion";
-      let step = step param point ~step_prior in
+      let%bind () = Pipe.write writer point in
+      if param >= 1. then begin
+        Pipe.close writer;
+        return ()
+      end
+      else begin
+        Probe.start "motion";
+        let step = step param point ~step_prior in
       (* CR-someday: we compute the last point twice. *)
-      let param, point, _ = move ~param point ~step in
-      Probe.stop "motion";
-      loop param point ~step_prior:step
+        let param, point, _ = move ~param point ~step in
+        Probe.stop "motion";
+        loop param point ~step_prior:step
+      end
     end
   in
   don't_wait_for (loop 0. (create_point 0.) ~step_prior:desired_step_size);

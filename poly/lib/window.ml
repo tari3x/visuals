@@ -8,7 +8,7 @@ open Core
 open Async
 open Std_internal
 
-let debug a = debug_s ~enabled:true a
+let debug a = debug_s ~enabled:false a
 
 module G = Graphics
 module L = Lagrange
@@ -39,8 +39,9 @@ module State = struct
     ; nonzero : V.t
     (* all but the last zero *)
     ; lagrange_base : L.t
+    ; poly : P.t
     ; prev : t
-    }
+    } [@@deriving fields]
 
   module Update = struct
     type t =
@@ -52,29 +53,62 @@ module State = struct
     | Finish
         [@@deriving sexp]
 
-    let should_animate = function
+    module Animation = struct
+      type t =
+      | None
+      | Move_point_by of V.t
+      | Interpolate_poly
+    end
+
+    let animation_vector state t : Animation.t =
+      match t with
       | Add_zero _
       | Undo
-      | Rotate_zeroes
-      | Finish -> false
-      | Move_zero _
-      | Move_nonzero _ -> true
+      | Finish -> None
+      | Rotate_zeroes -> Interpolate_poly
+      | Move_nonzero v ->
+        Move_point_by V.(v - state.nonzero)
+      | Move_zero v ->
+        match state.zeroes with
+        | [] -> None
+        | v' :: _ ->
+          Move_point_by V.(v - v')
   end
 
-  let lagrange ~zeroes ~nonzero =
-   let zeroes = List.map zeroes ~f:(fun v -> v, 0.) in
-   let data = (nonzero, 100.) :: zeroes in
-   let basis = P.Basis.mono ~degree in
-   L.create ~basis data
+  let active_zero t =
+    List.hd t.zeroes
 
-  let create () =
+  let make_lagrange_base ~zeroes ~nonzero =
+    let zeroes =
+      match zeroes with
+      | [] -> []
+      | _ :: zeroes ->
+        List.map zeroes ~f:(fun v -> v, 0.)
+    in
+    let data = (nonzero, 100.) :: zeroes in
+    let basis = P.Basis.mono ~degree in
+    L.create ~basis data
+
+  let make_poly ~zeroes ~lagrange_base =
+    let lagrange =
+      match zeroes with
+      | [] -> lagrange_base
+      | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
+    in
+    Lagrange.result lagrange
+
+  let make_poly ~zeroes ~lagrange_base =
+    Probe.with_probe "poly" (fun () -> make_poly ~zeroes ~lagrange_base)
+
+  let create ?(zeroes = []) () =
     let nonzero = Config.domain_centre config in
-    let zeroes = [] in
-    let lagrange_base = lagrange ~zeroes ~nonzero in
+    let lagrange_base = make_lagrange_base ~zeroes ~nonzero in
+    let poly = make_poly ~zeroes ~lagrange_base in
     let rec t =
-      { zeroes = []
+      { zeroes
       ; nonzero
       ; lagrange_base
+      ; poly
       ; prev = t
       }
     in
@@ -85,6 +119,7 @@ module State = struct
         { zeroes
         ; nonzero
         ; lagrange_base
+        ; poly = _
         ; prev
         } = t
     in
@@ -92,10 +127,13 @@ module State = struct
     | Finish -> t
     | Undo -> prev
     | Add_zero v ->
-      let lagrange_base = lagrange ~zeroes ~nonzero in
-      { zeroes = v :: zeroes
+      let zeroes = v :: zeroes in
+      let lagrange_base = make_lagrange_base ~zeroes ~nonzero in
+      let poly = make_poly ~zeroes ~lagrange_base in
+      { zeroes
       ; nonzero
       ; lagrange_base
+      ; poly
       ; prev = t
       }
     | Move_zero v ->
@@ -104,17 +142,20 @@ module State = struct
         | [] -> [ v ]
         | _ :: vs -> v :: vs
       in
+      let poly = make_poly ~zeroes ~lagrange_base in
       { zeroes
       ; nonzero
       ; lagrange_base
+      ; poly
       ; prev
       }
     | Move_nonzero v ->
-      let old_zeroes = List.tl zeroes |> Option.value ~default:[] in
-      let lagrange_base = lagrange ~zeroes:old_zeroes ~nonzero in
+      let lagrange_base = make_lagrange_base ~zeroes ~nonzero in
+      let poly = make_poly ~zeroes ~lagrange_base in
       { zeroes
       ; nonzero = v
       ; lagrange_base
+      ; poly
       ; prev
       }
     | Rotate_zeroes ->
@@ -122,41 +163,45 @@ module State = struct
       | [] -> t
       | v :: vs ->
         let zeroes = v :: List.rev vs in
-        let lagrange_base = lagrange ~zeroes ~nonzero in
-        { zeroes; nonzero; lagrange_base; prev = t }
+        let lagrange_base = make_lagrange_base ~zeroes ~nonzero in
+        let poly = make_poly ~zeroes ~lagrange_base in
+        { zeroes; nonzero; lagrange_base; poly; prev = t }
 
-  let poly { zeroes; nonzero = _; lagrange_base; prev = _ } =
-    let lagrange =
-      match zeroes with
-      | [] -> lagrange_base
-      | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
-    in
-    Lagrange.result lagrange
-
-  let poly t =
-    Probe.with_probe "poly" (fun () -> poly t)
-
-  let _draw_dots { zeroes; lagrange_base = _; nonzero = _; prev = _ } =
-    G.set_color G.white;
-    List.iter zeroes ~f:(fun v ->
+  let _draw_dots t =
+    let draw_dot v =
       let (i, j) = Config.domain_to_image config v in
-      G.draw_circle i j 10)
+      G.fill_circle i j 10;
+    in
+    match t.zeroes with
+    | [] -> ()
+    | v :: vs ->
+      G.set_color G.red;
+      draw_dot v;
+      G.set_color G.white;
+      List.iter vs ~f:draw_dot
+
 
   (* CR-someday: this is only correct if only the last zero has moved. *)
-  let weighted_average ~w t1 t2 =
+  let point_weighted_average ~w t1 t2 =
     let v_avg = V.weighted_average ~w in
-    let { zeroes = zs1; nonzero = nz1; lagrange_base = _; prev = _ } = t1 in
-    let { zeroes = zs2; nonzero = nz2; lagrange_base = _; prev } = t2 in
+    let { zeroes = zs1; nonzero = nz1; lagrange_base = _
+        ; prev = _; poly = _ } = t1 in
+    let { zeroes = zs2; nonzero = nz2; lagrange_base; prev; poly = _ } = t2 in
     let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
     let nonzero = v_avg nz1 nz2 in
-    let lagrange_base = lagrange ~zeroes ~nonzero in
-    { zeroes; nonzero; lagrange_base; prev }
+    let poly = make_poly ~zeroes ~lagrange_base in
+    { zeroes; nonzero; lagrange_base; prev; poly }
+
+  (* CR-someday: this produces pretty fake states. *)
+  let poly_weighted_average ~w t1 t2 =
+    let poly = P.weighted_average t1.poly t2.poly ~w in
+    { t2 with poly }
 
   (* CR: optimize. *)
   let distance t1 t2 =
     let image_x, image_y = Config.image_size config in
-    let icon_x = 8 in
-    let icon_y = 8 in
+    let icon_x = 32 in
+    let icon_y = 32 in
     let x_ratio = image_x / icon_x in
     let y_ratio = image_y / icon_y in
     let p1 = poly t1 in
@@ -175,13 +220,23 @@ module State = struct
     Float.(float !count / (float icon_x * float icon_y))
 end
 
-module Events = struct
+module type Events = sig
+  type t
+
+  val create : unit -> t
+
+  val next : t -> State.t -> State.Update.t option
+end
+
+module User_events : Events = struct
   type t = { mutable key : char }
 
   let create () =
     { key = Char.of_int_exn 0 }
 
-  let feed_event t event : State.Update.t option =
+  let next t _state : State.Update.t option =
+    let event = G.wait_next_event [ Button_down; Key_pressed ] in
+    debug [%message (event : Event.t)];
     let { G.
       mouse_x
     ; mouse_y
@@ -209,6 +264,44 @@ module Events = struct
       | _ -> mouse_event ()
     end
     else mouse_event ()
+end
+
+let random_point () =
+  let (x, y) = Config.domain_size config in
+  (Random.float x, Random.float y)
+
+let random_point_not_too_close v d =
+  let count = ref 0 in
+  let rec loop () =
+    incr count;
+    if !count > 1000
+    then failwith "too many loops of random point";
+    let v' = random_point () in
+    if Float.(V.(length (v - v')) >= d)
+    then v'
+    else loop ()
+  in
+  loop ()
+
+module Auto_events : Events = struct
+  module Q = Queue
+
+  type t = State.Update.t Q.t
+
+  let create () =
+    Q.create ()
+
+  let next (t : t) state : State.Update.t option =
+    if Q.is_empty t
+    then begin
+      Q.enqueue t Rotate_zeroes;
+      match State.active_zero state with
+      | None -> ()
+      | Some v ->
+        let v = random_point_not_too_close v 1. in
+        Q.enqueue t (Move_zero v);
+    end;
+    Some (Q.dequeue_exn t)
 end
 
 let colors =
@@ -243,6 +336,10 @@ module Ctx = struct
       Writer.save_sexp file (Animation.sexp_of_t recording)
 end
 
+let initial_state ~num_points =
+  let zeroes = List.init num_points ~f:(fun _ -> random_point ()) in
+  State.create ~zeroes ()
+
 let draw_poly (ctx : Ctx.t) p =
   Ctx.record_frame ctx p;
   let values = Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p) in
@@ -261,42 +358,71 @@ let draw_poly (ctx : Ctx.t) p =
   Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
 
 let run ~record_to =
+  let module Events = Auto_events in
+  Random.self_init ();
   let ctx = Ctx.create ~record:(Option.is_some record_to) in
   let events = Events.create () in
-  let draw state =
+  let draw ~stop prev_state state =
     Or_error.try_with (fun () ->
       State.poly state |> draw_poly ctx)
     |> Or_error.iter_error ~f:(Core.eprintf !"%{Error#hum}\n%!");
     (* State.draw_dots state; *)
-    state
+    (* G.draw_string (Float.to_string distance); *)
+    begin
+      match prev_state with
+      | None -> ()
+      | Some prev_state ->
+        let distance = State.distance prev_state state in
+        if Float.(distance < 0.004)
+        then begin
+          Core.print_s [%message "STOP"];
+          stop ()
+        end
+        (*
+        if Float.(distance < 0.004)
+        then Core.print_s [%message (distance : float) "------------------"]
+        else Core.print_s [%message (distance : float)];
+        *)
+    end;
+    return (Some state)
   in
   let rec loop states =
-    let%bind states = Pipe.map states ~f:draw |> Pipe.to_list in
-    let state = List.last_exn states in
-    Probe.print_and_clear ();
-    let event = G.wait_next_event [ Button_down; Key_pressed ] in
-    debug [%message (event : Event.t)];
-    match Events.feed_event events event with
+    let stop () = Pipe.close_read states in
+    let%bind state = Pipe.fold states ~init:None ~f:(draw ~stop) in
+    let state = Option.value_exn state ~here:[%here] in
+    (* Probe.print_and_clear (); *)
+    match Events.next events state with
     | None -> loop (Pipe.singleton state)
     | Some Finish -> return ()
     | Some update ->
       debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
+      (* 0.02, 0.05, 0.2 *)
+      let max_distance = 0.1 in
       let states =
-        if State.Update.should_animate update
-        then
+        match State.Update.animation_vector state update with
+        | None -> Pipe.singleton new_state
+        | Interpolate_poly ->
           Motion.smooth_speed
-            ~point:(fun w -> State.weighted_average state new_state ~w)
+            ~point:(fun w -> State.poly_weighted_average state new_state ~w)
             ~distance:State.distance
-            ~max_distance:0.02 (* 0.05, 0.2 *)
-            ~desired_step_size:0.02 (* 0.05, 0.2 *)
-        else Pipe.singleton new_state
+            ~max_distance
+            ~desired_step_size:1.
+        | Move_point_by v ->
+          let absolute_desired_step_size = 0.2 in
+          let desired_step_size = absolute_desired_step_size /. (V.length v) in
+          Motion.smooth_speed
+            ~point:(fun w -> State.point_weighted_average state new_state ~w)
+            ~distance:State.distance
+            ~max_distance
+            ~desired_step_size
       in
       loop states
   in
   let image_x, image_y = Config.image_size config in
   G.open_graph (sprintf " %dx%d" image_x image_y);
-  let%bind () = loop (Pipe.singleton (State.create ())) in
+  G.set_font "-adobe-courier-*-*-*-*-*-240-*-*-*-*-*-*";
+  let%bind () = loop (Pipe.singleton (initial_state ~num_points:10)) in
   match record_to with
   | None -> return ()
   | Some file -> Ctx.write_animation_exn ctx file

@@ -3,6 +3,13 @@ open Async
 
 (* CR-someday: higher resolution when lines move fast. *)
 
+(* TODO for freero:
+ * HD format
+ * try different concentrations of points
+ * try different colours
+ * perspective correction
+*)
+
 (* TODO:
  * understand what happens around the points such that zeroes persist.
  * the end of 4x5 is pretty abrupt
