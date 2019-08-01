@@ -29,6 +29,32 @@ let interpolate ~weighted_average ~num_steps xs =
   in
   loop xs
 
+(* CR-someday: surely should work simpler? *)
+let interpolate_pipe ~weighted_average ~num_steps pipe =
+  let reader, writer = Pipe.create () in
+  let finish () =
+    Core.print_s [%message "FINISH"];
+    Pipe.close writer;
+    return ()
+  in
+  let rec loop x1 =
+    match%bind Pipe.read pipe with
+    | `Eof -> finish ()
+    | `Ok x2 ->
+      let%bind () =
+        interpolate ~weighted_average ~num_steps [x1; x2]
+        |> Deferred.List.iter ~f:(Pipe.write writer)
+      in
+      loop x2
+  in
+  let start () =
+    match%bind Pipe.read pipe with
+    | `Eof -> finish ()
+    | `Ok x -> loop x
+  in
+  don't_wait_for (start ());
+  reader
+
 let fold_map_deferred xs ~init ~f =
   let rec loop y = function
     | [] -> return [y]

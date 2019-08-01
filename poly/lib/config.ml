@@ -14,6 +14,7 @@ type t =
   ; style : Style.t
   ; cbrange : float * float
   ; rendering_degree : int option
+  ; speed : float
   } [@@deriving sexp, fields]
 
 let create
@@ -22,6 +23,7 @@ let create
     ~cbrange
     ?(style = `heat)
     ?rendering_degree
+    ?(speed = 1.)
     () =
   (* Point range is [0; n - 1] *)
   let grid_x, grid_y = grid_size in
@@ -37,6 +39,7 @@ let create
   ; style
   ; cbrange
   ; rendering_degree
+  ; speed
   }
 
 let image_size t =
@@ -84,7 +87,7 @@ module For_tests = struct
     printf !"%{sexp:t}" t;
     [%expect {|
       ((domain_size (9 9)) (image_size (500 500)) (grid_size (10 10)) (style heat)
-       (cbrange (0 0)) (rendering_degree ())) |}]
+       (cbrange (0 0)) (rendering_degree ()) (speed 1)) |}]
 
   let%test_unit _ =
     let v1 = (134, 25) in

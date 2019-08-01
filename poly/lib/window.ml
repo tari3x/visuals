@@ -13,7 +13,17 @@ let debug a = debug_s ~enabled:false a
 module G = Graphics
 module L = Lagrange
 
-let degree = 4
+let degree = 8
+
+let min_points = 15
+let max_points = 15 (* 18 *)
+
+let num_frames = 90_000
+
+let speed = 0.2
+(*
+  let speed = Float.(0.15 / 8.5)
+*)
 
 let config =
   Config.create
@@ -21,6 +31,7 @@ let config =
     ~cbrange:(-10., 10.)
     ~image_width:1024
     ~rendering_degree:degree
+    ~speed
     ()
 
 module Event = struct
@@ -47,6 +58,7 @@ module State = struct
     type t =
     | Add_zero of V.t
     | Move_zero of V.t
+    | Drop_zero
     | Move_nonzero of V.t
     | Rotate_zeroes
     | Undo
@@ -62,9 +74,10 @@ module State = struct
 
     let animation_vector state t : Animation.t =
       match t with
-      | Add_zero _
       | Undo
       | Finish -> None
+      | Drop_zero
+      | Add_zero _
       | Rotate_zeroes -> Interpolate_poly
       | Move_nonzero v ->
         Move_point_by V.(v - state.nonzero)
@@ -86,7 +99,10 @@ module State = struct
         List.map zeroes ~f:(fun v -> v, 0.)
     in
     let data = (nonzero, 100.) :: zeroes in
-    let basis = P.Basis.mono ~degree in
+    let basis =
+      P.Basis.bernstein ~domain:(Config.domain config) ~degree
+      |> P.Basis.odd_powers_only
+    in
     L.create ~basis data
 
   let make_poly ~zeroes ~lagrange_base =
@@ -136,6 +152,19 @@ module State = struct
       ; poly
       ; prev = t
       }
+    | Drop_zero ->
+      begin match zeroes with
+      | [] -> t
+      | _ :: zeroes ->
+        let lagrange_base = make_lagrange_base ~zeroes ~nonzero in
+        let poly = make_poly ~zeroes ~lagrange_base in
+        { zeroes
+        ; nonzero
+        ; lagrange_base
+        ; poly
+        ; prev = t
+        }
+      end
     | Move_zero v ->
       let zeroes =
         match zeroes with
@@ -200,8 +229,8 @@ module State = struct
   (* CR: optimize. *)
   let distance t1 t2 =
     let image_x, image_y = Config.image_size config in
-    let icon_x = 32 in
-    let icon_y = 32 in
+    let icon_x = 64 in
+    let icon_y = 64 in
     let x_ratio = image_x / icon_x in
     let y_ratio = image_y / icon_y in
     let p1 = poly t1 in
@@ -267,8 +296,16 @@ module User_events : Events = struct
 end
 
 let random_point () =
+  let open Float in
   let (x, y) = Config.domain_size config in
-  (Random.float x, Random.float y)
+  let c_x = x / 2. in
+  let c_y = y / 2. in
+  let w = 0.8 in
+  let w_x = x * w in
+  let w_y = y * w in
+  let x1 = c_x - w_x / 2. in
+  let y1 = c_y - w_y / 2. in
+  (x1 + Random.float w_x, y1 + Random.float w_y)
 
 let random_point_not_too_close v d =
   let count = ref 0 in
@@ -286,22 +323,47 @@ let random_point_not_too_close v d =
 module Auto_events : Events = struct
   module Q = Queue
 
-  type t = State.Update.t Q.t
+  type t =
+    { updates : State.Update.t Q.t
+    ; mutable count : int
+    ; mutable next_zero_action : [ `add | `remove ]
+    }
 
   let create () =
-    Q.create ()
+    { updates = Q.create ()
+    ; count = 0
+    ; next_zero_action = `remove
+    }
+
+  let next_zero_action t (state : State.t) : State.Update.t =
+    Core.print_s [%message "Adding or removing zero"];
+    let action =
+      let len = List.length state.zeroes in
+      if len = min_points
+      then `add
+      else if len = max_points
+      then `remove
+      else t.next_zero_action
+    in
+    t.next_zero_action <- action;
+    match action with
+    | `add -> Add_zero (random_point ())
+    | `remove -> Drop_zero
 
   let next (t : t) state : State.Update.t option =
-    if Q.is_empty t
+    if Q.is_empty t.updates
     then begin
-      Q.enqueue t Rotate_zeroes;
+      t.count <- t.count + 1;
+      if t.count % 3 = 0
+      then Q.enqueue t.updates (next_zero_action t state)
+      else Q.enqueue t.updates Rotate_zeroes;
       match State.active_zero state with
       | None -> ()
       | Some v ->
-        let v = random_point_not_too_close v 1. in
-        Q.enqueue t (Move_zero v);
+        let v = random_point_not_too_close v 4. in
+        Q.enqueue t.updates (Move_zero v);
     end;
-    Some (Q.dequeue_exn t)
+    Some (Q.dequeue_exn t.updates)
 end
 
 let colors =
@@ -314,18 +376,25 @@ module Ctx = struct
   type t =
     { eval : Eval.Ctx.t
     ; mutable recording : Animation.t option
+    ; palettes : Palette.Basis.t Pipe.Reader.t
+    ; mutable num_frames : int
     }
 
   let create ~record =
     let eval = Eval.Ctx.create ~config in
+    let palettes = Palette.Basis.pipe config in
     let recording =
       if record then Some (Animation.create ~config []) else None
     in
-    { eval; recording }
+    { eval; recording; palettes; num_frames = 0 }
 
-  let record_frame t p =
+  let record_frame t palette p =
+    t.num_frames <- t.num_frames + 1;
     t.recording <- Option.map t.recording ~f:(fun recording ->
-      let state = Animation.State.of_poly p in
+      let state =
+        Animation.State.of_poly p
+        |> Animation.State.with_palette ~palette
+      in
       { recording with states = state :: recording.states })
 
   let write_animation_exn t file =
@@ -334,37 +403,55 @@ module Ctx = struct
     | Some recording ->
       let recording = { recording with states = List.rev recording.states } in
       Writer.save_sexp file (Animation.sexp_of_t recording)
+
+  let next_palette t =
+    match%bind Pipe.read t.palettes with
+    | `Eof -> assert false
+    | `Ok basis -> return  basis
 end
 
 let initial_state ~num_points =
   let zeroes = List.init num_points ~f:(fun _ -> random_point ()) in
   State.create ~zeroes ()
 
-let draw_poly (ctx : Ctx.t) p =
-  Ctx.record_frame ctx p;
+let draw_poly (ctx : Ctx.t) palette p ~write_to =
+  Ctx.record_frame ctx palette p;
   let values = Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p) in
-  Probe.start "colors";
-  for i = 0 to A2.dim1 values - 1 do
-    for j = 0 to A2.dim2 values - 1 do
-      let color =
-        A2.get_flipped values i j
-        |> Render.value_graphics_color
-      in
-      colors.(j).(i) <- color;
-    done
-  done;
-  Probe.stop "colors";
-  let image = Probe.with_probe "image" (fun () -> G.make_image colors) in
-  Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
+  match write_to with
+  | None ->
+    Probe.start "palette";
+    let palette = Palette.create_graphics palette in
+    Probe.stop "palette";
+    Probe.start "colors";
+    for i = 0 to A2.dim1 values - 1 do
+      for j = 0 to A2.dim2 values - 1 do
+        let color =
+          A2.get_flipped values i j
+          |> Array.get palette
+        in
+        colors.(j).(i) <- color;
+      done
+    done;
+    Probe.stop "colors";
+    let image = Probe.with_probe "image" (fun () -> G.make_image colors) in
+    Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
+  | Some dir ->
+    Probe.start "palette";
+    let palette = Palette.create palette in
+    Probe.stop "palette";
+    Render_camlimage.write_image ~dir ~config ~values ~palette ()
 
-let run ~record_to =
+let run ~record_to ~write_to =
   let module Events = Auto_events in
   Random.self_init ();
   let ctx = Ctx.create ~record:(Option.is_some record_to) in
   let events = Events.create () in
+  (* 0.02, 0.05, 0.2 *)
+  let max_distance = Float.(0.1 * Config.speed config) in
   let draw ~stop prev_state state =
+    let%bind palette = Ctx.next_palette ctx in
     Or_error.try_with (fun () ->
-      State.poly state |> draw_poly ctx)
+      State.poly state |> draw_poly ctx palette ~write_to)
     |> Or_error.iter_error ~f:(Core.eprintf !"%{Error#hum}\n%!");
     (* State.draw_dots state; *)
     (* G.draw_string (Float.to_string distance); *)
@@ -372,23 +459,23 @@ let run ~record_to =
       match prev_state with
       | None -> ()
       | Some prev_state ->
-        let distance = State.distance prev_state state in
-        if Float.(distance < 0.004)
-        then begin
-          Core.print_s [%message "STOP"];
-          stop ()
-        end
-        (*
-        if Float.(distance < 0.004)
-        then Core.print_s [%message (distance : float) "------------------"]
-        else Core.print_s [%message (distance : float)];
-        *)
+        let _distance = State.distance prev_state state in
+        let _stop_threshold = Float.(max_distance / 30.) in
+        if ctx.num_frames >= num_frames then stop ();
+	(*
+	 if Float.(distance < stop_threshold)
+	 then begin
+	 Core.print_s [%message "STOP"];
+	 stop ()
+	 end
+	 *)
     end;
     return (Some state)
   in
   let rec loop states =
     let stop () = Pipe.close_read states in
     let%bind state = Pipe.fold states ~init:None ~f:(draw ~stop) in
+    Core.print_s [%message "next event"];
     let state = Option.value_exn state ~here:[%here] in
     (* Probe.print_and_clear (); *)
     match Events.next events state with
@@ -397,8 +484,6 @@ let run ~record_to =
     | Some update ->
       debug [%message (update : State.Update.t)];
       let new_state = State.update state update in
-      (* 0.02, 0.05, 0.2 *)
-      let max_distance = 0.1 in
       let states =
         match State.Update.animation_vector state update with
         | None -> Pipe.singleton new_state
@@ -409,7 +494,7 @@ let run ~record_to =
             ~max_distance
             ~desired_step_size:1.
         | Move_point_by v ->
-          let absolute_desired_step_size = 0.2 in
+          let absolute_desired_step_size = Float.(0.2 * Config.speed config) in
           let desired_step_size = absolute_desired_step_size /. (V.length v) in
           Motion.smooth_speed
             ~point:(fun w -> State.point_weighted_average state new_state ~w)
@@ -417,12 +502,14 @@ let run ~record_to =
             ~max_distance
             ~desired_step_size
       in
-      loop states
+      if ctx.num_frames >= num_frames
+      then return ()
+      else loop states
   in
   let image_x, image_y = Config.image_size config in
   G.open_graph (sprintf " %dx%d" image_x image_y);
   G.set_font "-adobe-courier-*-*-*-*-*-240-*-*-*-*-*-*";
-  let%bind () = loop (Pipe.singleton (initial_state ~num_points:10)) in
+  let%bind () = loop (Pipe.singleton (initial_state ~num_points:max_points)) in
   match record_to with
   | None -> return ()
   | Some file -> Ctx.write_animation_exn ctx file
@@ -433,7 +520,8 @@ let command =
     ~readme:(fun () -> "")
     ~summary:""
     [%map_open
-     let record_to = flag "-record-to" (optional Filename.arg_type) ~doc:"" in
+     let record_to = flag "-record-to" (optional Filename.arg_type) ~doc:""
+     and write_to = flag "-write-to" (optional Filename.arg_type) ~doc:"" in
      fun () ->
-       run ~record_to
+       run ~record_to ~write_to
     ]

@@ -10,12 +10,15 @@ module State : sig
    ; ps : P.t list
    ; defs : (string * P.t) list
    ; dots : V.t list
+   ; palette : Palette.Basis.t
    }
 
   val of_poly
     :  ?show_dots:V.t list
     -> P.t
     -> t
+
+  val with_palette : t -> palette:Palette.Basis.t -> t
 
   val collapse : t -> t
 

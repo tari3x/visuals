@@ -108,7 +108,7 @@ module Ctx = struct
       max_value
       (max_value -. min_value)
       num_monos
-      (Colors.num_colors - 1)
+      (Palette.num_colors - 1)
     in
     let program = Cl.create_program_with_source context [code] in
     build program device;

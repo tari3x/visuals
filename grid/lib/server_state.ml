@@ -17,8 +17,8 @@ let render t =
   Grid.render t.grid
 
 let rec render_loop t =
-  (* Lwt_js_events.request_animation_frame () *)
-  Lwt_js.sleep 0.01
+  Lwt_js_events.request_animation_frame ()
+  (* Lwt_js.sleep 0.01 *)
   >>= fun () ->
   render t;
   render_loop t

@@ -12,15 +12,9 @@ type t =
   ; g : int
   ; b : int
   ; a : float
-  } [@@deriving sexp]
+  } [@@deriving sexp, fields]
 
-let create ~r ~g ~b ~a =
-  { r; g; b; a }
-
-let r t = t.r
-let g t = t.g
-let b t = t.b
-let a t = t.a
+let create = Fields.create
 
 let white = create ~r:255 ~g:255 ~b:255 ~a:1.
 let black = create ~r:0 ~g:0 ~b:0 ~a:1.
@@ -118,3 +112,5 @@ let maximize t =
   in
   let s = Float.(255. / max_component) in
   scale t s
+
+

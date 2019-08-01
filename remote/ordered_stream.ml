@@ -64,7 +64,9 @@ module Buffer = struct
       let seq' = Element.seq x' in
       if seq < seq' then x :: x' :: xs
       else begin
-        debug "messages out of order, buffer size: %d" t.buffer_size;
+        debug [%message
+                  "messages out of order"
+                  (t.buffer_size : int)];
         x' :: insert t x xs
       end
 

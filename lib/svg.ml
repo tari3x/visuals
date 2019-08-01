@@ -125,6 +125,4 @@ let parse_exn (elt : Html.iFrameElement Js.t) =
   let doc = Opt.value_exn elt##.contentDocument ~here:[%here] in
   let shapes = shapes doc in
   let calibration_points = calibration_points doc in
-  let t = { shapes; calibration_points } in
-  debug !"%{sexp:t}" t;
-  t
+  { shapes; calibration_points }

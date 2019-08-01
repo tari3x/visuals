@@ -10,6 +10,7 @@ val create
   -> cbrange:float * float
   -> ?style:Style.t
   -> ?rendering_degree:int
+  -> ?speed:float
   -> unit
   -> t
 
@@ -37,3 +38,4 @@ val cbrange : t -> float * float
 
 val rendering_degree_exn : t -> int
 
+val speed : t -> float

@@ -46,6 +46,8 @@ module Vector : sig
   val ( / ) : t -> float -> t
   val ( * ) : t -> float -> t
 
+  val random_unit : unit -> t
+
   val to_string : t -> string
 end
 

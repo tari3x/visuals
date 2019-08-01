@@ -13,11 +13,19 @@ end
 
 val weighted_average : float -> float -> w:float -> float
 
+(** Does not include the last element. *)
 val interpolate
   :  weighted_average:(w:float -> 'a -> 'a -> 'a)
   -> num_steps:int
   -> 'a list
   -> 'a list
+
+(** Does not include the last element. *)
+val interpolate_pipe
+  :  weighted_average:(w:float -> 'a -> 'a -> 'a)
+  -> num_steps:int
+  -> 'a Pipe.Reader.t
+  -> 'a Pipe.Reader.t
 
 val fold_map_deferred
   :  'a list

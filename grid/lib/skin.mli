@@ -13,14 +13,15 @@ module type Elt = sig
   type t
 
   val id : t -> Id.t
-  val distance : t -> t -> float
+  val offset : t -> t -> Vector.t
   val touch : t -> Color_flow.t -> unit
 end
 
 module Make(Elt : Elt) : sig
   module Elts : sig
     type t
-    (* not empty *)
+
+    (** Must have at least two elements *)
     val create_exn : Elt.t list -> t
   end
 

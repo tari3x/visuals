@@ -19,10 +19,16 @@ module State = struct
     ; ps : P.t list
     ; defs : (string * P.t) list
     ; dots : V.t list
+    ; palette : Palette.Basis.t
     } [@@deriving sexp]
 
+  let with_palette t ~palette =
+    { t with palette }
+
   let of_poly ?(show_dots = []) p =
-    { p; ps = []; dots = show_dots; defs = []}
+    { p; ps = []; dots = show_dots; defs = []
+    ; palette = Palette.Basis.rgb
+    }
 
   let product t =
     P.product (t.p :: t.ps)
@@ -32,6 +38,7 @@ module State = struct
     ; ps = []
     ; dots = t.dots
     ; defs = t.defs
+    ; palette = t.palette
     }
 
   (* CR: make interpolation fast for camlimage. *)
@@ -60,7 +67,9 @@ module State = struct
       (*
          let p = P.(scale (call f1) (1. -. alpha) + scale (call f2) alpha) in
       *)
-      { p; ps = t1.ps; dots = t1.dots; defs })
+      { p; ps = t1.ps; dots = t1.dots; defs
+      ; palette = t1.palette
+      })
 
   let rec interpolate = function
     | [] -> []

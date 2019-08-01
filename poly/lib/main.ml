@@ -3,14 +3,13 @@ open Async
 
 (* CR-someday: higher resolution when lines move fast. *)
 
-(* TODO for freero:
- * HD format
- * try different concentrations of points
- * try different colours
- * perspective correction
+(* vignette settings in kdenlive:
+   smoothness 448
+   radius 490
 *)
 
 (* TODO:
+ * understand stutter better
  * understand what happens around the points such that zeroes persist.
  * the end of 4x5 is pretty abrupt
  * double log gives interesting colour effect

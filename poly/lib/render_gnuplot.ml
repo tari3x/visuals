@@ -83,7 +83,8 @@ let frame = ref 0
 
 let make_frame
     { Writer. writer = w; config }
-    { A.State. p; ps; defs; dots } =
+    { A.State. p; ps; defs; dots
+    ; palette = _ } =
   incr frame;
   fprintf w "set output 'frame%06d.png'\n" !frame;
   let p = P.product (p :: ps) in

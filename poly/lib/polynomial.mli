@@ -52,6 +52,11 @@ val distance : t -> t -> float
 val weighted_average : t -> t -> w:float -> t
 
 module Basis : sig
-  val mono : degree:int -> t list
-  val bernstein : degree:int -> domain:(V.t * V.t) -> t list
+  type nonrec t = t list
+
+  val mono : degree:int -> t
+
+  val bernstein : degree:int -> domain:(V.t * V.t) -> t
+
+  val odd_powers_only : t -> t
 end

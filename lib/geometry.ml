@@ -90,6 +90,14 @@ module Vector = struct
   let normalize t =
     t / length t
 
+  let rec random_unit () =
+    let open Float in
+    let x = (Random.float 1.) - 0.5 in
+    let y = (Random.float 1.) - 0.5 in
+    if x = 0. && y = 0.
+    then random_unit ()
+    else normalize (x, y, 1.)
+
   let to_string (x, y, _) =
     Printf.sprintf "(%f, %f)" x y
 end

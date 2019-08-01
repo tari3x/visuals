@@ -23,19 +23,25 @@ open Std_internal
    Is a bit weird, no?
 
    * CPU consumption
+
+   * Play with rain on sound
 *)
 
 module CF = Color_flow
 module PD = Probability_distribution
+module V = Vector
 
-let flash_cutoff = 0.9 (* 0.7 *)
+let flash_cutoff = (* 0.9 *) 0.8
 let human_playing_timeout = Time.Span.of_sec 10.
 
-let rain_dropoff = 1.5
+let rain_dropoff = 1.3 (* 1.5 *)
+let wind_dropoff = 10.
 let drop_interval = Time.Span.of_sec 0.01
 let fade_to_base_interpolation_arg = 0.03
 let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
 let drops_value_range = (0.1, 1.) (*  (0.0000002, 0.3) *)
+(* CR-someday is this equivalent to infinity? *)
+let new_strand_probability = 0.01
 
 module type Elt = sig
   module Id : Id
@@ -43,7 +49,7 @@ module type Elt = sig
   type t
 
   val id : t -> Id.t
-  val distance : t -> t -> float
+  val offset : t -> t -> V.t
   val touch : t -> Color_flow.t -> unit
 end
 
@@ -51,9 +57,10 @@ module Make(Elt : Elt) = struct
   module Elts = struct
     type t = Elt.t list
 
-    let create_exn elts =
-      if List.is_empty elts then failwith "Elts.create_exn: empty list";
-      elts
+    let create_exn elts : t =
+      match elts with
+      | [] | [_] -> failwith "Elts.create_exn: too short"
+      | elts -> elts
   end
 
   module E = struct
@@ -71,8 +78,11 @@ module Make(Elt : Elt) = struct
     let compare_ids t1 t2 =
       Id.compare (id t1) (id t2)
 
+    let offset t1 t2 =
+      Elt.offset t1.elt t2.elt
+
     let distance t1 t2 =
-      Elt.distance t1.elt t2.elt
+      V.length (offset t1 t2)
 
     let a c alpha = Color.set_alpha c ~alpha
 
@@ -143,9 +153,13 @@ module Make(Elt : Elt) = struct
       { id : Id.t
       ; config : Config.t
       ; centre : E.t
-      ; elts : E.t PD.t
+      ; wind : V.t
+      ; elts : E.t list
+      ; next_strand : E.t PD.t
+      ; mutable last_drop : E.t
       ; color : Color.t
       ; mutable centre_drops : int
+      ; min_distance : float
       } [@@deriving fields]
 
     let choose_new_centre_exn ~elts ~other_rains =
@@ -163,28 +177,67 @@ module Make(Elt : Elt) = struct
           List.map cs ~f:(E.distance e)
           |> List.reduce_exn ~f:Float.(+)
       in
-      List.map elts ~f:(fun e -> e, weight e)
+      List.map elts ~f:(fun e -> PD.Elt.create e ~weight:(weight e))
       |> PD.create_exn
       |> PD.draw
 
-    let create_exn ~other_rains ~elts ~(id : Id.t) ~config =
+    let random_drop_around_centre ~min_distance centre elts ~dropoff =
       let open Float in
+      let other_elts =
+        List.filter elts ~f:(fun e -> not (phys_equal e centre))
+        |> List.map ~f:(fun e ->
+          let distance = E.distance centre e in
+          let weight = (min_distance / distance) **. dropoff in
+          PD.Elt.create e ~weight)
+      in
+      PD.create_exn (PD.Elt.create centre ~weight:1. :: other_elts)
+
+    let create_exn ~other_rains ~min_distance ~elts ~(id : Id.t) ~config =
       let color = Color.random () |> Color.maximize in
       let centre = choose_new_centre_exn ~elts ~other_rains in
-      let elts =
-        let max_weight, other_elts =
-          List.filter elts ~f:(fun e -> not (phys_equal e centre))
-          |> List.fold_map ~init:0. ~f:(fun max_weight e ->
-            let distance = E.distance centre e in
-            let weight = (1. / distance) **. rain_dropoff in
-            Float.max max_weight weight, (e, weight))
-        in
-        PD.create_exn
-          (( centre, max_weight ) :: other_elts)
+      let wind = V.(scale (random_unit ()) ~by:min_distance) in
+      debug [%message (min_distance : float)];
+      debug [%message (wind : V.t)];
+      let next_strand =
+        random_drop_around_centre
+          centre
+          elts
+          ~min_distance
+          ~dropoff:rain_dropoff
       in
-      { id; config; color; elts; centre
+      { id; config; color
+      ; elts
+      ; next_strand
+      ; last_drop = centre
+      ; centre
+      ; wind
+      ; min_distance
       ; centre_drops = 0
       }
+
+    let next_strand_drop t =
+      let open Float in
+      let last_drop = t.last_drop in
+      let weight e =
+        let v = E.offset e last_drop in
+        let d = Float.max 1. V.(length (v - t.wind)) in
+        (* CR: *)
+        (1. /  d) **. wind_dropoff
+      in
+      let elts =
+        List.map t.elts ~f:(fun e ->
+          let weight = weight e in
+          PD.Elt.create e ~weight)
+      in
+      let max_weight =
+        List.map elts ~f:PD.Elt.weight
+        |> List.max_elt ~compare:Float.compare
+        |> Option.value_exn
+      in
+      if Float.(max_weight = weight last_drop)
+      (* We hit the wall, start a new strand *)
+      then PD.draw t.next_strand
+      else PD.draw (PD.create_exn elts)
 
     let is_silent t =
       match t.id with
@@ -192,7 +245,13 @@ module Make(Elt : Elt) = struct
       | Silent _ -> true
 
     let drop t ~flash =
-      let e = PD.draw t.elts in
+      let e =
+        let open Float in
+        if Random.float 1. <= new_strand_probability
+        then PD.draw t.next_strand
+        else next_strand_drop t
+      in
+      t.last_drop <- e;
       if phys_equal e t.centre then t.centre_drops <- t.centre_drops + 1;
       E.touch e ~color:t.color ~flash
 
@@ -224,12 +283,22 @@ module Make(Elt : Elt) = struct
     ; elts : E.t Hashtbl.M(E.Id).t (* not empty *)
     ; sound : Sound.t
     ; rains : Rain.t Hashtbl.M(Rain.Id).t
+    ; mutable min_distance : float
     ; mutable last_human_touch : Time.t
     ; mutable drop_count : int
     }
 
   let set_elts t (elts : Elts.t) =
     Hashtbl.clear t.elts;
+    let min_distance =
+      List.cartesian_product elts elts
+      |> List.filter_map ~f:(fun (e1, e2) ->
+        if phys_equal e1 e2 then None
+        else Some (V.length (Elt.offset e1 e2)))
+      |> List.min_elt ~compare:Float.compare
+      |> Option.value_exn
+    in
+    t.min_distance <- min_distance;
     List.iter elts ~f:(fun elt ->
       let key = Elt.id elt in
       let data = E.create elt ~config:t.config in
@@ -242,6 +311,7 @@ module Make(Elt : Elt) = struct
       ; elts  = Hashtbl.create (module E.Id)
       ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
       ; drop_count = 0
+      ; min_distance = 0.
       }
     in
     set_elts t elts;
@@ -254,6 +324,7 @@ module Make(Elt : Elt) = struct
 
   let new_rain t id =
     Rain.create_exn ~id ~config:t.config
+      ~min_distance:t.min_distance
       ~other_rains:(Hashtbl.data t.rains)
       ~elts:(Hashtbl.data t.elts)
 
@@ -290,7 +361,7 @@ module Make(Elt : Elt) = struct
     let open Float in
     (* CR-someday: surely there's something smarter possible that doesn't wake
        up every quantum if not many drops are happening. *)
-    let quantum = 0.001 in
+    let quantum = 0.1 (* 0.001 *) in
     let drops =
       Resonant_flow.create_exn
         ~period_range:drops_period_range
@@ -298,7 +369,6 @@ module Make(Elt : Elt) = struct
     in
     let rec count_drops () =
       let%bind () = Lwt_js.sleep 1. in
-      debug "drops: %d" t.drop_count;
       t.drop_count <- 0;
       count_drops ()
     in

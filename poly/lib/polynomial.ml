@@ -239,7 +239,10 @@ let distance (t1 : t) (t2 : t) =
 let weighted_average t1 t2 ~w =
   scale t1 ~by:Float.(1. - w) + scale t2 ~by:w
 
+
 module Basis = struct
+  type nonrec t = t list
+
   let mono ~degree =
     let monos =
       Mono.all ~degree
@@ -277,6 +280,12 @@ module Basis = struct
           ~by:(scale (var_y - const y1) ~by:Float.(1. / (y2 - y1)))
     )
 
+  let odd_powers_only (t : t) =
+    List.map t ~f:(fun t ->
+      List.map t ~f:(fun (m, x) ->
+        let m = List.filter m ~f:(fun (_, n) -> n % 2 = 1) in
+        (m, x))
+      |> normalize)
 end
 
 include Comparable.Make(T)

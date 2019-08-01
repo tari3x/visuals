@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Base
 open Lwt
 open Std_internal
 
@@ -32,10 +33,10 @@ let _test_quantum () =
   let rec loop () =
     (* let%bind () = Lwt_js.sleep quantum in *)
     let%bind () = Lwt_js_events.request_animation_frame () in
-    incr count;
+    Int.incr count;
     if Time.(Span.(now () - !start > Time.Span.of_sec 1.))
     then begin
-      debug "%d" !count;
+      debug [%message (!count : int)];
       start := Time.now ();
       count := 0
     end;
@@ -44,6 +45,7 @@ let _test_quantum () =
   loop ()
 
 let main (config : Config.t) =
+  debug [%message "222"];
   Random.self_init ();
   Sound.create_from_mic ()
   >>= fun sound ->

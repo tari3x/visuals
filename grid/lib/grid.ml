@@ -92,9 +92,9 @@ module Elt = struct
     let open Vector in
     length (centre t - point)
 
-  let distance t1 t2 =
+  let offset t1 t2 =
     let open Vector in
-    length (centre t1 - centre t2)
+    centre t1 - centre t2
 
   let touch t color =
     t.color <- Some color
@@ -227,7 +227,7 @@ let ctl t box =
     begin
       match Box.touches box ~coordinates:`canvas with
       | [] ->
-        debug "box with no touches!"
+        debug [%message "box with no touches!"]
       | touch :: _ ->
         let open Float in
         let (x, y) = Vector.coords touch in
