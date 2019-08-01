@@ -14,7 +14,6 @@ open Std_internal
    * try using manhattan distance or similar
 
    * try with chrome
-   * make sure sound is not overpowered by talking
 
    * self-adjusting resonant flow,
    want to be able to say "100 flashes" per round.
@@ -31,7 +30,7 @@ module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
 
-let flash_cutoff = (* 0.9 *) 0.8
+let flash_cutoff = (* 0.9 *) 0.7
 let human_playing_timeout = Time.Span.of_sec 10.
 
 let rain_dropoff = 1.3 (* 1.5 *)
@@ -152,12 +151,12 @@ module Make(Elt : Elt) = struct
     type t =
       { id : Id.t
       ; config : Config.t
+      ; color : Color.t
+      ; elts : E.t list
       ; centre : E.t
       ; wind : V.t
-      ; elts : E.t list
       ; next_strand : E.t PD.t
       ; mutable last_drop : E.t
-      ; color : Color.t
       ; mutable centre_drops : int
       ; min_distance : float
       } [@@deriving fields]
@@ -221,7 +220,6 @@ module Make(Elt : Elt) = struct
       let weight e =
         let v = E.offset e last_drop in
         let d = Float.max 1. V.(length (v - t.wind)) in
-        (* CR: *)
         (1. /  d) **. wind_dropoff
       in
       let elts =
@@ -239,11 +237,6 @@ module Make(Elt : Elt) = struct
       then PD.draw t.next_strand
       else PD.draw (PD.create_exn elts)
 
-    let is_silent t =
-      match t.id with
-      | Sound _ -> false
-      | Silent _ -> true
-
     let drop t ~flash =
       let e =
         let open Float in
@@ -258,6 +251,11 @@ module Make(Elt : Elt) = struct
     (* This should be roughly enough to saturate the color *)
     let finished t =
       t.centre_drops >= int (4. /. fade_to_base_interpolation_arg)
+
+    let is_silent t =
+      match t.id with
+      | Sound _ -> false
+      | Silent _ -> true
 
     let burst t =
       let open Lwt.Let_syntax in
@@ -361,6 +359,7 @@ module Make(Elt : Elt) = struct
     let open Float in
     (* CR-someday: surely there's something smarter possible that doesn't wake
        up every quantum if not many drops are happening. *)
+    (* CR-someday: shurely the probability needs to scale with [quantum]? *)
     let quantum = 0.1 (* 0.001 *) in
     let drops =
       Resonant_flow.create_exn
@@ -386,7 +385,7 @@ module Make(Elt : Elt) = struct
       Lwt.async (fun () -> run_silent_rain t)
     done;
     if t.config.num_silent_rains > 0
-    then Lwt.async (fun () -> run_silent_drops t)
+    then Lwt.async (fun () -> Lwt.return run_silent_drops t)
 
   let start t =
     start_silent_rains t;

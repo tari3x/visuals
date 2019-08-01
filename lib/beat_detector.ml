@@ -10,9 +10,12 @@ open Common
 
 let half_life = 10.
 
+let min_cutoff = 0.25
+
 type t =
   { mutable value : float
   ; mutable beat_max : float option
+  ; mutable total_max : float
   ; ewma : Ewma.t
   }
 
@@ -21,6 +24,7 @@ let create () =
   let ewma = Ewma.create ~half_life in
   { value
   ; beat_max = None
+  ; total_max = 0.
   ; ewma
   }
 
@@ -28,7 +32,9 @@ let add_sample t ~time ~value =
   let open Float in
   Ewma.add_sample t.ewma ~param:(Time.to_sec time) ~value;
   let beat_max =
-    match t.beat_max with
+    if value < min_cutoff * t.total_max
+    then None
+    else match t.beat_max with
     | None ->
       if value > 2. * Ewma.value_exn t.ewma
       then Some value
@@ -41,7 +47,8 @@ let add_sample t ~time ~value =
       else Some beat_max
   in
   t.value <- value;
-  t.beat_max <- beat_max
+  t.beat_max <- beat_max;
+  t.total_max <- Float.max value t.total_max
 
 let in_beat t =
   Option.is_some t.beat_max
