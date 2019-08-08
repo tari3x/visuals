@@ -1,7 +1,7 @@
-Most things can be run by going to the directory you want to run, and doing
-make
+Most things can be run by going to the directory you want to run, and running
 
 ```
+make
 sudo su
 ./start.sh
 firefox http://localhost/index-server.html
