@@ -30,10 +30,10 @@ module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
 
-let flash_cutoff = (* 0.9 *) 0.7
+let flash_cutoff = 0.85
 let human_playing_timeout = Time.Span.of_sec 10.
 
-let rain_dropoff = 1.3 (* 1.5 *)
+let rain_dropoff = 0.5 (* 1.5 *)
 let wind_dropoff = 10.
 let drop_interval = Time.Span.of_sec 0.01
 let fade_to_base_interpolation_arg = 0.03
@@ -101,10 +101,10 @@ module Make(Elt : Elt) = struct
       end
 
     (* Always flashes *)
-    let fade_to_base ~config ~old_base ~new_base =
+    let fade_to_base ~config ~flash_color ~new_base =
       let open Time.Span in
       let sls = Config.segment_life_span config in
-      CF.start_now (a (Color.maximize old_base) 1.)
+      CF.start_now (a (Color.maximize flash_color) 1.)
       |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
 
     let touch t ~color ~flash =
@@ -120,8 +120,12 @@ module Make(Elt : Elt) = struct
             Color.interpolate [t.base_color; color]
               ~arg:fade_to_base_interpolation_arg
           in
+          let flash_color =
+            (* t.base_color *)
+            Color.interpolate [t.base_color; color] ~arg:0.25
+          in
           let color =
-            fade_to_base ~config:t.config ~old_base:t.base_color ~new_base
+            fade_to_base ~config:t.config ~flash_color ~new_base
           in
           new_base, color
       in
@@ -385,7 +389,7 @@ module Make(Elt : Elt) = struct
       Lwt.async (fun () -> run_silent_rain t)
     done;
     if t.config.num_silent_rains > 0
-    then Lwt.async (fun () -> Lwt.return run_silent_drops t)
+    then Lwt.async (fun () -> run_silent_drops t)
 
   let start t =
     start_silent_rains t;
