@@ -8,4 +8,4 @@ firefox http://localhost/index-server.html
 ```
 
 You should be able to use things that need microphone without microphone by
-choosing the correct 'Monitor' interface in pavucontrol.
+choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
