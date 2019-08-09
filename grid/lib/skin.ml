@@ -24,19 +24,26 @@ open Std_internal
    * CPU consumption
 
    * Play with rain on sound
+
+   * smaller
+
+   * detangle continuing rain from beats, stop the rain at th border,
+   for instance.
+
+   * less random white
 *)
 
 module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
 
-let flash_cutoff = 0.85
+let flash_cutoff = 0.95
 let human_playing_timeout = Time.Span.of_sec 10.
 
 let rain_dropoff = 0.5 (* 1.5 *)
 let wind_dropoff = 10.
 let drop_interval = Time.Span.of_sec 0.01
-let fade_to_base_interpolation_arg = 0.03
+let fade_to_base_interpolation_arg = 0.01 (* 0.03 *)
 let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
 let drops_value_range = (0.1, 1.) (*  (0.0000002, 0.3) *)
 (* CR-someday is this equivalent to infinity? *)
@@ -122,7 +129,7 @@ module Make(Elt : Elt) = struct
           in
           let flash_color =
             (* t.base_color *)
-            Color.interpolate [t.base_color; color] ~arg:0.25
+            Color.interpolate [t.base_color; color] ~arg:0.15
           in
           let color =
             fade_to_base ~config:t.config ~flash_color ~new_base

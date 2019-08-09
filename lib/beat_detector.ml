@@ -8,7 +8,7 @@ open Base
 open Common_lib
 open Common
 
-let half_life = 10.
+let half_life = 0.3 (* 10. *)
 
 let min_cutoff = 0.25
 
