@@ -29,6 +29,7 @@
 open Base
 open Lwt
 open Js_of_ocaml
+open Js_of_ocaml_lwt
 open Common
 open Dom_wrappers
 open Web_audio

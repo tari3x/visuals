@@ -5,6 +5,7 @@
 *)
 
 open Base
+open Js_of_ocaml_lwt
 open Std_internal
 
 (* TODO:
@@ -25,12 +26,17 @@ open Std_internal
 
    * Play with rain on sound
 
-   * smaller
+   * smaller triangles
 
    * detangle continuing rain from beats, stop the rain at th border,
    for instance.
 
    * less random white
+
+   * fewer colors
+
+   * why degrades to dark with low fade_to_base_interpolation_arg? Is it
+     something about alpha?
 *)
 
 module CF = Color_flow

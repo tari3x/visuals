@@ -6,6 +6,7 @@
 
 open Lwt
 open Js_of_ocaml
+open Js_of_ocaml_lwt
 open Std_internal
 
 (* TODO:
