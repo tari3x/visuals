@@ -1,5 +1,5 @@
 
-DIRS = hex
+DIRS = fred
 # wall window
 
 all:
