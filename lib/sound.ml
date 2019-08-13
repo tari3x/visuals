@@ -42,7 +42,7 @@ let source_idle_timeout =
 let max_source_age =
   Time.Span.of_sec 30.
 
-let show_spectrum = false
+let show_spectrum = true
 
 let max_num_sources = 3
 
@@ -161,6 +161,7 @@ let draw t ctx =
   Ctx.save ctx;
   Ctx.set_fill_color ctx Color.white;
   Ctx.set_stroke_color ctx Color.green;
+  Ctx.set_line_width ctx 5.;
   (* let min_freq = Freq.of_hertz 0. in *)
   let max_freq = Freq.of_hertz (t.analyser##.context##.sampleRate / 2.) in
   let _num_visible_bins = num_bins t in
@@ -211,7 +212,7 @@ let draw t ctx =
     Ctx.set_fill_color ctx color;
     let value = bin_volume_exn t i in
     let width = bin_w i in
-    let ewma = Beat_detector.Debug.ewma beat |> Option.value ~default:0. in
+    let ewma = Beat_detector.Debug.ewma beat |> Option.value ~default:0.5 in
     draw_bin ~value ~width ~ewma ()
   );
   draw_bin ~value:0. ~width:empty_w ();

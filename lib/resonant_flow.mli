@@ -6,7 +6,10 @@
 
 open Common
 
-(* CR: not accurate *)
+(* CR-someday: self-adjusting resonant flow, want to be able to say "100
+   flashes" per round.
+*)
+(* CR: description not accurate *)
 (* Returns a value that varies like distance to a moving point on a circle, from
    a position off centre. Randomizes period length and the position after each
    period. *)

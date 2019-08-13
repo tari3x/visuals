@@ -16,16 +16,6 @@ open Std_internal
 
    * try with chrome
 
-   * self-adjusting resonant flow,
-   want to be able to say "100 flashes" per round.
-
-   * make all flash with maximized base color
-   Is a bit weird, no?
-
-   * CPU consumption
-
-   * Play with rain on sound
-
    * smaller triangles
 
    * detangle continuing rain from beats, stop the rain at th border,
@@ -37,6 +27,11 @@ open Std_internal
 
    * why degrades to dark with low fade_to_base_interpolation_arg? Is it
      something about alpha?
+
+   * 3d elements, like actual cubes with sparks flowing over.
+
+   * Check why drawing on 2D canvas so CPU intensive.
+   Set alpha: false in [getContext] to try improving performance.
 *)
 
 module CF = Color_flow

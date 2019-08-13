@@ -7,7 +7,8 @@ SUBDIR=$(shell basename ${PWD})
 # https://stackoverflow.com/questions/10451242/how-to-adjust-the-path-that-emacs-compile-goto-error-gets-from-the-compilation
 build:
 	echo "Entering directory '${PWD}'"
-	dune build ${JS:.js=.bc.js} 
+	dune build ${JS:.js=.bc.js}
+	dune runtest
 
 %.js: FORCE
 	cp ${ROOT}/_build/default/spark/${SUBDIR}/$*.bc.js $@
