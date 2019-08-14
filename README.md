@@ -9,9 +9,9 @@ Prerequisites
   
     `. ~/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true`
 
-* opam switch ocaml-base-compiler.4.07.1
+* `opam switch ocaml-base-compiler.4.07.1`
 
-* opam update
+* `opam update`
 
 * `opam install PACKAGES`
   where packages are whatever is listed in libraries in the dune files.
@@ -19,7 +19,7 @@ Prerequisites
 * It's quite likely you'll need to install OpenCL drivers before it runs. Below
   are instructions for OpenSuSE with an Intel GPU.
 
-  + In Software management add repo
+  + In Software Management add repo
     http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.0/
 
   + install

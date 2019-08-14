@@ -36,6 +36,10 @@ open Std_internal
    * Why does fred seem to flash so much more than the sound debug?
 
    * Change long half life for the purpose of beat detection
+
+   * latency
+     https://askubuntu.com/questions/491825/pulseaudio-loopback-latency
+     http://juho.tykkala.fi/Pulseaudio-and-latency
 *)
 
 module CF = Color_flow
