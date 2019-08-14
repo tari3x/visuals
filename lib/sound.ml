@@ -160,7 +160,6 @@ let draw t ctx =
   Ctx.clear ctx;
   Ctx.save ctx;
   Ctx.set_fill_color ctx Color.white;
-  Ctx.set_stroke_color ctx Color.green;
   Ctx.set_line_width ctx 5.;
   (* let min_freq = Freq.of_hertz 0. in *)
   let max_freq = Freq.of_hertz (t.analyser##.context##.sampleRate / 2.) in
@@ -181,19 +180,22 @@ let draw t ctx =
     |> Float.max 1.
   in
   let cursor = ref 0. in
-  let draw_bin ~value ~width ?ewma () =
-    let height = value * ctx_h in
+  let draw_bin ~value ~width ?ewma ?short_ewma () =
+    let height = value * ctx_h * 0.1 in
     let v = Vector.create_float !cursor (ctx_h - height) in
     Ctx.fill_rect ctx v ~width ~height;
-    Option.iter ewma ~f:(fun ewma ->
-      let ewma_height = ewma * ctx_h in
-      let v1 = Vector.create_float !cursor (ctx_h - ewma_height) in
+    let draw_line ~color value_height =
+      Ctx.set_stroke_color ctx color;
+      let height = value_height * ctx_h in
+      let v1 = Vector.create_float !cursor (ctx_h - height) in
       let v2 = Vector.(v1 + (create_float width 0.)) in
       Ctx.begin_path ctx;
       Ctx.move_to ctx v1;
       Ctx.line_to ctx v2;
       Ctx.stroke ctx;
-    );
+    in
+    Option.iter ewma ~f:(draw_line ~color:Color.green);
+    Option.iter short_ewma ~f:(draw_line ~color:Color.yellow);
     cursor := !cursor + width
   in
   Array.iteri t.beats ~f:(fun i beat ->
@@ -213,7 +215,9 @@ let draw t ctx =
     let value = bin_volume_exn t i in
     let width = bin_w i in
     let ewma = Beat_detector.Debug.ewma beat |> Option.value ~default:0.5 in
-    draw_bin ~value ~width ~ewma ()
+    let short_ewma = Beat_detector.Debug.short_ewma beat |> Option.value ~default:0.5 in
+    let short_ewma = if short_ewma > ewma then Some short_ewma else None in
+    draw_bin ~value ~width ~ewma ?short_ewma ()
   );
   draw_bin ~value:0. ~width:empty_w ();
   draw_bin ~value:t.volume ~width:volume_w ();

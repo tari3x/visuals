@@ -32,6 +32,10 @@ open Std_internal
 
    * Check why drawing on 2D canvas so CPU intensive.
    Set alpha: false in [getContext] to try improving performance.
+
+   * Why does fred seem to flash so much more than the sound debug?
+
+   * Change long half life for the purpose of beat detection
 *)
 
 module CF = Color_flow
