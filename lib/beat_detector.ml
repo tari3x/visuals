@@ -8,7 +8,8 @@ open Base
 open Common_lib
 open Common
 
-let long_half_life = 10.
+(* Effectively disable. I quite like the more active option for Fred. *)
+let long_half_life = 100000000000.
 let short_half_life = 3.
 
 let min_cutoff = 0.25

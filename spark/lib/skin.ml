@@ -39,11 +39,9 @@ open Lwt.Let_syntax
 
    * cut off the very high end of the spectrum
 
-   * try flash even with fade to base
+   * try non-flash burst continuation even with fade to base
 
    * read up about sampling
-
-   * play with interpolation arg / saturation levels
 
    * detangle continuing rain from beats, stop the rain at the border,
    for instance.
@@ -52,17 +50,17 @@ open Lwt.Let_syntax
 
    * fewer colors
 
-   * why degrades to dark with low fade_to_base_interpolation_arg? Is it
-     something about alpha?
-
-   * make it more intens
+   * make it more intense music-wise
 *)
 
 module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
 
-let flash_cutoff = 0.8
+let flash_cutoff = 0.4
+let _flash_mid = 0.55
+let flash_top = 0.6
+let flash_color_weight = 0.2 (* 0.15 *)
 let human_playing_timeout = Time.Span.of_sec 10.
 
 let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
@@ -114,7 +112,7 @@ module Make(Elt : Elt) = struct
         |> CF.add ~after:sls ~color:(a base_color 0.)
       end
       else begin
-        CF.start_now (a base_color 1.)
+        CF.start_now (a base_color flash_top)
         |> CF.add ~after:(sls * 0.1) ~color:(a base_color flash_cutoff)
         |> CF.add ~after:(sls * 0.9) ~color:(a base_color 0.)
       end
@@ -123,7 +121,8 @@ module Make(Elt : Elt) = struct
     let fade_to_base ~config ~flash_color ~new_base =
       let open Time.Span in
       let sls = Config.segment_life_span config in
-      CF.start_now (a (Color.maximize flash_color) 1.)
+      let flash_color = Color.maximize flash_color in
+      CF.start_now (a flash_color flash_top)
       |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
 
     let touch t ~color ~flash =
@@ -141,7 +140,7 @@ module Make(Elt : Elt) = struct
           in
           let flash_color =
             (* t.base_color *)
-            Color.interpolate [t.base_color; color] ~arg:0.15
+            Color.interpolate [t.base_color; color] ~arg:flash_color_weight
           in
           let color =
             fade_to_base ~config:t.config ~flash_color ~new_base
@@ -285,10 +284,16 @@ module Make(Elt : Elt) = struct
   let rec sound_rain t id =
     match Hashtbl.find t.sound_rain_ids id with
     | None ->
+      let taken_rains = Hashtbl.data t.sound_rain_ids in
+      let is_free id = not (List.mem taken_rains id ~equal:Rain.Id.equal) in
+      let free_rains =
+        Hashtbl.keys t.sound_rains
+        |> List.filter ~f:is_free
+      in
       let rain_id =
-        if Hashtbl.length t.sound_rains < t.config.num_sound_sources
-        then Rain.Id.create ()
-        else Hashtbl.keys t.sound_rains |> List.random_element_exn
+        match free_rains with
+        | [] -> Rain.Id.create ()
+        | free_rains -> List.random_element_exn free_rains
       in
       let rain = find_or_add_rain t `sound ~id:rain_id in
       Hashtbl.add_exn t.sound_rain_ids ~key:id ~data:rain_id;
@@ -323,12 +328,17 @@ module Make(Elt : Elt) = struct
         match Hashtbl.find t.sound_rain_ids id with
         | None -> ()
         | Some rain_id ->
-          Hashtbl.remove t.sound_rain_ids id;
+          let remove_source () =
+            Hashtbl.remove t.sound_rain_ids id
+          in
           match Hashtbl.find t.sound_rains rain_id with
-          | None -> ()
+          | None -> remove_source ()
           | Some rain ->
-            if Float.(Rain.saturation rain > 0.9)
-            then Hashtbl.remove t.sound_rains rain_id)
+            if Float.(Rain.saturation rain > 0.4)
+            then begin
+              remove_source ();
+              Hashtbl.remove t.sound_rains rain_id
+            end)
 
   let start ~config ~sound elts =
     let t = create ~config ~sound elts in

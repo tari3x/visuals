@@ -11,6 +11,7 @@ let wind_dropoff = 10.
 (* CR-someday is this equivalent to infinity? *)
 let new_strand_probability = 0.01
 
+(* Do not set lower than 1/256 since color is an int. *)
 let fade_to_base_interpolation_arg = 0.01 (* 0.03 *)
 let drop_interval = Time.Span.of_sec 0.01
 
@@ -157,5 +158,6 @@ module Make(E : Elt) = struct
 
   let sexp_of_t t =
     let saturation = saturation t in
-    [%message (saturation : float)]
+    let color = t.color in
+    [%message (saturation : float) (color : Color.t)]
 end

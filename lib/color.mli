@@ -4,6 +4,8 @@
   See LICENSE file for copyright notice.
 *)
 
+(* CR-someday: make these use float, otherwise you get weird aliasing effects,
+   like the darkening in fred when you set interpolation arg too low. *)
 
 type t [@@deriving sexp]
 

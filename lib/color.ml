@@ -68,21 +68,22 @@ let rec random_interesting () =
       |> List.map ~f:Int.abs
       |> List.max_elt_exn ~compare:Int.compare
     in
-    max_delta > 100
+    max_delta > 180
   in
   let t = random () in
   if interesting t then t
   else random_interesting ()
 
 let interpolate_two t1 t2 fraction =
+  let open Float in
   let i n1 n2 =
-    (1. -. fraction) *. (Float.of_int n1) +. fraction *. (Float.of_int n2)
+    (1. - fraction) * (Float.of_int n1) + fraction * (Float.of_int n2)
     |> Int.of_float
   in
   { r = i t1.r t2.r
   ; g = i t1.g t2.g
   ; b = i t1.b t2.b
-  ; a = (1. -. fraction) *. t1.a +. fraction *. t2.a
+  ; a = (1. - fraction) * t1.a + fraction * t2.a
   }
 
 (* CR-someday: rename fraction to arg everywhere. *)
