@@ -58,6 +58,22 @@ let random () =
   let a = 1. in
   { r; g; b; a }
 
+let rec random_interesting () =
+  let interesting { r; g; b; a = _ } =
+    let max_delta =
+      [ r - g
+      ; r - b
+      ; g - b
+      ]
+      |> List.map ~f:Int.abs
+      |> List.max_elt_exn ~compare:Int.compare
+    in
+    max_delta > 100
+  in
+  let t = random () in
+  if interesting t then t
+  else random_interesting ()
+
 let interpolate_two t1 t2 fraction =
   let i n1 n2 =
     (1. -. fraction) *. (Float.of_int n1) +. fraction *. (Float.of_int n2)
@@ -93,7 +109,7 @@ let interpolate ts ~arg:fraction =
 let set_alpha t ~alpha =
   { t with a = alpha }
 
-let scale t scale =
+let scale t ~by:scale =
   if Float.(<=) scale 0. then black
   else if Float.(>=) scale 1. then t
   else begin
@@ -111,6 +127,4 @@ let maximize t =
     |> float
   in
   let s = Float.(255. / max_component) in
-  scale t s
-
-
+  scale t ~by:s

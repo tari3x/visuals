@@ -33,7 +33,7 @@ let debug_table x : unit =
   Js.Unsafe.fun_call (Js.Unsafe.js_expr "console.table")
     [| Js.Unsafe.inject x |]
 let debugf f = Printf.ksprintf (fun s -> Firebug.console##(log (Js.string s))) f
-let debug s = Firebug.console##(log (Js.string (Sexp.to_string s)))
+let debug s = Firebug.console##(log (Js.string (Sexp.to_string_hum s)))
 let alert f = Printf.ksprintf (fun s -> Html.window##(alert (Js.string s))) f
 let console_error f =
   Printf.ksprintf (fun s -> Firebug.console##(error (Js.string s))) f

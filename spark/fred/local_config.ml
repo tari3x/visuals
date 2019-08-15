@@ -17,7 +17,8 @@ let config : C.t =
   ; grid_kind = `free
   ; global_channel_name = "global-fred"
   ; color_flow = `fade_to_base
-  ; on_sound = Some `rain (* (`drop 2) *)
-  ; num_silent_rains = 2
+  ; num_sound_sources = 3
+  ; on_sound = Some `rain
+  ; num_silent_rains = 0
   ; keep_raining_probability = 0.8
   }

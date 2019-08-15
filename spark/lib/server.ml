@@ -50,7 +50,7 @@ let _test_quantum () =
 let main (config : Config.t) =
   debug [%message "222"];
   Random.self_init ();
-  Sound.create_from_mic ()
+  Sound.create_from_mic ~max_sources:config.num_sound_sources
   >>= fun sound ->
   let ctx = Ctx.create ~id:"main_canvas" in
   if config.debug_sound

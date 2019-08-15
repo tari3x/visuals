@@ -29,6 +29,7 @@ val black : t
 val of_hex8_string : string -> t
 
 val random : unit -> t
+val random_interesting : unit -> t
 
 val interpolate_two : t -> t -> float -> t
 
@@ -39,7 +40,7 @@ val interpolate : t list -> arg:float -> t
 val maximize : t -> t
 
 val set_alpha : t -> alpha:float -> t
-val scale : t -> float -> t
+val scale : t -> by:float -> t
 
 (*
 val red : t -> int

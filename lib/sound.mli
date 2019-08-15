@@ -11,9 +11,9 @@ type t
 
 (* To redirect the output of the sound card, choose "monitor of ..." in
    pavucontrol. *)
-val create_from_mic : unit -> t Lwt.t
+val create_from_mic : max_sources:int -> t Lwt.t
 
-val create_from_html : id:string -> t
+val create_from_html : id:string -> max_sources:int -> t
 
 val start : t -> unit
 

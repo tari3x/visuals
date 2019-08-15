@@ -44,8 +44,6 @@ let max_source_age =
 
 let show_spectrum = true
 
-let max_num_sources = 3
-
 (* CR-someday: how much does zero-allocation matter here? *)
 
 module Source = struct
@@ -251,7 +249,7 @@ let rec update_loop (t : t) =
   draw t;
   update_loop t
 
-let create_from_src ~ctx ~src =
+let create_from_src ~ctx ~src ~max_sources =
   let analyser = ctx##createAnalyser () in
   analyser##.smoothingTimeConstant := 0.; (* 0.85 *)
   analyser##.minDecibels := (-90.);
@@ -266,7 +264,7 @@ let create_from_src ~ctx ~src =
   { analyser
   ; bins
   ; beats
-  ; max_sources = max_num_sources
+  ; max_sources
   ; sources = []
   ; volume = 0.
   ; on_event = []
@@ -279,13 +277,13 @@ let start t =
   then Lwt.async (fun () -> update_loop t);
   t.started <- true
 
-let create_from_html ~id =
+let create_from_html ~id ~max_sources =
   let audio = Audio.create ~id in
   let ctx = AudioContext.create () in
   let src = ctx##createMediaElementSource audio in
-  create_from_src ~ctx ~src
+  create_from_src ~ctx ~src ~max_sources
 
-let create_from_mic () =
+let create_from_mic ~max_sources =
   let open Js_std in
   let constraints =
     MediaStreamConstraints.of_js_expr "{audio : true, video : false}"
@@ -294,7 +292,7 @@ let create_from_mic () =
   >>= fun stream ->
   let ctx = AudioContext.create () in
   let src = ctx##createMediaStreamSource stream in
-  create_from_src ~ctx ~src
+  create_from_src ~ctx ~src ~max_sources
   |> Lwt.return
 
 let on_event t ~f =

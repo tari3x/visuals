@@ -42,7 +42,7 @@ let color_for_coordinate t =
     then Color.black
     else if x > scaling_width
     then color
-    else Color.scale color (x / scaling_width)
+    else Color.scale color ~by:(x / scaling_width)
 
 let draw t =
   let width = Ctx.width t.ctx in

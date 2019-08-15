@@ -18,10 +18,19 @@ type t =
   ; grid_kind : [ `grid | `free ]
   ; global_channel_name : string
   ; color_flow : [ `fade_to_black | `fade_to_base ]
+  ; num_sound_sources : int
   ; on_sound : [ `rain | `drop of int ] option
   ; num_silent_rains : int
   ; mutable keep_raining_probability : float
   } [@@deriving sexp]
+
+let validate t =
+  assert (Option.is_none t.on_sound || t.num_sound_sources > 0)
+
+let t_of_sexp s =
+  let t = t_of_sexp s in
+  validate t;
+  t
 
 let max_box_age t : Time.Span.t =
   if t.drawing_mode

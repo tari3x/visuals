@@ -16,8 +16,8 @@ Prerequisites
 * `opam install PACKAGES`
   where packages are whatever is listed in libraries in the dune files.
 
-* It's quite likely you'll need to install OpenCL drivers before it runs. Below
-  are instructions for OpenSuSE with an Intel GPU.
+* It's quite likely you'll need to install OpenCL drivers. Below are
+  instructions for OpenSuSE with an Intel GPU.
 
   + In Software Management add repo
     http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.0/
