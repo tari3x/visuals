@@ -4,8 +4,6 @@
   See LICENSE file for copyright notice.
 *)
 
-
-
 open Base
 open Lwt
 open Js_of_ocaml_lwt
@@ -20,12 +18,26 @@ let get_clicks ctx =
   in
   Lwt_stream.take clicks ~n:4
 
+let full_screen_x = 1707.
+let full_screen_y = 1133.
+
+(* The size of the context of the laptop where I draw things. *)
+let full_screen_laptop_corners =
+  Prism.Quad.rectangle full_screen_x full_screen_y
+
 let get_corners (config : Config.t) ctx =
-  if config.skip_calibration then return None
+  let open Float in
+  if config.skip_calibration
+  then begin
+    let x = Ctx.width ctx in
+    let y = Ctx.height ctx in
+    let a = min (x / full_screen_x) (y / full_screen_y) in
+    return (Prism.Quad.rectangle (a * full_screen_x) (a * full_screen_y))
+  end
   else begin
     get_clicks ctx
     >>= fun clicks ->
-    return (Some (Prism.Quad.of_list_exn clicks))
+    return (Prism.Quad.of_list_exn clicks)
   end
 
 let _test_quantum () =
@@ -66,15 +78,19 @@ let main (config : Config.t) =
       match config.grid_kind with
       | `grid ->
         let shapes = Grid.Shapes.grid_exn ~cols:7 ~rows:3 in
-        Grid.create ~config ~ctx ~sound ~shapes ?real_corners ()
+        Grid.create ~config ~ctx ~sound ~shapes ~real_corners ()
       | `free ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
         let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
         let shapes = Grid.Shapes.set_exn shapes in
-        let native_corners = calibration_points in
+        let native_corners =
+          if config.skip_calibration
+          then full_screen_laptop_corners
+          else calibration_points
+        in
         Grid.create
           ~config ~ctx ~sound ~shapes
-          ~native_corners ?real_corners ()
+          ~native_corners ~real_corners ()
     in
     Server_state.start config grid ~ctx
   end

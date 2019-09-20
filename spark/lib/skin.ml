@@ -202,11 +202,11 @@ module Make(Elt : Elt) = struct
   let rains t =
     Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
 
-  let rec debug_loop t =
+  let rec _debug_loop t =
     let%bind () = Lwt_js.sleep 5. in
     t.silent_drop_count <- 0;
     debug [%message (t : t)];
-    debug_loop t
+    _debug_loop t
 
   let new_rain t id =
     Rain.create_exn ~id ~config:t.config
@@ -298,7 +298,7 @@ module Make(Elt : Elt) = struct
         sound_rain t id
 
   let start t =
-    Lwt.async (fun () -> debug_loop t);
+    (* Lwt.async (fun () -> debug_loop t); *)
     start_silent_rains t;
     match t.config.on_sound with
     | None -> ()

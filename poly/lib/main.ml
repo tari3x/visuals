@@ -14,10 +14,8 @@ open Async
  * the end of 4x5 is pretty abrupt
  * double log gives interesting colour effect
  * negative log gives interesting colour effect
- * set samples vs set isosamples!! x vs y?
- * don't use deferred for maxima?
- * Ruslan says 30fps
- * hack gnuplot to remove margins
+ * Have two points and change relative intensity
+ * Move two top points
 *)
 
 (* CL to GL
