@@ -26,8 +26,6 @@ open Lwt.Let_syntax
 
    * Why does fred seem to flash so much more than the sound debug?
 
-   * Change long half life for the purpose of beat detection
-
    * latency
      https://askubuntu.com/questions/491825/pulseaudio-loopback-latency
      http://juho.tykkala.fi/Pulseaudio-and-latency
@@ -39,18 +37,12 @@ open Lwt.Let_syntax
 
    * cut off the very high end of the spectrum
 
-   * try non-flash burst continuation even with fade to base
-
    * read up about sampling
 
    * detangle continuing rain from beats, stop the rain at the border,
    for instance.
 
-   * less random white
-
-   * fewer colors
-
-   * make it more intense music-wise
+   * less bright cyan
 *)
 
 module CF = Color_flow
@@ -58,7 +50,6 @@ module PD = Probability_distribution
 module V = Vector
 
 let flash_cutoff = 0.4
-let _flash_mid = 0.55
 let flash_top = 0.6
 let flash_color_weight = 0.2 (* 0.15 *)
 let human_playing_timeout = Time.Span.of_sec 10.
@@ -122,6 +113,7 @@ module Make(Elt : Elt) = struct
       let open Time.Span in
       let sls = Config.segment_life_span config in
       let flash_color = Color.maximize flash_color in
+      (* Tried having an afterglow, didn't work, is just distracting. *)
       CF.start_now (a flash_color flash_top)
       |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
 

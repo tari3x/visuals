@@ -23,8 +23,9 @@ Prerequisites
     http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.0/
 
   + install
-    libigdfcl
+    libigdfcl1
     libigdrcl
+    intel-opencl-neo
 
     Make sure to not install beignet.
 

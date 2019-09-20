@@ -13,14 +13,14 @@ let debug a = debug_s ~enabled:false a
 module G = Graphics
 module L = Lagrange
 
-let degree = 8
+let degree = 7 (* 8 *)
 
 let min_points = 15
-let max_points = 15 (* 18 *)
+let max_points = 15 (* 15, 18 *)
 
 let num_frames = 90_000
 
-let speed = 0.2
+let speed = 1.5 (* 0.2 *)
 (*
   let speed = Float.(0.15 / 8.5)
 *)
