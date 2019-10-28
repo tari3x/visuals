@@ -30,7 +30,7 @@ Prerequisites
 
     Make sure to not install beignet.
 
- * ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
+  + ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
 
 How to run
 -----------
