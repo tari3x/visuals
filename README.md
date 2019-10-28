@@ -23,11 +23,14 @@ Prerequisites
     http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.0/
 
   + install
+    libOpenCL1
     libigdfcl1
     libigdrcl
     intel-opencl-neo
 
     Make sure to not install beignet.
+
+ * ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
 
 How to run
 -----------
