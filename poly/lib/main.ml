@@ -30,7 +30,7 @@ open Async
   https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/vectorDataTypes.html
 *)
 
-let draw =
+let draw ~animate =
   let open Command.Let_syntax in
   Command.async
     ~readme:(fun () -> "")
@@ -38,7 +38,7 @@ let draw =
     [%map_open
      let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
      fun () ->
-       Grid.animate ~dir
+       animate ~dir
           (*
        Lagrange.eval_test ();
        Async.return ()
@@ -48,7 +48,7 @@ let draw =
 let command =
   Command.group
     ~summary:""
-    [ "draw", draw
+    [ "border", draw ~animate:Border.animate
     ; "window", Window.command
     ; "render-animation", Render_camlimage.command
     ]
