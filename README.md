@@ -28,7 +28,8 @@ Prerequisites
     libigdrcl
     intel-opencl-neo
 
-    Make sure to not install beignet.
+    Make sure to not install beignet - it exhibited some fascinating bugs like
+    computing only some stripes of the data.
 
   + ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
 
