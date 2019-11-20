@@ -27,14 +27,6 @@ val interpolate_pipe
   -> 'a Pipe.Reader.t
   -> 'a Pipe.Reader.t
 
-val fold_map_deferred
-  :  'a list
-  -> init:'b
-  -> f:('b -> 'a -> 'b Deferred.t)
-  -> 'b list Deferred.t
-
-val intercalate : 'a list -> 'a list -> 'a list
-
 module Float : sig
   include module type of Float
 
@@ -62,5 +54,18 @@ module List : sig
   val product : 'a t t -> 'a t t
 
   val take : 'a t -> n:int -> 'a t
-end
 
+  val scan
+    :  'a t
+    -> init:'b
+    -> f:('b -> 'a -> 'b)
+    -> 'b t
+
+  val scan_deferred
+    :  'a t
+    -> init:'b
+    -> f:('b -> 'a -> 'b Deferred.t)
+    -> 'b t Deferred.t
+
+  val intercalate : 'a t -> 'a t -> 'a t
+end

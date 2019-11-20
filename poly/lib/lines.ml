@@ -52,15 +52,15 @@ let poly t =
   |> P.product
 
 let horizontal_lines config =
-  let n_x, _ = Config.grid_size config in
-  List.init n_x ~f:(fun i -> (0, i), (i, 0))
+  let _, n_y = Config.grid_size config in
+  List.init n_y ~f:(fun i -> (0, i), (1, 0))
 
 let vertical_lines config =
-  let _, n_y = Config.grid_size config in
-  List.init n_y ~f:(fun i -> (i, 0), (0, i))
+  let n_x, _ = Config.grid_size config in
+  List.init n_x ~f:(fun i -> (i, 0), (0, 1))
 
 let imo_vh config =
-  intercalate
+  List.intercalate
     (horizontal_lines config)
     (vertical_lines config)
 

@@ -22,9 +22,12 @@ module State : sig
 
   val collapse : t -> t
 
-  val emerge : t -> P.t -> t Deferred.t
+  (** Only works on horizontal and vertical lines. *)
+  val emerge : t -> Line.t -> t Deferred.t
 
   val interpolate : t list -> t list
+
+  val suspend_end : ?num_frames:int -> t list -> t list
 end
 
 type t =

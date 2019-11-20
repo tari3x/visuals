@@ -50,24 +50,16 @@ module State = struct
     let epsilon = P.const 0.0000001 in
     let p1 = P.(p1 + epsilon) in
     let p2 = P.(p2 + epsilon) in
-    (*
-       let f1 = make_fun_name () in
-       let f2 = make_fun_name () in
-    *)
     List.init num_steps ~f:(fun n ->
       let defs = [] in
-      (*
-      let defs =
-        if n > 0 then []
-        else [ (f1, p1); (f2, p2) ]
-      in
-      *)
       let alpha = float n /. float num_steps in
       let p = P.(scale p1 ~by:(1. -. alpha) + scale p2 ~by:alpha) in
-      (*
-         let p = P.(scale (call f1) (1. -. alpha) + scale (call f2) alpha) in
-      *)
-      { p; ps = t1.ps; dots = t1.dots; defs
+      let ps =
+        match t1.ps, t2.ps with
+        | [], [] -> []
+        | _ -> raise_s [%message "collapse before interpolating!"]
+      in
+      { p; ps; dots = t1.dots; defs
       ; palette = t1.palette
       })
 
@@ -77,15 +69,51 @@ module State = struct
     | t1 :: t2 :: ts ->
       interpolate_two t1 t2 @ interpolate (t2 :: ts)
 
-  let emerge t l =
+  let interpolate ts =
+    match ts with
+    | [] | [_] -> ts
+    | t :: _ -> t :: interpolate ts
+
+  let emerge t (l : Line.t) =
+    let open P in
+    let ((x, y), (d_x, d_y)) = l in
+    let v, x =
+      match d_x, d_y with
+      | 0, _ -> Var.x, Float.of_int x
+      | _, 0 -> Var.y, Float.of_int y
+      | _ -> failwith "emerge only works on horizontal or vertical lines"
+    in
     let { p;  ps; _ } = t in
-    let%bind { D. q; r = _ } = E.divide (P.to_maxima p) (P.to_maxima l) in
-    let q = P.verbatim (E.to_string q) in
-    { t with
-      p = q
-      ; ps = l :: ps
-    }
-    |> return
+    let p = p - subst p ~var:v ~by:(const x) in
+    let l = Line.poly l in
+    let%bind { P.Division_result. q; r = _ } = P.divide p l in
+    (* CR-someday: restore this with tolerance. *)
+    (*
+       if not (P.is_zero r)
+       then raise_s [%message "expect zero remainder" (r : t)];
+    *)
+    return { t with p = q; ps = l :: ps }
+
+  let%expect_test _ =
+    let l = P.zero_line_between_two_points in
+    let t =
+      P.product
+        [ l (0., 0.) (1., 2.)
+        ; l (0., 1.) (2., 2.)
+        ; l (0., 2.) (3., 0.)
+        ; l (3., 2.) (2., 0.)
+        ; l (3., 1.) (1., 0.)
+        ]
+    |> of_poly
+    in
+    let l = (0, 1), (1, 0) in
+    let%bind t = emerge t l in
+    ignore t;
+    [%expect {| |}]
+
+  let suspend_end ?(num_frames = 20) ts =
+    let t = List.last_exn ts in
+    ts @ (List.init num_frames ~f:(fun _ -> t))
 end
 
 type t =
@@ -95,4 +123,3 @@ type t =
 
 let create ~config states  =
   { config; states }
-

@@ -17,6 +17,5 @@ let config =
 let animate ~dir =
   P.Basis.mono ~degree
   |> List.map ~f:A.State.of_poly
-  |> List.permute
   |> A.create ~config
   |> Render_camlimage.write ~dir

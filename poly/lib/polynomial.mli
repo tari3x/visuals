@@ -1,9 +1,16 @@
 open Core
+open Async
 
 module V = Vector.Float
 
+(** Variables to be called [v_x, v_y], etc. Values to be called something
+    else. [Var.x] is ok.
+*)
 module Var : sig
   type t
+
+  val x : t
+  val y : t
 
   val create : int -> t
 end
@@ -12,12 +19,10 @@ type t [@@deriving compare, sexp]
 
 include Comparable.S with type t := t
 
-val var : int -> t
+val var : Var.t -> t
 val x : t
 val y : t
 (* 2D *)
-val call : string -> t
-val verbatim : string -> t
 val const : float -> t
 
 val ( * ) : t -> t -> t
@@ -39,8 +44,6 @@ val monomials : t -> (t * float) list
 val first_monomials : int -> t list
 
 val to_string : t -> string
-val to_maxima : t -> Maxima.Expr.t
-val to_gnuplot : t -> string
 
 val eval : t -> float list -> float
 val eval_point : t -> V.t -> float
@@ -60,3 +63,12 @@ module Basis : sig
 
   val odd_powers_only : t -> t
 end
+
+(* quotient and remainder *)
+module Division_result : sig
+  type nonrec t = { q : t; r : t }
+end
+
+val divide : t -> t -> Division_result.t Deferred.t
+
+val is_roughly_zero : t -> bool

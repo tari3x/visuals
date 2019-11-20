@@ -49,6 +49,7 @@ let command =
   Command.group
     ~summary:""
     [ "border", draw ~animate:Border.animate
+    ; "test-pattern", draw ~animate:Test_pattern.animate
     ; "window", Window.command
     ; "render-animation", Render_camlimage.command
     ]

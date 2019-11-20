@@ -64,8 +64,9 @@ module Expr = struct
     let cmds =
     (* "display2d:false" *)
     (* "ttyoff:true" *)
-      [ (* sprintf "ratmx:false" *)
-        sprintf "ratexpand:true"
+      [ sprintf "ratmx:false"
+      ; sprintf "ratexpand:true"
+      ; sprintf "engineering_format_floats:false"
       ; sprintf "stringout(\"%s\", %s);" tmp_out expr
       ]
       |> String.concat ~sep:"; "
@@ -103,7 +104,7 @@ module Expr = struct
   end
 
   let divide t1 t2 =
-    match%bind eval_list (sprintf "divide( %s, %s )" t1 t2) with
+    match%bind eval_list (sprintf "float(divide( %s, %s ))" t1 t2) with
     | [ q; r ] -> return { Division_result. q; r }
     | _ -> assert false
 end

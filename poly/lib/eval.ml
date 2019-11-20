@@ -90,6 +90,7 @@ module Ctx = struct
                 // done;
 
               r = r + 1e-7;
+
               if (r > 0) // then
                 r = log(r);
               if (r < 0) // then

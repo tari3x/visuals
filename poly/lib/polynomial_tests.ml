@@ -2,8 +2,8 @@ open Core
 
 open Polynomial
 
-let x = var 1
-let y = var 2
+let x = var Var.x
+let y = var Var.y
 
 let%expect_test _ =
   (const 3.) * ((const 1.) + (const (2.) * (pow (y) 2)))

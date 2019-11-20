@@ -12,7 +12,7 @@ module Color : sig
   val red : t
 end
 
-  (* A triplet of colours that add up to white. *)
+(* A triplet of colours that add up to white. *)
 module Basis : sig
   type t [@@deriving sexp]
 

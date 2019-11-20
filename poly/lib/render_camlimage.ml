@@ -9,6 +9,7 @@ let debug a = debug_s ~enabled:true a
 
 let file_id = ref 0
 
+(* CR: this needs to be flipped. *)
 let draw_dot ~config image v =
   let x, y = Config.domain_to_image config v in
   let image_x, image_y = Config.image_size config in
@@ -43,7 +44,7 @@ let write_image ~dir ~config ~values ~palette ?(dots = []) () =
   done;
   List.iter dots ~f:(fun dot ->
     let i, j = Config.domain_to_image config dot in
-    let p_value = A2.get values i j in
+    let p_value = A2.get_flipped values i j in
     let color = palette.(p_value) in
     debug [%message (p_value : int) (color : Color.t)];
     draw_dot ~config image dot

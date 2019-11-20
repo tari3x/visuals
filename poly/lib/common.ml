@@ -55,23 +55,6 @@ let interpolate_pipe ~weighted_average ~num_steps pipe =
   don't_wait_for (start ());
   reader
 
-let fold_map_deferred xs ~init ~f =
-  let rec loop y = function
-    | [] -> return [y]
-    | x :: xs ->
-      let%bind y' = f y x in
-      let%bind ys = loop y' xs in
-      return (y :: ys)
-  in
-  loop init xs
-
-let rec intercalate xs ys =
-  match xs, ys with
-  | [], ys -> ys
-  | xs, [] -> xs
-  | (x :: xs), (y :: ys) ->
-    x :: y :: intercalate xs ys
-
 module Float = struct
   include Float
 
@@ -135,4 +118,29 @@ module List = struct
       ]
     |> printf !"%{sexp:string list list}\n";
     [%expect {| ((x1 y1 z1) (x1 y1 z2) (x1 y1 z3) (x2 y1 z1) (x2 y1 z2) (x2 y1 z3)) |}]
+
+  let scan xs ~init ~f =
+    let f x y =
+      let r = f x y in
+      r, r
+    in
+    folding_map xs ~init ~f
+
+  let scan_deferred xs ~init ~f =
+    let open Deferred.Let_syntax in
+    let rec loop y = function
+      | [] -> return []
+      | x :: xs ->
+        let%bind y = f y x in
+        let%bind ys = loop y xs in
+        return (y :: ys)
+    in
+    loop init xs
+
+  let rec intercalate xs ys =
+    match xs, ys with
+    | [], ys -> ys
+    | xs, [] -> xs
+    | (x :: xs), (y :: ys) ->
+      x :: y :: intercalate xs ys
 end

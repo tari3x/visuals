@@ -1,4 +1,5 @@
 open Core
+open Async
 
 open Common
 
@@ -16,10 +17,8 @@ module Var = struct
   let create n =
     E.(var n |> to_string)
 
-  let call name =
-    sprintf "%s(%s, %s)" name (create 1) (create 2)
-
-  let verbatim t = t
+  let x = create 1
+  let y = create 2
 end
 
 (* CR-someday: massively inefficient. Just specialize to 2D. *)
@@ -45,14 +44,8 @@ module Mono = struct
 
   let is_one = List.is_empty
 
-  let var n : t =
-    [Var.create n, 1]
-
-  let call name : t =
-    [Var.call name, 1]
-
-  let verbatim s : t =
-    [Var.verbatim s, 1]
+  let var v : t =
+    [v, 1]
 
   let normalize t =
     Var.Map.of_alist_multi t
@@ -81,13 +74,13 @@ module Mono = struct
   let all_of_degree n =
     List.init Int.(n + 1) ~f:(fun i ->
       let j = Int.(n - i) in
-      (pow (var 1) i *  pow (var 2) j))
+      (pow (var Var.x) i *  pow (var Var.y) j))
 
   let all ~degree:n =
     List.init Int.(n + 1) ~f:(fun i ->
       List.init Int.(n + 1) ~f:(fun j ->
         if Int.(i + j > n) then None
-        else Some (pow (var 1) i *  pow (var 2) j))
+        else Some (pow (var Var.x) i *  pow (var Var.y) j))
       |> List.filter_opt)
     |> List.concat
 
@@ -127,12 +120,6 @@ let mono m =
 
 let var n =
   mono (Mono.var n)
-
-let call name =
-  mono (Mono.call name)
-
-let verbatim s =
-  mono (Mono.verbatim s)
 
 let group_sum t =
   Mono.Map.of_alist_multi t
@@ -178,8 +165,8 @@ let scale t ~by:x =
 let ( - ) t1 t2 =
   sum [t1; scale t2 ~by:(-1.)]
 
-let var_x = var 1
-let var_y = var 2
+let var_x = var Var.x
+let var_y = var Var.y
 let x = var_x
 let y = var_y
 
@@ -205,10 +192,6 @@ let to_maxima (t : t) =
 
 let to_string t =
   to_maxima t |> E.to_string
-
-let to_gnuplot t =
-  to_maxima t
-  |> E.to_gnuplot
 
 let zero_line_between_two_points (x1, y1) (x2, y2) =
   if Float.(x2 = x1)
@@ -238,7 +221,6 @@ let distance (t1 : t) (t2 : t) =
 
 let weighted_average t1 t2 ~w =
   scale t1 ~by:Float.(1. - w) + scale t2 ~by:w
-
 
 module Basis = struct
   type nonrec t = t list
@@ -288,5 +270,115 @@ module Basis = struct
       |> normalize)
 end
 
+module Parse = struct
+  open Angstrom
+
+  (* CR-someday: there's also lisp output mode using [save] instead of [stringout]
+     but it is full of extra trash that one would need to sanitize. *)
+
+  let chainl1 op e =
+    let rec go acc =
+      (lift2 (fun f x -> f acc x) op e >>= go) <|> return acc
+    in
+    e >>= fun init -> go init
+
+  let parens p = char '(' *> p <* char ')'
+
+  let add = char '+' *> return (+)
+  let sub = char '-' *> return (-)
+  let mul = char '*' *> return ( * )
+
+  let power : unit t =
+    char '^' *> return ()
+
+  let integer =
+    take_while1 (function '0' .. '9' -> true | _ -> false) >>| Int.of_string
+
+  (* CR-someday: figure out how to turn off scientific notation in maxima *)
+  let number =
+    let float =
+      take_while1 (function '0' .. '9' | '.' -> true | _ -> false)
+    in
+    let exponent =
+      take_while1 (function 'E' -> true | _ -> false)
+      >>= fun s1 ->
+      take_while1 (function '-' | '+'  -> true | _ -> false)
+      >>= fun s2 ->
+      float >>= fun s3 ->
+      return (s1 ^ s2 ^ s3)
+    in
+    float >>= fun s1 ->
+    option "" exponent
+    >>= fun s2 ->
+    return (const (Float.of_string (s1 ^ s2)))
+
+  let variable =
+    take_while Char.is_alpha
+    >>= fun v ->
+    if String.is_empty v
+    then fail "empty var"
+    else return (var v)
+
+  let power =
+    power
+    >>= fun () ->
+    integer
+
+  let pow_var =
+    variable
+    >>= fun v ->
+    (power <|> return 1)
+    >>= fun n ->
+    return (pow v n)
+
+  let neg expr =
+    sub >>= fun _ ->
+    expr >>= fun t ->
+    return (scale t ~by:(-1.))
+
+  let expr =
+    fix (fun expr ->
+      let factor = parens expr <|> number <|> pow_var in
+      let term   = chainl1 mul factor in
+      chainl1 (add <|> sub) (term <|> neg term))
+    >>= fun result ->
+    end_of_input
+    >>= fun () ->
+    return result
+
+  let parse_string_exn t s =
+    match parse_string t s with
+    | Ok v      -> v
+    | Error msg -> raise_s [%message s msg]
+
+  let%expect_test _ =
+    let t = parse_string_exn expr "(-y^2)-(3E+1)*y*x^4+1" in
+    printf !"%{sexp:t}" t;
+    [%expect {| ((() 1) (((x 4) (y 1)) -30) (((y 2)) -1)) |}]
+end
+
+let of_maxima s =
+  let open Parse in
+  parse_string_exn expr s
+
+(* quotient and remainder *)
+module Division_result = struct
+  type nonrec t = { q : t; r : t }
+end
+
+let divide t1 t2 =
+  let%bind { E.Division_result. q; r } =
+    E.divide (to_maxima t1) (to_maxima t2)
+  in
+  let q = of_maxima (E.to_string q) in
+  let r = of_maxima (E.to_string r) in
+  return { Division_result. q; r }
+
+let is_roughly_zero = function
+  | [] -> true
+  | [[], x] -> Float.(x < 10E-9)
+  | _ -> false
+
 include Comparable.Make(T)
+
 
