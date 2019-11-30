@@ -77,18 +77,18 @@ let main (config : Config.t) =
     let grid =
       match config.grid_kind with
       | `grid ->
-        let shapes = Grid.Shapes.grid_exn ~cols:7 ~rows:3 in
-        Grid.create ~config ~ctx ~sound ~shapes ~real_corners ()
+        let shapes = Spark.Shapes.grid_exn ~cols:7 ~rows:3 in
+        Spark.create ~config ~ctx ~sound ~shapes ~real_corners ()
       | `free ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
         let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
-        let shapes = Grid.Shapes.set_exn shapes in
+        let shapes = Spark.Shapes.set_exn shapes in
         let native_corners =
           if config.skip_calibration
           then full_screen_laptop_corners
           else calibration_points
         in
-        Grid.create
+        Spark.create
           ~config ~ctx ~sound ~shapes
           ~native_corners ~real_corners ()
     in

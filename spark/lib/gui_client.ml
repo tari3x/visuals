@@ -11,7 +11,7 @@ module L = Lwt_stream
 
 module State = State_light
 
-type t = Grid.Ctl.t State.t
+type t = Spark.Ctl.t State.t
 
 let main (config : Config.t) shape =
   Window.set_reload_on_resize ();
@@ -40,7 +40,7 @@ let main (config : Config.t) shape =
       max_box_age = Config.max_box_age config
     ; global_channel_name = config.global_channel_name
     }
-    ctx shape ~sexp_of_a:Grid.Ctl.sexp_of_t
+    ctx shape ~sexp_of_a:Spark.Ctl.sexp_of_t
   >>= fun t ->
   Lwt.async (fun () -> Color_picker.run color_picker t);
   Lwt_stream.iter_with_try actions ~f:(State.process_action t)

@@ -16,7 +16,7 @@ let main (config : Config.t) =
   Random.self_init ();
   let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
   let { Svg. shapes; calibration_points = _ } = Svg.parse_exn svg in
-  let set_shapes = Grid.Ctl.set_shapes_exn shapes in
+  let set_shapes = Spark.Ctl.set_shapes_exn shapes in
   let shape = Box.create ~kind:set_shapes () in
   let global_config =
     { Global.Config.
@@ -29,7 +29,7 @@ let main (config : Config.t) =
     }
   in
   let%bind global =
-    Global.create global_config ~sexp_of_a:Grid.Ctl.sexp_of_t
+    Global.create global_config ~sexp_of_a:Spark.Ctl.sexp_of_t
   in
   let box_id = Global.add global shape in
   Global.delete global box_id;

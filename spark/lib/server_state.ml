@@ -9,13 +9,13 @@ open Js_of_ocaml_lwt
 open Std_internal
 
 type t =
-  { grid : Grid.t
-  ; global : Grid.Ctl.t Global.t
+  { grid : Spark.t
+  ; global : Spark.Ctl.t Global.t
   }
 
 let render t =
-  Global.iter t.global ~f:(Grid.ctl t.grid);
-  Grid.render t.grid
+  Global.iter t.global ~f:(Spark.ctl t.grid);
+  Spark.render t.grid
 
 let rec render_loop t =
   Lwt_js_events.request_animation_frame ()
@@ -35,7 +35,7 @@ let start (config : Config.t) grid ~ctx =
     ; global_channel_name = config.global_channel_name
     }
   in
-  Global.create global_config ~sexp_of_a:Grid.Ctl.sexp_of_t
+  Global.create global_config ~sexp_of_a:Spark.Ctl.sexp_of_t
   >>= fun global ->
   let t = { grid; global } in
   render t;

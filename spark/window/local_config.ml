@@ -6,7 +6,7 @@
 
 open Std_internal
 
-module C = Grid_lib.Config
+module C = Spark_lib.Config
 
 let config : C.t =
   { drawing_mode = false

@@ -9,4 +9,6 @@ open Std_internal
 ;;
 
 top_level (fun () ->
-  Gui_client.main Local_config.config (Box.create ~kind:Grid.Ctl.rain_control ()))
+  Gui_client.main
+    Local_config.config
+    (Box.create ~kind:Spark.Ctl.rain_control ()))

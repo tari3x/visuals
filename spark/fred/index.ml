@@ -9,4 +9,4 @@ open Std_internal
 ;;
 
 top_level (fun () ->
-  Gui_client.main Local_config.config (Box.create ~kind:Grid.Ctl.spot ()))
+  Gui_client.main Local_config.config (Box.create ~kind:Spark.Ctl.spot ()))
