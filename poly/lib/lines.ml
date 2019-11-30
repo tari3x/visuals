@@ -8,17 +8,18 @@ type t = Line.t list [@@deriving sexp]
 let all_points config =
   let n_x, n_y = Config.grid_size config in
   List.cartesian_product
-    (List.init n_x ~f:Fn.id)
-    (List.init n_y ~f:Fn.id)
+    (List.init n_x ~f:Float.of_int)
+    (List.init n_y ~f:Float.of_int)
 
 let all_diagonals config : t =
   let n_x, n_y = Config.grid_size config in
   let all_points = all_points config in
-  let dirs = [ (1, 1); (1, -1) ] in
+  let dirs = [ (1., 1.); (1., -1.) ] in
   List.init (n_x + n_y) ~f:(fun i ->
+    let x = Float.of_int i in
     List.concat_map dirs ~f:(fun dir ->
-      [ (i, 0), dir
-      ; (0, i), dir
+      [ (x, 0.), dir
+      ; (0., x), dir
       ]))
   |> List.concat
   |> List.filter ~f:(fun l ->
@@ -51,13 +52,17 @@ let poly t =
   List.map t ~f:Line.poly
   |> P.product
 
-let horizontal_lines config =
+let horizontal_lines config : Line.t list =
   let _, n_y = Config.grid_size config in
-  List.init n_y ~f:(fun i -> (0, i), (1, 0))
+  List.init n_y ~f:(fun i ->
+    let x = Float.of_int i in
+    (0., x), (1., 0.))
 
-let vertical_lines config =
+let vertical_lines config : Line.t list =
   let n_x, _ = Config.grid_size config in
-  List.init n_x ~f:(fun i -> (i, 0), (0, 1))
+  List.init n_x ~f:(fun i ->
+    let x = Float.of_int i in
+    (x, 0.), (0., 1.))
 
 let imo_vh config =
   List.intercalate

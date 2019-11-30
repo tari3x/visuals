@@ -41,6 +41,9 @@ module State = struct
     ; palette = t.palette
     }
 
+  let map t ~f =
+    { t with p = f t.p }
+
   (* CR: make interpolation fast for camlimage. *)
   let interpolate_two t1 t2 =
     let num_steps = 110 in
@@ -76,37 +79,27 @@ module State = struct
 
   let emerge t (l : Line.t) =
     let open P in
-    let ((x, y), (d_x, d_y)) = l in
-    let v, x =
-      match d_x, d_y with
-      | 0, _ -> Var.x, Float.of_int x
-      | _, 0 -> Var.y, Float.of_int y
-      | _ -> failwith "emerge only works on horizontal or vertical lines"
-    in
     let { p;  ps; _ } = t in
-    let p = p - subst p ~var:v ~by:(const x) in
     let l = Line.poly l in
-    let%bind { P.Division_result. q; r = _ } = P.divide p l in
-    (* CR-someday: restore this with tolerance. *)
-    (*
-       if not (P.is_zero r)
-       then raise_s [%message "expect zero remainder" (r : t)];
-    *)
+    let%bind { P.Division_result. q; r } = P.divide p l in
+    if not (P.is_roughly_zero r)
+    then raise_s [%message "expect zero remainder" (r : t)];
     return { t with p = q; ps = l :: ps }
 
   let%expect_test _ =
-    let l = P.zero_line_between_two_points in
+    let z = P.zero_line_between_two_points in
+    let l = (0., 1.), (1., 0.) in
     let t =
       P.product
-        [ l (0., 0.) (1., 2.)
-        ; l (0., 1.) (2., 2.)
-        ; l (0., 2.) (3., 0.)
-        ; l (3., 2.) (2., 0.)
-        ; l (3., 1.) (1., 0.)
+        [ z (0., 0.) (1., 2.)
+        ; z (0., 1.) (2., 2.)
+        ; z (0., 2.) (3., 0.)
+        ; z (3., 2.) (2., 0.)
+        ; z (3., 1.) (1., 0.)
         ]
-    |> of_poly
+      |> Line.deform_to_zero l
+      |> of_poly
     in
-    let l = (0, 1), (1, 0) in
     let%bind t = emerge t l in
     ignore t;
     [%expect {| |}]

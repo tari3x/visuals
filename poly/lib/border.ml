@@ -2,6 +2,8 @@ open Core
 open Async
 open Std_internal
 
+module S = A.State
+
 let _debug = debug_s ~enabled:true
 
 let target_lines : [ `both | `vertical ] = `both
@@ -14,7 +16,8 @@ let config =
     ~grid_size:(n_x + 1, n_y + 1)
     (* CR: this is bigger than the screen? *)
     ~image_width:2048
-    ~cbrange:(-10., 12.)
+    ~cbrange:(-1.5, 1.5)
+    (* ~cbrange:(-10., 12.) *)
     ~rendering_degree:12
     ()
 
@@ -29,11 +32,13 @@ let p =
     ]
 
 let lines_to_emerge =
+  let x = Float.of_int n_x in
+  let y = Float.of_int n_y in
   let border_lines =
-    [ (0, 0), (1, 0)
-    ; (0, 0), (0, 1)
-    ; (0, n_y), (1, 0)
-    ; (n_x, 0), (0, 1)
+    [ (0., 0.), (1., 0.)
+    ; (0., 0.), (0., 1.)
+    ; (0., y), (1., 0.)
+    ; (x, 0.), (0., 1.)
     ]
   in
   let lines =
@@ -44,16 +49,25 @@ let lines_to_emerge =
   List.filter lines ~f:(fun l ->
     not (List.mem border_lines l ~equal:Line.equal))
 
+let show_dots =
+  List.cartesian_product
+    [0.; 1.; 2.; 3.]
+    [0.; 1.; 2.]
+
+let next (s : S.t)  (l : Line.t) =
+  let s = S.map s ~f:(Line.deform_to_zero_preserving_boundary l config) in
+  S.emerge s l
+
 let animate ~dir =
-  let init = A.State.of_poly p in
+  let init = S.of_poly p ~show_dots in
   let%bind states =
     List.scan_deferred
       lines_to_emerge
       ~init
-      ~f:A.State.emerge
+      ~f:next
   in
-  List.map (init :: states) ~f:A.State.collapse
-  |> A.State.interpolate
-  |> A.State.suspend_end
+  List.map (init :: states) ~f:S.collapse
+  |> S.interpolate
+  |> S.suspend_end
   |> A.create ~config
   |> Render_camlimage.write ~dir

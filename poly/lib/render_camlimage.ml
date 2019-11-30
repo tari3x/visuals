@@ -5,16 +5,18 @@ open Std_internal
 module A = Animation
 module P = Polynomial
 
-let debug a = debug_s ~enabled:true a
+let _debug a = debug_s ~enabled:true a
 
 let file_id = ref 0
+
+let dot_size = 3
 
 (* CR: this needs to be flipped. *)
 let draw_dot ~config image v =
   let x, y = Config.domain_to_image config v in
   let image_x, image_y = Config.image_size config in
-  for i = x to x + 10 do
-    for j = y to y + 10 do
+  for i = x - dot_size / 2 to x + dot_size / 2 do
+    for j = y - dot_size / 2 to y + dot_size / 2 do
       if 0 <= i && i < image_x && 0 <= j && j < image_y
       then Rgb24.set image i j Color.red
     done
@@ -43,10 +45,15 @@ let write_image ~dir ~config ~values ~palette ?(dots = []) () =
     done;
   done;
   List.iter dots ~f:(fun dot ->
-    let i, j = Config.domain_to_image config dot in
-    let p_value = A2.get_flipped values i j in
-    let color = palette.(p_value) in
-    debug [%message (p_value : int) (color : Color.t)];
+    (* This seems to be prone to off-by-ones if you put a dot right on the
+       border *)
+    (*
+       let i, j = Config.domain_to_image config dot in
+       debug [%message (i: int) (j : int)];
+       let p_value = A2.get_flipped values i j in
+       let color = palette.(p_value) in
+       debug [%message (p_value : int) (color : Color.t)];
+    *)
     draw_dot ~config image dot
   );
   Png.save filename [] (Images.Rgb24 image)

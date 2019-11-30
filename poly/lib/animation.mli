@@ -22,6 +22,8 @@ module State : sig
 
   val collapse : t -> t
 
+  val map : t -> f:(P.t -> P.t) -> t
+
   (** Only works on horizontal and vertical lines. *)
   val emerge : t -> Line.t -> t Deferred.t
 

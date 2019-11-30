@@ -374,11 +374,7 @@ let divide t1 t2 =
   let r = of_maxima (E.to_string r) in
   return { Division_result. q; r }
 
-let is_roughly_zero = function
-  | [] -> true
-  | [[], x] -> Float.(x < 10E-9)
-  | _ -> false
+let is_roughly_zero t =
+  List.for_all t ~f:(fun (_, x) -> Float.(x < 10E-9))
 
 include Comparable.Make(T)
-
-
