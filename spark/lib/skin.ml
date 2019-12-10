@@ -49,13 +49,7 @@ module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
 
-let flash_cutoff = 0.4
-let flash_top = 0.6
-let flash_color_weight = 0.2 (* 0.15 *)
-let human_playing_timeout = Time.Span.of_sec 10.
-
-let drops_period_range = (Time.Span.of_sec 2., Time.Span.of_sec 10.)
-let drops_value_range = (0.1, 1.) (*  (0.0000002, 0.3) *)
+module Config = Config.Skin
 
 module type Elt = sig
   module Id : Id
@@ -65,6 +59,7 @@ module type Elt = sig
   val id : t -> Id.t
   val offset : t -> t -> V.t
   val touch : t -> Color_flow.t -> unit
+  val color : t -> Color.t option
 end
 
 module Make(Elt : Elt) = struct
@@ -94,18 +89,53 @@ module Make(Elt : Elt) = struct
 
     let a c x = Color.scale c ~by:x
 
-    let fade_to_black ~config ~base_color ~flash =
+    let fade_to_black ~(config : Config.t) ~base_color ~flash =
       let open Time.Span in
-      let sls = Config.segment_life_span config in
+      let sls = config.segment_life_span in
       if not flash
       then begin
-        CF.start_now (a base_color flash_cutoff)
-        |> CF.add ~after:sls ~color:(a base_color 0.)
+        CF.start_now (a base_color config.flash_cutoff)
+        |> CF.add ~after:(sls * 0.5) ~color:(a base_color 0.)
       end
       else begin
-        CF.start_now (a base_color flash_top)
-        |> CF.add ~after:(sls * 0.1) ~color:(a base_color flash_cutoff)
-        |> CF.add ~after:(sls * 0.9) ~color:(a base_color 0.)
+        CF.start_now (a base_color config.flash_top)
+        |> CF.add
+            ~after:(sls * config.flash_duration)
+            ~color:(a base_color config.flash_cutoff)
+        |> CF.add
+            ~after:(sls * Float.(1. - config.flash_duration))
+            ~color:(a base_color 0.)
+      end
+
+    let fade_to_black_smooth
+        ~(config : Config.t)
+        ~start_color
+        ~end_color
+        ~flash =
+      let open Float in
+      let open Time.Span in
+      let sls = config.segment_life_span in
+      if not flash
+      then begin
+        CF.start_now start_color
+        |> CF.add ~after:(sls * 0.5) ~color:(a end_color config.flash_cutoff)
+        |> CF.add ~after:(sls * 0.5) ~color:(a end_color 0.)
+      end
+      else begin
+        let flash_step = config.flash_duration / 2.5 in
+        CF.start_now start_color
+        |> CF.add
+            ~after:(sls * flash_step)
+            ~color:(a end_color config.flash_top)
+        |> CF.add
+            ~after:(sls * Float.(0.5 * flash_step))
+            ~color:(a end_color config.flash_top)
+        |> CF.add
+            ~after:(sls * flash_step)
+            ~color:(a end_color config.flash_cutoff)
+        |> CF.add
+            ~after:(sls * Float.(1. - config.flash_duration))
+            ~color:(a end_color 0.)
       end
 
     (* Always flashes *)
@@ -114,25 +144,45 @@ module Make(Elt : Elt) = struct
       let sls = Config.segment_life_span config in
       let flash_color = Color.maximize flash_color in
       (* Tried having an afterglow, didn't work, is just distracting. *)
-      CF.start_now (a flash_color flash_top)
-      |> CF.add ~after:(sls * 0.1) ~color:(a new_base flash_cutoff)
+      CF.start_now (a flash_color config.flash_top)
+      |> CF.add
+          ~after:(sls * config.flash_duration)
+          ~color:(a new_base config.flash_cutoff)
 
     let touch t ~color ~flash =
       (* CR-someday: if we are faded out, why interpolate? *)
       let base_color, color =
         match t.config.color_flow with
-        | `fade_to_black ->
+        | Fade_to_black ->
           let base_color = Color.interpolate [t.base_color; color] ~arg:0.5 in
-          let color = fade_to_black ~config:t.config ~base_color ~flash in
+          let color =
+            fade_to_black
+              ~config:t.config
+              ~base_color
+              ~flash
+          in
           base_color, color
-        | `fade_to_base ->
+        | Fade_to_black_smooth ->
+          let base_color = Color.interpolate [t.base_color; color] ~arg:0.5 in
+          let start_color = Option.value (Elt.color t.elt) ~default:color in
+          let color =
+            fade_to_black_smooth
+              ~config:t.config
+              ~start_color
+              ~end_color:base_color
+              ~flash
+          in
+          base_color, color
+        | Fade_to_base ->
           let new_base =
             Color.interpolate [t.base_color; color]
-              ~arg:Rain.fade_to_base_interpolation_arg
+              ~arg:t.config.rain.fade_to_base_interpolation_arg
           in
           let flash_color =
             (* t.base_color *)
-            Color.interpolate [t.base_color; color] ~arg:flash_color_weight
+            Color.interpolate
+              [t.base_color; color]
+              ~arg:t.config.flash_color_weight
           in
           let color =
             fade_to_base ~config:t.config ~flash_color ~new_base
@@ -186,7 +236,7 @@ module Make(Elt : Elt) = struct
       ; sound_rains = Hashtbl.create (module Rain.Id)
       ; sound_rain_ids = Hashtbl.create (module Sound.Source.Id)
       ; elts  = Hashtbl.create (module E.Id)
-      ; last_human_touch = Time.(sub (now ()) human_playing_timeout)
+      ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
       ; silent_drop_count = 0
       ; min_distance = 0.
       }
@@ -197,7 +247,7 @@ module Make(Elt : Elt) = struct
   let human_playing t =
     let open Time in
     let open Span in
-    now () - t.last_human_touch < human_playing_timeout
+    now () - t.last_human_touch < t.config.human_playing_timeout
 
   let rains t =
     Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
@@ -209,7 +259,7 @@ module Make(Elt : Elt) = struct
     _debug_loop t
 
   let new_rain t id =
-    Rain.create_exn ~id ~config:t.config
+    Rain.create_exn ~id ~config:t.config.rain
       ~min_distance:t.min_distance
       ~other_rains:(rains t)
       ~elts:(Hashtbl.data t.elts)
@@ -253,8 +303,8 @@ module Make(Elt : Elt) = struct
     let quantum = 0.1 (* 0.001 *) in
     let drops =
       Resonant_flow.create_exn
-        ~period_range:drops_period_range
-        ~value_range:drops_value_range
+        ~period_range:t.config.drops_period_range
+        ~value_range:t.config.drops_value_range
     in
     let rec loop () =
       let%bind () = Lwt_js.sleep quantum in

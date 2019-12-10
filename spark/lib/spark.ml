@@ -15,43 +15,11 @@ open Std_internal
 
 module CF = Color_flow
 
-let line_width = 8. (* 18. *)
-let shorten_by = 0. (* 7. *)
+module Config = Config.Skin
+
+module Shape = Shapes.Shape
+
 let max_keep_raining_probability = 1.
-
-module Shape = struct
-  include Shape
-
-  let centre t =
-    let open Vector in
-    match t with
-    | Segment (v1, v2) ->
-      (v1 + v2) / 2.
-    | Polygon vs ->
-      let n = List.length vs in
-      List.reduce_exn vs ~f:(+) / float n
-
-  let shortened_ends v1 v2 =
-    let open Vector in
-    let delta = (normalize (v2 - v1)) * shorten_by in
-    v1 + delta, v2 - delta
-
-  let render t ~perspective ~ctx ~color =
-    match t with
-    | Segment (v1, v2) ->
-      Ctx.set_stroke_color ctx color;
-      Ctx.set_line_width ctx line_width;
-      let v1, v2 = shortened_ends v1 v2 in
-      let v1 = Matrix.apply perspective v1 in
-      let v2 = Matrix.apply perspective v2 in
-      Ctx.path ctx ~closed:false [v1; v2];
-      Ctx.stroke ctx
-    | Polygon vs ->
-      Ctx.set_fill_color ctx color;
-      let vs = List.map vs ~f:(Matrix.apply perspective) in
-      Ctx.path ctx ~closed:true vs;
-      Ctx.fill ctx
-end
 
 module Ctl = struct
   type t =
@@ -99,11 +67,13 @@ module Elt = struct
   let touch t color =
     t.color <- Some color
 
+  let color t =
+    Option.map t.color ~f:CF.eval
+
   let render t ~perspective ~ctx =
-    match t.color with
+    match color t with
     | None -> ()
     | Some color ->
-      let color = CF.eval color in
       Shape.render t.shape ~perspective ~ctx ~color
 end
 
@@ -112,88 +82,22 @@ module Skin = Skin.Make(Elt)
 type t =
   { config : Config.t
   ; ctx : Ctx.t
-  ; top_left : Vector.t
-  ; width : float
-  ; height : float
   ; perspective : Matrix.t
   ; skin : Skin.t
   ; mutable elts : Elt.t list
   }
 
-let grid_segments ~top_left ~width ~height ~rows ~cols =
-  let dy = height /. (float rows) in
-  let dx = width  /. (float cols) in
-  let point row col =
-    Vector.(top_left + create_float ((float col) *. dx) ((float row) *. dy))
-  in
-  let segment ~row ~col ~kind =
-    let row', col' =
-      match kind with
-      | `vertical   -> row + 1, col
-      | `horizontal -> row, col + 1
-    in
-    if row' > rows || col' > cols
-    then None
-    else begin
-      let shape = Shape.segment (point row col) (point row' col') in
-      Some (Elt.create ~shape)
-    end
-  in
-  let make ~kind =
-    List.init (rows + 1) ~f:(fun row ->
-      List.init (cols + 1) ~f:(fun col ->
-        segment ~row ~col ~kind))
-    |> List.concat
-    |> List.filter_opt
-  in
-  make ~kind:`horizontal @ make ~kind:`vertical
-
-module Shapes = struct
-  type t =
-  | Grid of { rows: int; cols : int }
-  | Set of Shape.t list
-
-  let grid_exn ~rows ~cols =
-    if rows <= 0 || cols <= 0 then failwith "rows or cols not positive";
-    Grid { rows; cols }
-
-  let set_exn shapes =
-    if List.is_empty shapes then failwith "Shapes.set_exn: empty list";
-    Set shapes
-end
-
 let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
-    ?native_corners ?real_corners () =
-  let wmargin = Ctx.width ctx *. 0.1 in
-  let hmargin = Ctx.height ctx *. 0.1 in
-  let width = Ctx.width ctx -. 2. *. wmargin in
-  let height = Ctx.height ctx -. 2. *. hmargin in
-  let top_left = Vector.create_float wmargin hmargin in
-  let native_corners =
-    match native_corners with
-    | Some corners -> corners
-    | None ->
-      let w = width in
-      let h = height in
-      let tr dx dy = Vector.(top_left + Vector.create_float dx dy) in
-      let v1 = tr 0. 0. in
-      let v2 = tr w  0. in
-      let v3 = tr w  h  in
-      let v4 = tr 0. h  in
-      Prism.Quad.create v1 v2 v3 v4
-  in
+    ?real_corners () =
+  let native_corners = Shapes.corners shapes in
   let real_corners = Option.value real_corners ~default:native_corners in
   let perspective =
     Prism.Surface.create ~canvas:real_corners ~camera:native_corners
     |> Prism.Surface.camera_to_canvas
   in
   let elts =
-    match shapes with
-    | Set shapes ->
-      List.map shapes ~f:(fun shape -> Elt.create ~shape)
-    | Grid { rows; cols } ->
-      grid_segments ~top_left ~width ~height ~rows ~cols
-  in
+    Shapes.shapes shapes
+    |> List.map ~f:(fun shape -> Elt.create ~shape) in
   (* elts are not empty by interface *)
   let skin =
     Skin.Elts.create_exn elts
@@ -201,9 +105,6 @@ let create ~(config : Config.t) ~ctx ~sound ~(shapes : Shapes.t)
   in
   { config
   ; ctx
-  ; top_left
-  ; width
-  ; height
   ; perspective
   ; elts
   ; skin
@@ -234,7 +135,7 @@ let ctl t box =
         let w = Ctx.width t.ctx in
         let h = Ctx.height t.ctx in
         t.config.bot_active <- (x / w) > 0.5;
-        t.config.keep_raining_probability <-
+        t.config.rain.keep_raining_probability <-
           max_keep_raining_probability * (y / h)
     end
   | Ctl.Set_shapes shapes ->
@@ -246,5 +147,4 @@ let ctl t box =
 
 let render t =
   let perspective = t.perspective in
-  Ctx.clear t.ctx;
   List.iter t.elts ~f:(Elt.render ~perspective ~ctx:t.ctx)

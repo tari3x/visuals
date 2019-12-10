@@ -1,8 +1,6 @@
 open Base
 open Std_internal
 
-val fade_to_base_interpolation_arg : float
-
 module type Elt = sig
   module Id : Id
 
@@ -25,7 +23,7 @@ module Make(E : Elt) : sig
     -> min_distance:float
     -> elts:E.t list
     -> id:Id.t
-    -> config:Config.t
+    -> config:Config.Rain.t
     -> t
 
   val drop : t -> flash:bool -> unit

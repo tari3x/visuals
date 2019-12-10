@@ -17,23 +17,13 @@ end
 
 type t
 
-module Shapes : sig
-  type t
-
-  (* both must be positive *)
-  val grid_exn : rows:int -> cols:int -> t
-  (* must be not empty *)
-  val set_exn : Shape.t list -> t
-end
-
 val create
-  :  config:Config.t
+  :  config:Config.Skin.t
   -> ctx:Ctx.t
   (* CR-someday: sound must be made optional if you want to display grid on the
      client .*)
   -> sound:Sound.t
   -> shapes:Shapes.t
-  -> ?native_corners:Prism.Quad.t
   -> ?real_corners:Prism.Quad.t
   -> unit
   -> t

@@ -9,13 +9,16 @@ open Js_of_ocaml_lwt
 open Std_internal
 
 type t =
-  { grid : Spark.t
+  { sparks : Spark.t list
   ; global : Spark.Ctl.t Global.t
+  ; ctx : Ctx.t
   }
 
 let render t =
-  Global.iter t.global ~f:(Spark.ctl t.grid);
-  Spark.render t.grid
+  Ctx.clear t.ctx;
+  List.iter t.sparks ~f:(fun spark ->
+    Global.iter t.global ~f:(Spark.ctl spark);
+    Spark.render spark)
 
 let rec render_loop t =
   Lwt_js_events.request_animation_frame ()
@@ -24,7 +27,7 @@ let rec render_loop t =
   render t;
   render_loop t
 
-let start (config : Config.t) grid ~ctx =
+let start (config : Config.t) sparks ~ctx =
   let global_config =
     { Global.Config.
       viewport_width = Ctx.width ctx
@@ -37,7 +40,7 @@ let start (config : Config.t) grid ~ctx =
   in
   Global.create global_config ~sexp_of_a:Spark.Ctl.sexp_of_t
   >>= fun global ->
-  let t = { grid; global } in
+  let t = { sparks; global; ctx } in
   render t;
   (* Make sure to pick up changes from [Index_load]. *)
   Global.on_change global ~f:(fun _ _ -> render t);

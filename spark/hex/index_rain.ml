@@ -4,7 +4,9 @@
   See LICENSE file for copyright notice.
 *)
 
-include Visuals
-include Remote
+open Std_internal
 
-module V = Vector
+;;
+
+top_level (fun () ->
+  Gui_client.main Local_config.config (Box.create ~kind:Spark.Ctl.rain_control ()))

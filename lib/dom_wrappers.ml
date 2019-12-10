@@ -179,6 +179,9 @@ module Ctx = struct
   let begin_path (t : t) =
     t##beginPath
 
+  let close_path (t : t) =
+    t##closePath
+
   let path (t : t) ~closed vs =
     match vs with
     | [] -> ()
@@ -186,7 +189,7 @@ module Ctx = struct
       begin_path t;
       move_to t v;
       List.iter vs ~f:(line_to t);
-      if closed then line_to t v
+      if closed then close_path t
 
   let stroke (t : t) =
     t##stroke

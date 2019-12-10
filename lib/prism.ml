@@ -17,9 +17,8 @@ module Quad = struct
   let create v1 v2 v3 v4 =
     (v1, v2, v3, v4)
 
-  let rectangle x y =
-    let v = Vector.create_float in
-    create (v 0. 0.) (v x 0.) (v x y) (v 0. y)
+  let rectangle r =
+    Rectangle.corners r
 
   let of_list_exn = function
     | [v1; v2; v3; v4] -> create v1 v2 v3 v4

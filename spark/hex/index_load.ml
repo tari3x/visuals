@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-include Visuals
-include Remote
+open Std_internal
 
-module V = Vector
+;;
+top_level (fun () -> Load.main Local_config.config)

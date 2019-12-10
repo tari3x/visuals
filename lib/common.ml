@@ -131,6 +131,9 @@ module List = struct
 
   let max_elt_exn xs ~compare =
     max_elt xs ~compare |> Option.value_exn
+
+  let range min max =
+    List.init (max - min + 1) ~f:(fun i -> min + i)
 end
 
 module Typed_array = struct

@@ -18,7 +18,7 @@ module Quad : sig
 
   val create : Vector.t -> Vector.t -> Vector.t -> Vector.t -> t
 
-  val rectangle : float -> float -> t
+  val rectangle : Rectangle.t -> t
 
   val of_list_exn : Vector.t list -> t
 

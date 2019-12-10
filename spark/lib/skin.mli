@@ -7,6 +7,8 @@
 open Base
 open Std_internal
 
+module Config = Config.Skin
+
 module type Elt = sig
   module Id : Id
 
@@ -15,6 +17,7 @@ module type Elt = sig
   val id : t -> Id.t
   val offset : t -> t -> Vector.t
   val touch : t -> Color_flow.t -> unit
+  val color : t -> Color.t option
 end
 
 module Make(Elt : Elt) : sig

@@ -111,12 +111,26 @@ module Frame : sig
   val matrix : t -> Matrix.t
 end
 
+module Rectangle : sig
+  module V = Vector
+  type t
+
+  val create_corners : V.t -> V.t -> t
+  val create_offset : V.t -> width:float -> height:float -> t
+  val top_left : t -> V.t
+  val width : t -> float
+  val height : t -> float
+  val corners : t -> V.t * V.t * V.t * V.t
+end
+
 module Shape : sig
   type t =
   | Segment of Vector.t * Vector.t
+  | Path of Vector.t list
   | Polygon of Vector.t list (* not empty *)
       [@@deriving sexp]
 
   val segment : Vector.t -> Vector.t -> t
   val polygon : Vector.t list -> t
+  val path : Vector.t list -> t
 end

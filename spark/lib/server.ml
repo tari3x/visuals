@@ -21,24 +21,27 @@ let get_clicks ctx =
 let full_screen_x = 1707.
 let full_screen_y = 1133.
 
-(* The size of the context of the laptop where I draw things. *)
+let rectangle_quad width height =
+  Rectangle.create_offset V.zero ~width ~height
+  |> Prism.Quad.rectangle
+
+(* CR-someday: unify this with the logic for grid *)
 let full_screen_laptop_corners =
-  Prism.Quad.rectangle full_screen_x full_screen_y
+  rectangle_quad full_screen_x full_screen_y
 
 let get_corners (config : Config.t) ctx =
   let open Float in
-  if config.skip_calibration
-  then begin
+  match config.calibration with
+  | Laptop_aspect_ratio ->
     let x = Ctx.width ctx in
     let y = Ctx.height ctx in
     let a = min (x / full_screen_x) (y / full_screen_y) in
-    return (Prism.Quad.rectangle (a * full_screen_x) (a * full_screen_y))
-  end
-  else begin
+    return (Some (rectangle_quad (a * full_screen_x) (a * full_screen_y)))
+  | Clicks ->
     get_clicks ctx
     >>= fun clicks ->
-    return (Prism.Quad.of_list_exn clicks)
-  end
+    return (Some (Prism.Quad.of_list_exn clicks))
+  | Skip -> return None
 
 let _test_quantum () =
   let open Lwt.Let_syntax in
@@ -61,6 +64,7 @@ let _test_quantum () =
 
 let main (config : Config.t) =
   debug [%message "222"];
+  Config.validate config;
   Random.self_init ();
   Sound.create_from_mic ~max_sources:config.num_sound_sources
   >>= fun sound ->
@@ -74,23 +78,30 @@ let main (config : Config.t) =
   else begin
     get_corners config ctx
     >>= fun real_corners ->
-    let grid =
-      match config.grid_kind with
-      | `grid ->
-        let shapes = Spark.Shapes.grid_exn ~cols:7 ~rows:3 in
-        Spark.create ~config ~ctx ~sound ~shapes ~real_corners ()
-      | `free ->
+    let shapess =
+      match config.sparks with
+      | Grid { skin; rows; cols }  ->
+        [ Shapes.grid_exn ~ctx ~cols ~rows, skin ]
+      | Hex { tile_skin; wire_skin }  ->
+        let tile_shapes = Shapes.hex_tile_exn ~ctx in
+        let wire_shapes = Shapes.hex_wire_exn ~ctx in
+        [ tile_shapes, tile_skin
+        ; wire_shapes, wire_skin ]
+      | Free skin ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
         let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
-        let shapes = Spark.Shapes.set_exn shapes in
-        let native_corners =
-          if config.skip_calibration
-          then full_screen_laptop_corners
-          else calibration_points
+        let corners =
+          match config.calibration with
+          | Laptop_aspect_ratio ->
+            full_screen_laptop_corners
+          | Skip | Clicks ->
+            calibration_points
         in
-        Spark.create
-          ~config ~ctx ~sound ~shapes
-          ~native_corners ~real_corners ()
+        [ Shapes.create_exn ~corners shapes, skin ]
     in
-    Server_state.start config grid ~ctx
+    let sparks =
+      List.map shapess ~f:(fun (shapes, config) ->
+        Spark.create ~config ~ctx ~sound ~shapes ?real_corners ())
+    in
+    Server_state.start config sparks ~ctx
   end

@@ -5,16 +5,6 @@ open Std_internal
 module PD = Probability_distribution
 module V = Vector
 
-let rain_dropoff = 0.5 (* 1.5 *)
-let wind_dropoff = 10.
-
-(* CR-someday is this equivalent to infinity? *)
-let new_strand_probability = 0.01
-
-(* Do not set lower than 1/256 since color is an int. *)
-let fade_to_base_interpolation_arg = 0.01 (* 0.03 *)
-let drop_interval = Time.Span.of_sec 0.01
-
 module type Elt = sig
   module Id : Id
 
@@ -40,7 +30,7 @@ module Make(E : Elt) = struct
 
   type t =
     { id : Id.t
-    ; config : Config.t
+    ; config : Config.Rain.t
     ; color : Color.t
     ; elts : E.t list
     ; centre : E.t
@@ -81,7 +71,8 @@ module Make(E : Elt) = struct
     in
     PD.create_exn (PD.Elt.create centre ~weight:1. :: other_elts)
 
-  let create_exn ~other_rains ~min_distance ~elts ~(id : Id.t) ~config =
+  let create_exn
+      ~other_rains ~min_distance ~elts ~(id : Id.t) ~(config : Config.Rain.t) =
     let color = Color.random_interesting () |> Color.maximize in
     let centre = choose_new_centre_exn ~elts ~other_rains in
     let wind = V.(scale (random_unit ()) ~by:min_distance) in
@@ -92,7 +83,7 @@ module Make(E : Elt) = struct
         centre
         elts
         ~min_distance
-        ~dropoff:rain_dropoff
+        ~dropoff:config.rain_dropoff
     in
     { id; config; color
     ; elts
@@ -110,7 +101,7 @@ module Make(E : Elt) = struct
     let weight e =
       let v = E.offset e last_drop in
       let d = Float.max 1. V.(length (v - t.wind)) in
-      (1. /  d) **. wind_dropoff
+      (1. /  d) **. t.config.wind_dropoff
     in
     let elts =
       List.map t.elts ~f:(fun e ->
@@ -130,7 +121,7 @@ module Make(E : Elt) = struct
   let drop t ~flash =
     let e =
       let open Float in
-      if Random.float 1. <= new_strand_probability
+      if Random.float 1. <= t.config.new_strand_probability
       then PD.draw t.next_strand
       else next_strand_drop t
     in
@@ -143,7 +134,7 @@ module Make(E : Elt) = struct
     let rec loop ~is_first =
       let open Float in
       let stop () = Lwt.return () in
-      let%bind () = Lwt_js.sleep (Time.Span.to_sec drop_interval) in
+      let%bind () = Lwt_js.sleep (Time.Span.to_sec t.config.drop_interval) in
       drop t ~flash:is_first;
       if Random.float 1. > t.config.keep_raining_probability
       then stop ()
@@ -154,7 +145,7 @@ module Make(E : Elt) = struct
   (* This should be roughly enough to saturate the color *)
   let saturation t =
     let open Float in
-    of_int t.centre_drops * fade_to_base_interpolation_arg
+    of_int t.centre_drops * t.config.fade_to_base_interpolation_arg
 
   let sexp_of_t t =
     let saturation = saturation t in

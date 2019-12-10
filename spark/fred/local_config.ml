@@ -12,13 +12,14 @@ let config : C.t =
   { drawing_mode = false
   ; base_color = Color.black
   ; debug_sound = false
-  ; skip_calibration = true
+  ; calibration = Laptop_aspect_ratio
   ; bot_active = true
-  ; grid_kind = `free
+  ; shapes = Free
   ; global_channel_name = "global-fred"
   ; color_flow = `fade_to_base
   ; num_sound_sources = 2
   ; on_sound = Some `rain
   ; num_silent_rains = 0
-  ; keep_raining_probability = 0.8
+  ; rain = C.Rain.default
+  ; segment_life_span = Time.Span.of_sec 3.
   }

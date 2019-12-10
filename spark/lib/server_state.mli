@@ -6,4 +6,4 @@
 
 open Std_internal
 
-val start : Config.t -> Spark.t -> ctx:Ctx.t -> unit Lwt.t
+val start : Config.t -> Spark.t list -> ctx:Ctx.t -> unit Lwt.t

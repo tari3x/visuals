@@ -262,15 +262,38 @@ module Frame = struct
     Matrix.to_string (matrix t)
 end
 
+module Rectangle = struct
+  module V = Vector
+  type t = V.t * V.t
+
+  let create_corners v1 v2 = (v1, v2)
+
+  let create_offset v1 ~width ~height =
+    let v2 = V.(v1 + create_float width height) in
+    create_corners v1 v2
+
+  let top_left = fst
+
+  let width (v1, v2) =
+    Float.(V.x v2 - V.x v1)
+
+  let height (v1, v2) =
+    Float.(V.y v2 - V.y v1)
+
+  let corners (((x_0, y_0, _), _) as t) =
+    let x = width t in
+    let y = height t in
+    let v = V.create_float in
+    ((v x_0 y_0), (v x y_0), (v x y), (v x_0 y))
+end
+
 module Shape = struct
   type t =
   | Segment of Vector.t * Vector.t
+  | Path of Vector.t list
   | Polygon of Vector.t list (* not empty *)
-      [@@deriving sexp]
+      [@@deriving sexp, variants]
 
   let segment v1 v2 =
     Segment (v1, v2)
-
-  let polygon vs =
-    Polygon vs
 end

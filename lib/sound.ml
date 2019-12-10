@@ -125,7 +125,14 @@ let bin_volume_exn t i =
   float (Typed_array.unsafe_get t.bins i) /. 256.
 
 let do_on_beat t ~source =
-  List.iter t.on_event ~f:(fun f -> f (Beat source))
+  let id = Source.id source |> Source.Id.hash in
+  match List.length t.on_event with
+  | 0 -> ()
+  | n ->
+    let n = id % n in
+    let f = List.nth_exn t.on_event n in
+    f (Beat source)
+(* List.iter t.on_event ~f:(fun f -> f (Beat source)) *)
 
 let find_new_source t ~sources =
   if List.length sources >= t.max_sources then None
