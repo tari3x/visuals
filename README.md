@@ -48,9 +48,6 @@ choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 
 # Tasters
 
-## spark/hex
-[![Hex 1](https://img.youtube.com/vi/5e8FJhhpSPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=5e8FJhhpSPo)
-
 ## spark/window
 
 [![Window](https://img.youtube.com/vi/K_6M-9U1NGE/maxresdefault.jpg)](https://www.youtube.com/watch?v=K_6M-9U1NGE)
@@ -58,6 +55,9 @@ choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 ## spark/wall
 
 [![Wall](https://img.youtube.com/vi/6cONcKzx4GY/maxresdefault.jpg)](https://www.youtube.com/watch?v=6cONcKzx4GY)
+
+## spark/hex
+[![Hex 1](https://img.youtube.com/vi/5e8FJhhpSPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=5e8FJhhpSPo)
 
 ## spark/fred
 
