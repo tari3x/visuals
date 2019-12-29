@@ -46,7 +46,7 @@ firefox http://localhost/index-server.html
 You should be able to use things that need microphone without microphone by
 choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 
-# Previews
+# Tasters
 
 ## spark/hex
 [![Hex 1](https://img.youtube.com/vi/5e8FJhhpSPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=5e8FJhhpSPo)
