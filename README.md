@@ -62,7 +62,3 @@ choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 ## spark/fred
 
 [![Fred](https://img.youtube.com/vi/VhBzc3j_vPA/maxresdefault.jpg)](https://www.youtube.com/watch?v=VhBzc3j_vPA)
-
-## poly
-
-[![Poly](https://img.youtube.com/vi/YVxbufzkbxg/hqdefault.jpg)](https://www.youtube.com/watch?v=YVxbufzkbxg)
