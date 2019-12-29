@@ -29,14 +29,12 @@ let skin =
     color_flow = Fade_to_black_smooth
   }
 
-let span_mult = 1.
-
 let tile_skin =
   let open Float in
   let flash_mult = 0.5 in
   { skin with
     rain = tile_rain
-    ; segment_life_span = Time.Span.(of_sec 2. * span_mult)
+    ; segment_life_span = Time.Span.(of_sec 2.)
     ; flash_top = 0.23 * flash_mult
     ; flash_cutoff = 0.15 * flash_mult
     ; flash_duration = 0.5
@@ -46,7 +44,7 @@ let tile_skin =
 let wire_skin =
   { skin with
     rain = tile_rain
-    ; segment_life_span = Time.Span.(of_sec 5. * span_mult)
+    ; segment_life_span = Time.Span.(of_sec 5.)
     ; flash_top = 1.
     ; flash_cutoff = 0.35
     ; flash_duration = 0.5
