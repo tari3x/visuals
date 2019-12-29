@@ -46,7 +46,23 @@ firefox http://localhost/index-server.html
 You should be able to use things that need microphone without microphone by
 choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 
-#Previews
+# Previews
 
 ## spark/hex
 [![Hex 1](https://img.youtube.com/vi/5e8FJhhpSPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=5e8FJhhpSPo)
+
+## spark/window
+
+[![Window](https://img.youtube.com/vi/K_6M-9U1NGE/maxresdefault.jpg)](https://www.youtube.com/watch?v=K_6M-9U1NGE)
+
+## spark/wall
+
+[![Wall](https://img.youtube.com/vi/6cONcKzx4GY/maxresdefault.jpg)](https://www.youtube.com/watch?v=6cONcKzx4GY)
+
+## spark/fred
+
+[![Fred](https://img.youtube.com/vi/VhBzc3j_vPA&t=6s/maxresdefault.jpg)](https://www.youtube.com/watch?v=VhBzc3j_vPA&t=6s)
+
+## poly
+
+[![Fred](https://img.youtube.com/vi/YVxbufzkbxg/maxresdefault.jpg)](https://www.youtube.com/watch?v=YVxbufzkbxg)
