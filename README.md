@@ -65,4 +65,4 @@ choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
 
 ## poly
 
-[![Poly](https://img.youtube.com/vi/YVxbufzkbxg/maxresdefault.jpg)](https://www.youtube.com/watch?v=YVxbufzkbxg)
+[![Poly](https://img.youtube.com/vi/YVxbufzkbxg/hqdefault.jpg)](https://www.youtube.com/watch?v=YVxbufzkbxg)
