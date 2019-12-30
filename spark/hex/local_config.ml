@@ -12,16 +12,7 @@ let rain =
   { Config.Rain.default with
     wind_dropoff = 1.5
     ; new_strand_probability = 0.05
-  }
-
-let tile_rain =
-  { rain with
-    keep_raining_probability = 0.6
-  }
-
-let wire_rain =
-  { rain with
-    keep_raining_probability = 0.9
+    ; keep_raining_probability = 0.6
   }
 
 let skin =
@@ -33,7 +24,7 @@ let tile_skin =
   let open Float in
   let flash_mult = 0.5 in
   { skin with
-    rain = tile_rain
+    rain
     ; segment_life_span = Time.Span.(of_sec 2.)
     ; flash_top = 0.23 * flash_mult
     ; flash_cutoff = 0.15 * flash_mult
@@ -43,7 +34,7 @@ let tile_skin =
 
 let wire_skin =
   { skin with
-    rain = tile_rain
+    rain
     ; segment_life_span = Time.Span.(of_sec 5.)
     ; flash_top = 1.
     ; flash_cutoff = 0.35

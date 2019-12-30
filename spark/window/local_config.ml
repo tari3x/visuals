@@ -8,16 +8,11 @@ open Std_internal
 
 module C = Spark_lib.Config
 
-let config : C.t =
-  { drawing_mode = false
-  ; base_color = Color.white
-  ; debug_sound  = false
-  ; calibration = Clicks
+let skin =
+  { C.Skin.default with
+    base_color = Color.white
   ; bot_active = true
-  ; shapes = Grid { rows = 3; cols = 7 }
-  ; global_channel_name = "global-window"
-  ; color_flow = `fade_to_base
-  ; num_sound_sources = 3
+  ; color_flow = Fade_to_base
   ; on_sound = Some `rain
   ; num_silent_rains = 0
   ; rain =
@@ -25,4 +20,14 @@ let config : C.t =
         keep_raining_probability = 0.95
       }
   ; segment_life_span = Time.Span.of_sec 3.
+  }
+
+
+let config : C.t =
+  { drawing_mode = false
+  ; debug_sound  = false
+  ; calibration = Clicks
+  ; sparks = Grid { skin; rows = 3; cols = 7 }
+  ; global_channel_name = "global-window"
+  ; num_sound_sources = 3
   }
