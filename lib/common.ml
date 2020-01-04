@@ -229,6 +229,8 @@ module Time : sig
   val to_sec : t -> float
   val now : unit -> t
 
+  val epoch : t
+
   module Span : sig
     type t [@@deriving sexp]
     include Comparable.S with type t := t
@@ -251,6 +253,8 @@ end = struct
   include Float
 
   let to_string = Float.to_string
+
+  let epoch = 0.
 
   module Span = struct
     include Float
@@ -302,7 +306,7 @@ end
 
 (* CR: move this to [Dom_wrappers]. *)
 let add_event_listener elt event ~f =
-  Html.addEventListener elt event
+  (Html.addEventListener elt event
     (Html.handler
        (fun ev ->
          begin
@@ -313,7 +317,7 @@ let add_event_listener elt event ~f =
                (Exn.to_string exn)
          end;
          Js._true))
-    Js._true
+    Js._true : Html.event_listener_id)
   |> ignore
 
 let top_level f =

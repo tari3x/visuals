@@ -2,26 +2,25 @@
 
 * Install opam
 
-* `opam init`
+* `opam init --bare`
   
     I said y to the prompt but also added the line it displays into .bashrc:
   
     `. ~/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true`
 
-* `opam switch ocaml-base-compiler.4.07.1`
+* `opam switch create 4.09.0`
 
-* `opam update`
-
-* `opam install PACKAGES`
-  where packages are whatever is listed in libraries in the dune files.
+* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom configurator`
+  and whetever else is listed in libraries in the dune files.
 
 * It's quite likely you'll need to install OpenCL drivers. Below are
   instructions for OpenSuSE with an Intel GPU.
 
   + In Software Management add repo
-    http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.0/
+    http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.1/
 
   + install
+    opencl-headers
     libOpenCL1
     libigdfcl1
     libigdrcl

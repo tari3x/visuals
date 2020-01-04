@@ -6,7 +6,9 @@
 
 open Std_internal
 
+let () =
+  top_level (fun () ->
+      Gui_client.main
+        Local_config.config
+        (Box.create ~kind:Spark.Ctl.rain_control ()))
 ;;
-
-top_level (fun () ->
-  Gui_client.main Local_config.config (Box.create ~kind:Spark.Ctl.rain_control ()))

@@ -17,4 +17,5 @@ open Std_internal
 
 ;;
 
-top_level Gui_light.main
+let () =
+  top_level Gui_light.main

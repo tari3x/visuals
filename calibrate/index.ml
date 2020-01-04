@@ -30,10 +30,12 @@ let apply_canvas_style (element : Html.element Js.t) =
   style##.position := Js.string "absolute";
   style##.width := Js.string "100%";
   style##.height := Js.string "100%"
+;;
 
 let draw_marker ctx v =
   Ctx.set_fill_color ctx Color.white;
   Ctx.draw_circle ctx v ~radius:3.
+;;
 
 let draw_rotating_grid ~prism ~ctx =
   Ctx.clear ctx;
@@ -56,17 +58,17 @@ let draw_rotating_grid ~prism ~ctx =
         |> Option.iter ~f:(Ctx.draw_circle ctx ~radius:5.)
       done
     done;
-    Lwt_js.sleep 0.04
-    >>= fun () ->
-    loop angle
+    Lwt_js.sleep 0.04 >>= fun () -> loop angle
   in
   loop Angle.zero
+;;
 
 let rec render renderer scene camera =
   Lwt_js_events.request_animation_frame ()
   >>= fun () ->
   renderer##render scene camera;
   render renderer scene camera
+;;
 
 let test_draw_honeycomb () =
   let open Three in
@@ -84,11 +86,7 @@ let test_draw_honeycomb () =
   in
   let v = Vector3.create in
   let vertices =
-    [| v 0.   0. 0.
-    ;  v 0.  500. 0.
-    ;  v 500.  0. 0.
-    ;  v 500. 500. 0.
-    |]
+    [| v 0. 0. 0.; v 0. 500. 0.; v 500. 0. 0.; v 500. 500. 0. |]
   in
   (* CR: fix these if using texture. *)
   let uv0 = Vector.create_float 0. 0. in
@@ -96,11 +94,13 @@ let test_draw_honeycomb () =
   let uv2 = Vector.create_float 1. 0. in
   let uv3 = Vector.create_float 1. 1. in
   let geometry =
-    Geometry.create ()
+    Geometry.create
+      ()
       ~vertices
-      ~faces:[| Face.create (0, 1, 2) ~uvs:(uv0, uv1, uv2) ~color:Color.blue
-             ;  Face.create (1, 3, 2) ~uvs:(uv1, uv3, uv2) ~color:Color.green
-             |]
+      ~faces:
+        [| Face.create (0, 1, 2) ~uvs:(uv0, uv1, uv2) ~color:Color.blue
+         ; Face.create (1, 3, 2) ~uvs:(uv1, uv3, uv2) ~color:Color.green
+        |]
   in
   let material =
     MeshBasicMaterial.create ~color:Color.red ~map:texture ()
@@ -110,6 +110,7 @@ let test_draw_honeycomb () =
   let obj = Mesh.create geometry (material :> Three.Material.t) in
   scene##add (obj :> Object3D.t);
   render renderer scene (camera :> Camera.t)
+;;
 
 let draw_texture ~prism ~pos:_ ~texture =
   let open Three in
@@ -123,6 +124,7 @@ let draw_texture ~prism ~pos:_ ~texture =
   Dom.appendChild Html.document##.body canvas;
   Prism.draw_camera_image_on_canvas prism ~texture ~scene ~canvas;
   render renderer scene (camera :> Camera.t)
+;;
 
 module Markers = struct
   type t =
@@ -132,14 +134,9 @@ module Markers = struct
 
   let rectangle =
     let v = Vector.create in
-    let camera =
-      [ v 100 100
-      ; v 100 200
-      ; v 200 200
-      ; v 200 100
-      ]
-    in
+    let camera = [ v 100 100; v 100 200; v 200 200; v 200 100 ] in
     { camera; canvas = camera }
+  ;;
 
   (* CR: what's the story with non-convex? *)
   let trapezoid ~delta =
@@ -152,67 +149,61 @@ module Markers = struct
       ]
       |> List.map ~f:(Vector.scale ~by:4.)
     in
-    let camera = quad ~blup:10 ~delta:(- delta) in
+    let camera = quad ~blup:10 ~delta:(-delta) in
     let canvas = quad ~blup:0 ~delta in
     { camera; canvas }
+  ;;
 
   let get ~ctx ?video n =
     Option.iter video ~f:Video.read_camera;
     (* NB! We assume that mouse click coordinates are the same as canvas
        coordinates. *)
     let clicks =
-      Ctx.canvas_actions ctx
-      |> Lwt_stream.filter_map ~f:Action.click
+      Ctx.canvas_actions ctx |> Lwt_stream.filter_map ~f:Action.click
     in
     (* You must start with the centre. *)
     Lwt_stream.take clicks ~n
     >>= fun canvas ->
     List.iter canvas ~f:(draw_marker ctx);
-    begin match video with
+    (match video with
     | None -> return ()
-    | Some video -> Video.get_frame video ctx ~delay:true
-    end
+    | Some video -> Video.get_frame video ctx ~delay:true)
     >>= fun () ->
-    Lwt_stream.take clicks ~n
-    >>= fun camera ->
-    return { canvas; camera }
+    Lwt_stream.take clicks ~n >>= fun camera -> return { canvas; camera }
+  ;;
 
   let to_prism t indices =
     let s i = List.nth_exn t.canvas i in
     let d i = List.nth_exn t.camera i in
     List.map indices ~f:(fun (i1, i2, i3, i4) ->
-      let canvas = Prism.Quad.create (s i1) (s i2) (s i3) (s i4) in
-      let camera = Prism.Quad.create (d i1) (d i2) (d i3) (d i4) in
-      Prism.Surface.create ~canvas ~camera)
+        let canvas = Prism.Quad.create (s i1) (s i2) (s i3) (s i4) in
+        let camera = Prism.Quad.create (d i1) (d i2) (d i3) (d i4) in
+        Prism.Surface.create ~canvas ~camera)
     |> Prism.create
+  ;;
 end
 
 let corner_prism ?video ~ctx () =
   Markers.get ?video ~ctx 7
   >>= fun markers ->
   let prism =
-    Markers.to_prism markers
-      [ (0, 1, 2, 3)
-      ; (0, 3, 4, 5)
-      ; (0, 5, 6, 1)
-      ]
+    Markers.to_prism markers [ 0, 1, 2, 3; 0, 3, 4, 5; 0, 5, 6, 1 ]
   in
   return (prism, List.nth markers.camera 0)
+;;
 
 let flat_prism ?video ~ctx () =
   Markers.get ?video ~ctx 4
   >>= fun markers ->
-  let prism =
-    Markers.to_prism markers [ (0, 1, 2, 3) ]
-  in
+  let prism = Markers.to_prism markers [ 0, 1, 2, 3 ] in
   return (prism, List.nth markers.camera 0)
+;;
 
 let test_prism () =
   let markers = Markers.trapezoid ~delta:30 in
-  let prism =
-    Markers.to_prism markers [ (0, 1, 2, 3) ]
-  in
+  let prism = Markers.to_prism markers [ 0, 1, 2, 3 ] in
   return (prism, List.nth markers.camera 0)
+;;
 
 let main () =
   let open Three_wrappers in
@@ -230,9 +221,10 @@ let main () =
      somewhere. Doesn't it peg even without video? *)
   (* Texture.load_video "images/rotating-cube.mp4" ~loop:true *)
   Texture.load_image "images/honeycomb.png"
-  >>= fun texture ->
-  draw_texture ~prism ~pos ~texture;
-  (*
+  >>= fun texture -> draw_texture ~prism ~pos ~texture
+;;
+
+(*
   let v1 = Vector.create 50 10 in
   let v2 = Vector.create 50 300 in
   let v3 = Vector.create 300 0 in
@@ -245,6 +237,5 @@ let main () =
   let prism = Prism.create [ surface ] in
   draw_image ~prism ~ctx ~pos:(Vector.create 0 0)
   *)
-;;
 
-top_level main
+let () = top_level main

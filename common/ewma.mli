@@ -8,7 +8,7 @@ type t
 
 val create : half_life:float -> t
 
-val add_sample : t -> param:float -> value:float -> unit
+val add : t -> param:float -> value:float -> unit
 
 val value : t -> float option
 val value_exn : t -> float

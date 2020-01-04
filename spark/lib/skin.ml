@@ -26,17 +26,6 @@ open Lwt.Let_syntax
 
    * Why does fred seem to flash so much more than the sound debug?
 
-   * latency
-     https://askubuntu.com/questions/491825/pulseaudio-loopback-latency
-     http://juho.tykkala.fi/Pulseaudio-and-latency
-
-   * detect waves:
-   take the 'fake minimum' over last 0.5 seconds (which would remove beats),
-   and ewma that a 0.5 seconds half life. Fake minimum: remember the last
-   minimum you saw, when it becomes too old, switch to current value.
-
-   * cut off the very high end of the spectrum
-
    * read up about sampling
 
    * detangle continuing rain from beats, stop the rain at the border,
@@ -48,7 +37,6 @@ open Lwt.Let_syntax
 module CF = Color_flow
 module PD = Probability_distribution
 module V = Vector
-
 module Config = Config.Skin
 
 module type Elt = sig
@@ -62,14 +50,15 @@ module type Elt = sig
   val color : t -> Color.t option
 end
 
-module Make(Elt : Elt) = struct
+module Make (Elt : Elt) = struct
   module Elts = struct
     type t = Elt.t list
 
     let create_exn elts : t =
       match elts with
-      | [] | [_] -> failwith "Elts.create_exn: too short"
+      | [] | [ _ ] -> failwith "Elts.create_exn: too short"
       | elts -> elts
+    ;;
   end
 
   module E = struct
@@ -79,64 +68,62 @@ module Make(Elt : Elt) = struct
       { config : Config.t
       ; elt : Elt.t
       ; mutable base_color : Color.t
-      } [@@deriving fields]
+      }
+    [@@deriving fields]
 
-    let id t =
-      Elt.id t.elt
-
-    let offset t1 t2 =
-      Elt.offset t1.elt t2.elt
-
+    let id t = Elt.id t.elt
+    let offset t1 t2 = Elt.offset t1.elt t2.elt
     let a c x = Color.scale c ~by:x
 
     let fade_to_black ~(config : Config.t) ~base_color ~flash =
       let open Time.Span in
       let sls = config.segment_life_span in
       if not flash
-      then begin
+      then
         CF.start_now (a base_color config.flash_cutoff)
         |> CF.add ~after:(sls * 0.5) ~color:(a base_color 0.)
-      end
-      else begin
+      else
         CF.start_now (a base_color config.flash_top)
         |> CF.add
-            ~after:(sls * config.flash_duration)
-            ~color:(a base_color config.flash_cutoff)
+             ~after:(sls * config.flash_duration)
+             ~color:(a base_color config.flash_cutoff)
         |> CF.add
-            ~after:(sls * Float.(1. - config.flash_duration))
-            ~color:(a base_color 0.)
-      end
+             ~after:(sls * Float.(1. - config.flash_duration))
+             ~color:(a base_color 0.)
+    ;;
 
     let fade_to_black_smooth
         ~(config : Config.t)
         ~start_color
         ~end_color
-        ~flash =
+        ~flash
+      =
       let open Float in
       let open Time.Span in
       let sls = config.segment_life_span in
       if not flash
-      then begin
+      then
         CF.start_now start_color
-        |> CF.add ~after:(sls * 0.5) ~color:(a end_color config.flash_cutoff)
+        |> CF.add
+             ~after:(sls * 0.5)
+             ~color:(a end_color config.flash_cutoff)
         |> CF.add ~after:(sls * 0.5) ~color:(a end_color 0.)
-      end
-      else begin
+      else (
         let flash_step = config.flash_duration / 2.5 in
         CF.start_now start_color
         |> CF.add
-            ~after:(sls * flash_step)
-            ~color:(a end_color config.flash_top)
+             ~after:(sls * flash_step)
+             ~color:(a end_color config.flash_top)
         |> CF.add
-            ~after:(sls * Float.(0.5 * flash_step))
-            ~color:(a end_color config.flash_top)
+             ~after:(sls * Float.(0.5 * flash_step))
+             ~color:(a end_color config.flash_top)
         |> CF.add
-            ~after:(sls * flash_step)
-            ~color:(a end_color config.flash_cutoff)
+             ~after:(sls * flash_step)
+             ~color:(a end_color config.flash_cutoff)
         |> CF.add
-            ~after:(sls * Float.(1. - config.flash_duration))
-            ~color:(a end_color 0.)
-      end
+             ~after:(sls * Float.(1. - config.flash_duration))
+             ~color:(a end_color 0.))
+    ;;
 
     (* Always flashes *)
     let fade_to_base ~config ~flash_color ~new_base =
@@ -146,25 +133,27 @@ module Make(Elt : Elt) = struct
       (* Tried having an afterglow, didn't work, is just distracting. *)
       CF.start_now (a flash_color config.flash_top)
       |> CF.add
-          ~after:(sls * config.flash_duration)
-          ~color:(a new_base config.flash_cutoff)
+           ~after:(sls * config.flash_duration)
+           ~color:(a new_base config.flash_cutoff)
+    ;;
 
     let touch t ~color ~flash =
       (* CR-someday: if we are faded out, why interpolate? *)
       let base_color, color =
         match t.config.color_flow with
         | Fade_to_black ->
-          let base_color = Color.interpolate [t.base_color; color] ~arg:0.5 in
-          let color =
-            fade_to_black
-              ~config:t.config
-              ~base_color
-              ~flash
+          let base_color =
+            Color.interpolate [ t.base_color; color ] ~arg:0.5
           in
+          let color = fade_to_black ~config:t.config ~base_color ~flash in
           base_color, color
         | Fade_to_black_smooth ->
-          let base_color = Color.interpolate [t.base_color; color] ~arg:0.5 in
-          let start_color = Option.value (Elt.color t.elt) ~default:color in
+          let base_color =
+            Color.interpolate [ t.base_color; color ] ~arg:0.5
+          in
+          let start_color =
+            Option.value (Elt.color t.elt) ~default:color
+          in
           let color =
             fade_to_black_smooth
               ~config:t.config
@@ -175,13 +164,14 @@ module Make(Elt : Elt) = struct
           base_color, color
         | Fade_to_base ->
           let new_base =
-            Color.interpolate [t.base_color; color]
+            Color.interpolate
+              [ t.base_color; color ]
               ~arg:t.config.rain.fade_to_base_interpolation_arg
           in
           let flash_color =
             (* t.base_color *)
             Color.interpolate
-              [t.base_color; color]
+              [ t.base_color; color ]
               ~arg:t.config.flash_color_weight
           in
           let color =
@@ -191,51 +181,57 @@ module Make(Elt : Elt) = struct
       in
       t.base_color <- base_color;
       Elt.touch t.elt color
+    ;;
 
     let create elt ~(config : Config.t) =
       let base_color = config.base_color in
       let t = { base_color; elt; config } in
       touch t ~color:base_color ~flash:false;
       t
+    ;;
   end
 
   module Rain = Rain.Make (E)
 
   type t =
-    { config : Config.t sexp_opaque
-    ; elts : E.t Hashtbl.M(E.Id).t sexp_opaque (* not empty *)
-    ; sound : Sound.t sexp_opaque
+    { config : (Config.t[@sexp.opaque])
+    ; elts : (E.t Hashtbl.M(E.Id).t[@sexp.opaque] (* not empty *))
+    ; sound : (Sound.t[@sexp.opaque])
     ; silent_rains : Rain.t Hashtbl.M(Rain.Id).t
     ; sound_rains : Rain.t Hashtbl.M(Rain.Id).t
     ; sound_rain_ids : Rain.Id.t Hashtbl.M(Sound.Source.Id).t
     ; mutable min_distance : float
     ; mutable last_human_touch : Time.t
     ; mutable silent_drop_count : int
-    } [@@deriving sexp_of]
+    }
+  [@@deriving sexp_of]
 
   let set_elts t (elts : Elts.t) =
     Hashtbl.clear t.elts;
     let min_distance =
       List.cartesian_product elts elts
       |> List.filter_map ~f:(fun (e1, e2) ->
-        if phys_equal e1 e2 then None
-        else Some (V.length (Elt.offset e1 e2)))
+             if phys_equal e1 e2
+             then None
+             else Some (V.length (Elt.offset e1 e2)))
       |> List.min_elt ~compare:Float.compare
       |> Option.value_exn
     in
     t.min_distance <- min_distance;
     List.iter elts ~f:(fun elt ->
-      let key = Elt.id elt in
-      let data = E.create elt ~config:t.config in
-      Hashtbl.set t.elts ~key ~data)
+        let key = Elt.id elt in
+        let data = E.create elt ~config:t.config in
+        Hashtbl.set t.elts ~key ~data)
+  ;;
 
   let create ~(config : Config.t) ~sound elts =
     let t =
-      { config; sound
+      { config
+      ; sound
       ; silent_rains = Hashtbl.create (module Rain.Id)
       ; sound_rains = Hashtbl.create (module Rain.Id)
       ; sound_rain_ids = Hashtbl.create (module Sound.Source.Id)
-      ; elts  = Hashtbl.create (module E.Id)
+      ; elts = Hashtbl.create (module E.Id)
       ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
       ; silent_drop_count = 0
       ; min_distance = 0.
@@ -243,26 +239,31 @@ module Make(Elt : Elt) = struct
     in
     set_elts t elts;
     t
+  ;;
 
   let human_playing t =
     let open Time in
     let open Span in
     now () - t.last_human_touch < t.config.human_playing_timeout
+  ;;
 
-  let rains t =
-    Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
+  let rains t = Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
 
   let rec _debug_loop t =
     let%bind () = Lwt_js.sleep 5. in
     t.silent_drop_count <- 0;
     debug [%message (t : t)];
     _debug_loop t
+  ;;
 
   let new_rain t id =
-    Rain.create_exn ~id ~config:t.config.rain
+    Rain.create_exn
+      ~id
+      ~config:t.config.rain
       ~min_distance:t.min_distance
       ~other_rains:(rains t)
       ~elts:(Hashtbl.data t.elts)
+  ;;
 
   let find_or_add_rain t which ~id =
     let table =
@@ -271,28 +272,29 @@ module Make(Elt : Elt) = struct
       | `sound -> t.sound_rains
     in
     Hashtbl.find_or_add table id ~default:(fun () -> new_rain t id)
+  ;;
 
   (* No other function should be creating rains. *)
   let run_silent_rain t =
     let open Float in
     let rec loop rain =
       let%bind () = Lwt_js.sleep 1. in
-      if Rain.saturation rain < 1. then loop rain
-      else begin
+      if Rain.saturation rain < 1.
+      then loop rain
+      else (
         Hashtbl.remove t.silent_rains (Rain.id rain);
-        start_new ()
-      end
+        start_new ())
     and start_new () =
       let id = Rain.Id.create () in
       loop (find_or_add_rain t `silent ~id)
     in
     start_new ()
+  ;;
 
   let drop t =
     t.silent_drop_count <- t.silent_drop_count + 1;
-    Option.iter
-      (List.random_element (rains t))
-      ~f:(Rain.drop ~flash:true)
+    Option.iter (List.random_element (rains t)) ~f:(Rain.drop ~flash:true)
+  ;;
 
   let run_silent_drops t =
     let open Lwt.Let_syntax in
@@ -313,24 +315,26 @@ module Make(Elt : Elt) = struct
       loop ()
     in
     loop ()
+  ;;
 
   let start_silent_rains t =
     if t.config.num_silent_rains > 0
-    then begin
+    then (
       for _ = 1 to t.config.num_silent_rains do
         Lwt.async (fun () -> run_silent_rain t)
       done;
-      Lwt.async (fun () -> run_silent_drops t)
-    end
+      Lwt.async (fun () -> run_silent_drops t))
+  ;;
 
   let rec sound_rain t id =
     match Hashtbl.find t.sound_rain_ids id with
     | None ->
       let taken_rains = Hashtbl.data t.sound_rain_ids in
-      let is_free id = not (List.mem taken_rains id ~equal:Rain.Id.equal) in
+      let is_free id =
+        not (List.mem taken_rains id ~equal:Rain.Id.equal)
+      in
       let free_rains =
-        Hashtbl.keys t.sound_rains
-        |> List.filter ~f:is_free
+        Hashtbl.keys t.sound_rains |> List.filter ~f:is_free
       in
       let rain_id =
         match free_rains with
@@ -341,11 +345,12 @@ module Make(Elt : Elt) = struct
       Hashtbl.add_exn t.sound_rain_ids ~key:id ~data:rain_id;
       rain
     | Some rain_id ->
-      match Hashtbl.find t.sound_rains rain_id with
+      (match Hashtbl.find t.sound_rains rain_id with
       | Some rain -> rain
       | None ->
         Hashtbl.remove t.sound_rain_ids id;
-        sound_rain t id
+        sound_rain t id)
+  ;;
 
   let start t =
     (* Lwt.async (fun () -> debug_loop t); *)
@@ -355,43 +360,41 @@ module Make(Elt : Elt) = struct
     | Some on_sound ->
       Sound.start t.sound;
       Sound.on_event t.sound ~f:(function
-      | Beat source ->
-        if not (human_playing t) && t.config.bot_active
-        then begin
-          let rain = sound_rain t (Sound.Source.id source) in
-          match on_sound with
-          | `rain ->
-            Lwt.async (fun () -> Rain.burst rain)
-          | `drop num_drops ->
-            for _ = 1 to num_drops do Rain.drop rain ~flash:true done
-        end
-      | Delete source ->
-        let id = Sound.Source.id source in
-        match Hashtbl.find t.sound_rain_ids id with
-        | None -> ()
-        | Some rain_id ->
-          let remove_source () =
-            Hashtbl.remove t.sound_rain_ids id
-          in
-          match Hashtbl.find t.sound_rains rain_id with
-          | None -> remove_source ()
-          | Some rain ->
-            if Float.(Rain.saturation rain > 0.4)
-            then begin
-              remove_source ();
-              Hashtbl.remove t.sound_rains rain_id
-            end)
+          | Beat source ->
+            if (not (human_playing t)) && t.config.bot_active
+            then (
+              let rain = sound_rain t (Sound.Source.id source) in
+              match on_sound with
+              | `rain -> Lwt.async (fun () -> Rain.burst rain)
+              | `drop num_drops ->
+                for _ = 1 to num_drops do
+                  Rain.drop rain ~flash:true
+                done)
+          | Delete source ->
+            let id = Sound.Source.id source in
+            (match Hashtbl.find t.sound_rain_ids id with
+            | None -> ()
+            | Some rain_id ->
+              let remove_source () = Hashtbl.remove t.sound_rain_ids id in
+              (match Hashtbl.find t.sound_rains rain_id with
+              | None -> remove_source ()
+              | Some rain ->
+                if Float.(Rain.saturation rain > 0.4)
+                then (
+                  remove_source ();
+                  Hashtbl.remove t.sound_rains rain_id))))
+  ;;
 
   let start ~config ~sound elts =
     let t = create ~config ~sound elts in
     start t;
     t
+  ;;
 
   let human_touch t elt color =
     t.last_human_touch <- Time.now ();
     match Hashtbl.find t.elts (Elt.id elt) with
     | None -> ()
-    | Some elt ->
-      E.touch elt ~color ~flash:true
+    | Some elt -> E.touch elt ~color ~flash:true
+  ;;
 end
-

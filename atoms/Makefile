@@ -5,7 +5,7 @@ JS = index_client_light.js index_client_full.js index_server.js
 all: build $(JS) index.html external start.sh stop.sh external/faye/client.js
 
 build:
-	jbuilder build ${JS:.js=.bc.js} --dev
+	dune build ${JS:.js=.bc.js}
 
 %.js: FORCE
 	cp ../_build/default/atoms/$*.bc.js $@
@@ -26,6 +26,6 @@ external/faye/client.js:
 	cp external/faye/node_modules/faye/browser/faye-browser-min.js $@
 
 clean:
-	jbuilder clean
+	dune clean
 
 FORCE:

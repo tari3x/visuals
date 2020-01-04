@@ -19,7 +19,7 @@ let skin =
   ; segment_life_span = Time.Span.of_sec 3.
   }
 
-
+ 
 let config : C.t =
   { drawing_mode = false
   ; debug_sound = false

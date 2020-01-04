@@ -13,7 +13,7 @@ type t =
   ; decay : float
   } [@@deriving sexp, fields]
 
-let add_sample t ~param ~value =
+let add t ~param ~value =
   let value =
     match t.value with
     | None -> value
@@ -40,15 +40,15 @@ let%expect_test _ =
   let print () =
     Caml.Printf.printf !"%{Sexp}" [%message (t : t)]
   in
-  let add_sample param value =
-    add_sample t ~param ~value;
+  let add param value =
+    add t ~param ~value;
     print ()
   in
   print ();
   [%expect {| (t((value())(last_sample_param 0)(decay 0.69314718055994529))) |}];
-  add_sample 1. 1.;
+  add 1. 1.;
   [%expect {| (t((value(1))(last_sample_param 1)(decay 0.69314718055994529))) |}];
-  add_sample 2. 1.;
+  add 2. 1.;
   [%expect {| (t((value(1))(last_sample_param 2)(decay 0.69314718055994529))) |}];
-  add_sample 3. 4.;
+  add 3. 4.;
   [%expect {| (t((value(2.5))(last_sample_param 3)(decay 0.69314718055994529))) |}]

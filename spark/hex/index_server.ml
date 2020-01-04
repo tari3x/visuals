@@ -6,6 +6,4 @@
 
 open Std_internal
 
-;;
-
-top_level (fun () -> Server.main Local_config.config)
+let () = top_level (fun () -> Server.main Local_config.config)

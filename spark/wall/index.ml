@@ -6,7 +6,9 @@
 
 open Std_internal
 
+let () =
+  top_level (fun () ->
+      Gui_client.main
+        Local_config.config
+        (Box.create ~kind:Spark.Ctl.spot ()))
 ;;
-
-top_level (fun () ->
-  Gui_client.main Local_config.config (Box.create ~kind:Spark.Ctl.spot ()))

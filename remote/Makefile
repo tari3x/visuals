@@ -1,3 +1,3 @@
 
 all:
-	jbuilder build --dev remote.cma
+	dune build remote.cma

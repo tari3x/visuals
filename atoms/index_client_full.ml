@@ -8,5 +8,6 @@ open Std_internal
 
 ;;
 
-top_level (fun () -> Gui_full.main ~is_server:false)
+let () =
+  top_level (fun () -> Gui_full.main ~is_server:false)
 

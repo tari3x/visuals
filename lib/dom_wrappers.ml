@@ -78,7 +78,7 @@ end
 
 let actions (target : #Html.element Js.t) =
   let stream, write = Lwt_stream.create () in
-  ignore (target##.offsetLeft);
+  ignore (target##.offsetLeft : int);
   let write x = write (Some x) in
   add_event_listener target Html.Event.mousedown ~f:(fun ev ->
     write (Mouse_event.action target ev `down));

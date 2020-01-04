@@ -8,7 +8,7 @@ open Base
 open Js_of_ocaml
 open Js
 
-let _ =
+let () =
   (* Choose 'matrix' (default) or 'array' *)
   Js.Unsafe.eval_string
     "math.config({ matrix: 'array' })"

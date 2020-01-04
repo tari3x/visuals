@@ -1,4 +1,6 @@
 open Core
 
 ;;
-Command.run Nullstellen_lib.Main.command
+
+let () =
+  Command.run Nullstellen_lib.Main.command

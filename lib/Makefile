@@ -1,3 +1,3 @@
 
 all:
-	jbuilder build --dev visuals.cma
+	dune build visuals.cma

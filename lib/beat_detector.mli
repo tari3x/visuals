@@ -16,5 +16,6 @@ val in_beat : t -> bool
 
 module Debug : sig
   val ewma : t -> float option
-  val short_ewma : t -> float option
+  val wave : t -> float option
+  val pseudo_min : t -> float
 end

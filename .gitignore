@@ -2,6 +2,8 @@
 
 galaxy-remote
 
+.ocamlformat
+
 .depend
 notes.txt
 _build

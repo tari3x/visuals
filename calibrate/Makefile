@@ -5,7 +5,7 @@ JS = index.js
 all: build $(JS) external start.sh stop.sh
 
 build:
-	jbuilder build ${JS:.js=.bc.js} --dev
+	dune build ${JS:.js=.bc.js} 
 
 %.js: FORCE
 	cp ../_build/default/calibrate/$*.bc.js $@
@@ -20,6 +20,6 @@ stop.sh:
 	ln -s ../stop.sh
 
 clean:
-	jbuilder clean
+	dune clean
 
 FORCE:
