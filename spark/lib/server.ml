@@ -13,21 +13,20 @@ let get_clicks ctx =
   (* NB! We assume that mouse click coordinates are the same as canvas
      coordinates. *)
   let clicks =
-    Ctx.canvas_actions ctx
-    |> Lwt_stream.filter_map ~f:Action.click
+    Ctx.canvas_actions ctx |> Lwt_stream.filter_map ~f:Action.click
   in
   Lwt_stream.take clicks ~n:4
+;;
 
 let full_screen_x = 1707.
 let full_screen_y = 1133.
 
 let rectangle_quad width height =
-  Rectangle.create_offset V.zero ~width ~height
-  |> Prism.Quad.rectangle
+  Rectangle.create_offset V.zero ~width ~height |> Prism.Quad.rectangle
+;;
 
 (* CR-someday: unify this with the logic for grid *)
-let full_screen_laptop_corners =
-  rectangle_quad full_screen_x full_screen_y
+let full_screen_laptop_corners = rectangle_quad full_screen_x full_screen_y
 
 let get_corners (config : Config.t) ctx =
   let open Float in
@@ -39,9 +38,9 @@ let get_corners (config : Config.t) ctx =
     return (Some (rectangle_quad (a * full_screen_x) (a * full_screen_y)))
   | Clicks ->
     get_clicks ctx
-    >>= fun clicks ->
-    return (Some (Prism.Quad.of_list_exn clicks))
+    >>= fun clicks -> return (Some (Prism.Quad.of_list_exn clicks))
   | Skip -> return None
+;;
 
 let _test_quantum () =
   let open Lwt.Let_syntax in
@@ -53,55 +52,59 @@ let _test_quantum () =
     let%bind () = Lwt_js_events.request_animation_frame () in
     Int.incr count;
     if Time.(Span.(now () - !start > Time.Span.of_sec 1.))
-    then begin
+    then (
       debug [%message (!count : int)];
       start := Time.now ();
-      count := 0
-    end;
+      count := 0);
     loop ()
   in
   loop ()
+;;
 
 let main (config : Config.t) =
   debug [%message "222"];
   Config.validate config;
   Random.self_init ();
-  Sound.create_from_mic ~max_sources:config.num_sound_sources
-  >>= fun sound ->
+  let%bind sound =
+    Sound.create_from_mic ~max_sources:config.num_sound_sources
+  in
+  (*
+  let sound =
+    Sound.create_from_html
+      ~id:"audio"
+      ~max_sources:config.num_sound_sources
+  in
+  *)
   let ctx = Ctx.create ~id:"main_canvas" in
   if config.debug_sound
-  then begin
+  then (
     Sound.set_debug sound (Some ctx);
     Sound.start sound;
-    return ()
-  end
-  else begin
+    return ())
+  else
     get_corners config ctx
     >>= fun real_corners ->
     let shapess =
       match config.sparks with
-      | Grid { skin; rows; cols }  ->
+      | Grid { skin; rows; cols } ->
         [ Shapes.grid_exn ~ctx ~cols ~rows, skin ]
-      | Hex { tile_skin; wire_skin }  ->
+      | Hex { tile_skin; wire_skin } ->
         let tile_shapes = Shapes.hex_tile_exn ~ctx in
         let wire_shapes = Shapes.hex_wire_exn ~ctx in
-        [ tile_shapes, tile_skin
-        ; wire_shapes, wire_skin ]
+        [ tile_shapes, tile_skin; wire_shapes, wire_skin ]
       | Free skin ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
-        let { Svg. shapes; calibration_points } = Svg.parse_exn svg in
+        let { Svg.shapes; calibration_points } = Svg.parse_exn svg in
         let corners =
           match config.calibration with
-          | Laptop_aspect_ratio ->
-            full_screen_laptop_corners
-          | Skip | Clicks ->
-            calibration_points
+          | Laptop_aspect_ratio -> full_screen_laptop_corners
+          | Skip | Clicks -> calibration_points
         in
         [ Shapes.create_exn ~corners shapes, skin ]
     in
     let sparks =
       List.map shapess ~f:(fun (shapes, config) ->
-        Spark.create ~config ~ctx ~sound ~shapes ?real_corners ())
+          Spark.create ~config ~ctx ~sound ~shapes ?real_corners ())
     in
     Server_state.start config sparks ~ctx
-  end
+;;

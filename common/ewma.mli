@@ -6,9 +6,9 @@
 
 type t
 
+(* CR-someday: fix it such that it moves faster at the beginning of time. *)
+
 val create : half_life:float -> t
-
 val add : t -> param:float -> value:float -> unit
-
-val value : t -> float option
-val value_exn : t -> float
+val get : t -> float option
+val get_exn : t -> float

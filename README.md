@@ -13,7 +13,7 @@
 * `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom configurator`
   and whetever else is listed in libraries in the dune files.
 
-* It's quite likely you'll need to install OpenCL drivers. Below are
+* For poly/ you'll need to install OpenCL drivers. Below are
   instructions for OpenSuSE with an Intel GPU.
 
   + In Software Management add repo

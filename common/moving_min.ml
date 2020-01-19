@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
+open Core_kernel
 module Q = Queue
 module H = Pairing_heap
 
@@ -13,6 +13,7 @@ module Sample = struct
     { param : float
     ; value : float
     }
+  [@@deriving sexp_of]
 
   let compare t1 t2 = Float.compare t1.value t2.value
 end
@@ -22,6 +23,7 @@ type t =
   ; q : Sample.t H.Elt.t Q.t
   ; window : float
   }
+[@@deriving sexp_of]
 
 let create ~window =
   let h = H.create ~cmp:Sample.compare () in
@@ -51,8 +53,36 @@ let add t ~param ~value =
   Q.enqueue t.q elt
 ;;
 
-let min t =
+let get t =
   match H.top t.h with
   | None -> None
   | Some sample -> Some sample.value
+;;
+
+let get_exn t = get t |> Option.value_exn
+
+let%expect_test _ =
+  let t = create ~window:2. in
+  let print () =
+    let value = get t in
+    print_s [%message (value : float option)]
+  in
+  let add param value =
+    add t ~param ~value;
+    print ()
+  in
+  print ();
+  [%expect {| (value ()) |}];
+  add 0. 0.;
+  [%expect {| (value (0)) |}];
+  add 1. 1.;
+  [%expect {| (value (0)) |}];
+  add 2. 2.;
+  [%expect {| (value (0)) |}];
+  add 3. 2.;
+  [%expect {| (value (1)) |}];
+  add 4. 2.;
+  [%expect {| (value (2)) |}];
+  add 5. 1.;
+  [%expect {| (value (1)) |}]
 ;;

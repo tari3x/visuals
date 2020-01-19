@@ -6,5 +6,5 @@
 
 include Visuals
 include Remote
-
+include Lwt.Let_syntax
 module V = Vector

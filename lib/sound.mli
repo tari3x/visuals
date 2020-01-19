@@ -12,24 +12,25 @@ type t
 (* To redirect the output of the sound card, choose "monitor of ..." in
    pavucontrol. *)
 val create_from_mic : max_sources:int -> t Lwt.t
-
 val create_from_html : id:string -> max_sources:int -> t
-
 val start : t -> unit
-
 val set_debug : t -> Ctx.t option -> unit
 
 (* As in "source separation" *)
 module Source : sig
   module Id : Id
+
   type t
+
   val id : t -> Id.t
 end
 
 module Event : sig
+  (** Wave intensity normalized per second *)
   type t =
-  | Beat   of Source.t
-  | Delete of Source.t
+    | Beat of Source.t
+    | Delete of Source.t
+    | Wave of float
 end
 
 (* CR-someday: make this a bus that doesn't keep the thing on the other end

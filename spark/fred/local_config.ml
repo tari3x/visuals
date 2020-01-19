@@ -5,7 +5,6 @@
 *)
 
 open Std_internal
-
 module C = Spark_lib.Config
 
 let skin =
@@ -18,13 +17,14 @@ let skin =
   ; rain = C.Rain.default
   ; segment_life_span = Time.Span.of_sec 3.
   }
+;;
 
- 
 let config : C.t =
   { drawing_mode = false
   ; debug_sound = false
   ; calibration = Laptop_aspect_ratio
   ; global_channel_name = "global-fred"
-  ; num_sound_sources = 2
+  ; num_sound_sources = 4 (* 2 *)
   ; sparks = Free skin
   }
+;;

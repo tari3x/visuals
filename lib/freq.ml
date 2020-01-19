@@ -4,20 +4,23 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
+open Core_kernel
 
-type t =
-  { hertz : float
-  ; mel : float
-  } [@@deriving fields]
+(** hertz *)
+type t = float
 
-(* CR-someday: memoize *)
-(* https://en.wikipedia.org/wiki/Mel_scale *)
-let to_mel ~hertz =
-  let open Float in
-  (* Memo.general (fun h -> *)
-  2595. * log10 (1. + hertz / 700.)
+let hertz t = t
 
-let of_hertz hertz =
-  let mel = to_mel ~hertz in
-  { hertz; mel }
+let mel =
+  Memo.general (fun hertz ->
+      let open Float in
+      1127. * log (1. + (hertz / 700.)))
+;;
+
+let greenwood =
+  Memo.general (fun hertz ->
+      let open Float in
+      511. * log (1. + (hertz / 165.4)))
+;;
+
+let of_hertz hertz = hertz

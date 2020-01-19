@@ -4,10 +4,10 @@
   See LICENSE file for copyright notice.
 *)
 
-(** Sliding window min *)
-
 type t
 
-val create : window:float -> t
-val add : t -> param:float -> value:float -> unit
-val min : t -> float option
+(** Starts with 0. *)
+val create : unit -> t
+
+val add : t -> float -> unit
+val get : t -> float

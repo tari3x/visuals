@@ -11,7 +11,7 @@ module type Elt = sig
   val touch : t -> color:Color.t -> flash:bool -> unit
 end
 
-module Make(E : Elt) : sig
+module Make (E : Elt) : sig
   module Id : Id
 
   type t [@@deriving sexp_of]
@@ -27,8 +27,6 @@ module Make(E : Elt) : sig
     -> t
 
   val drop : t -> flash:bool -> unit
-
-  val saturation : t -> float
-
   val burst : t -> unit Lwt.t
+  val saturation : t -> float
 end

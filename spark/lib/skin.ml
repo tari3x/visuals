@@ -291,9 +291,10 @@ module Make (Elt : Elt) = struct
     start_new ()
   ;;
 
-  let drop t =
+  let drop ?(flash = true) t =
+    (* CR-someday: why silent? *)
     t.silent_drop_count <- t.silent_drop_count + 1;
-    Option.iter (List.random_element (rains t)) ~f:(Rain.drop ~flash:true)
+    Option.iter (List.random_element (rains t)) ~f:(Rain.drop ~flash)
   ;;
 
   let run_silent_drops t =
@@ -353,6 +354,7 @@ module Make (Elt : Elt) = struct
   ;;
 
   let start t =
+    let open Float in
     (* Lwt.async (fun () -> debug_loop t); *)
     start_silent_rains t;
     match t.config.on_sound with
@@ -360,13 +362,25 @@ module Make (Elt : Elt) = struct
     | Some on_sound ->
       Sound.start t.sound;
       Sound.on_event t.sound ~f:(function
+          | Wave intensity ->
+            (match on_sound with
+            | Rain | Drop _ -> ()
+            | Wave { max_drops_per_second; flash_probability } ->
+              let num_drops =
+                intensity * max_drops_per_second |> Int.of_float
+              in
+              let flash = Random.float 1. < flash_probability in
+              for _ = 1 to num_drops do
+                drop t ~flash
+              done)
           | Beat source ->
             if (not (human_playing t)) && t.config.bot_active
             then (
               let rain = sound_rain t (Sound.Source.id source) in
               match on_sound with
-              | `rain -> Lwt.async (fun () -> Rain.burst rain)
-              | `drop num_drops ->
+              | Wave _ -> ()
+              | Rain -> Lwt.async (fun () -> Rain.burst rain)
+              | Drop num_drops ->
                 for _ = 1 to num_drops do
                   Rain.drop rain ~flash:true
                 done)
@@ -375,11 +389,18 @@ module Make (Elt : Elt) = struct
             (match Hashtbl.find t.sound_rain_ids id with
             | None -> ()
             | Some rain_id ->
+              (* CR-someday: this logic trips you up. Maybe redefine saturation
+                 for different rains? *)
+              let saturation_threshold =
+                match t.config.color_flow with
+                | Fade_to_base -> 0.4
+                | Fade_to_black | Fade_to_black_smooth -> 0.
+              in
               let remove_source () = Hashtbl.remove t.sound_rain_ids id in
               (match Hashtbl.find t.sound_rains rain_id with
               | None -> remove_source ()
               | Some rain ->
-                if Float.(Rain.saturation rain > 0.4)
+                if Float.(Rain.saturation rain >= saturation_threshold)
                 then (
                   remove_source ();
                   Hashtbl.remove t.sound_rains rain_id))))

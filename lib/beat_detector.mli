@@ -8,14 +8,23 @@ open Common
 
 type t
 
+module Signal : sig
+  type t =
+    | Beat
+    | Wave of float
+end
+
 val create : unit -> t
+val add : t -> time:Time.t -> value:float -> unit
+val signal : t -> Signal.t option
 
-val add_sample : t -> time:Time.t -> value:float -> unit
-
+(* CR-soon: remove *)
 val in_beat : t -> bool
+val wave : t -> float option
 
 module Debug : sig
-  val ewma : t -> float option
+  val long : t -> float option
   val wave : t -> float option
-  val pseudo_min : t -> float
+  val beat : t -> float option
+  val beat_min : t -> float option
 end

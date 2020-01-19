@@ -6,7 +6,7 @@
 
 type t
 
-val of_hertz : float -> t
-val hertz : t -> float
-val mel : t -> float
-val greenwood : t -> float
+val create : window:float -> t
+val add : t -> param:float -> value:float -> unit
+val get : t -> float option
+val get_exn : t -> float
