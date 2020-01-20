@@ -35,8 +35,7 @@
 
 (* TODO:
 
-   * use width in mel not just for drawing
-   * cut off the very high end of the spectrum (MFCC does that)
+   * Why not just add up all the LMs for wave?
    * cut off the very low end of the spectrum?
 *)
 

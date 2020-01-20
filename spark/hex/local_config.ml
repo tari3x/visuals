@@ -15,7 +15,7 @@ let rain =
   }
 ;;
 
-let tile_rain = { rain with keep_raining_probability = 0.9 }
+let tile_rain = { rain with keep_raining_probability = 0.85 }
 let wire_rain = rain
 let skin = { Config.Skin.default with color_flow = Fade_to_black_smooth }
 
