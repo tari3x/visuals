@@ -212,7 +212,7 @@ let draw t ctx =
     (right - left) * spectrum_w / Freq.hertz max_freq |> Float.max 1.
   in
   let cursor = ref 0. in
-  let draw_bin ~value ~width ?long ?wave ?beat ?beat_min () =
+  let draw_bin ~value ~width ?beat ?beat_min () =
     let height = value * ctx_h in
     let v = Vector.create_float !cursor (ctx_h - height) in
     Ctx.fill_rect ctx v ~width ~height;
@@ -226,13 +226,11 @@ let draw t ctx =
       Ctx.line_to ctx v2;
       Ctx.stroke ctx
     in
-    Option.iter long ~f:(draw_line ~color:Color.green);
-    Option.iter wave ~f:(draw_line ~color:Color.yellow);
     Option.iter beat ~f:(draw_line ~color:Color.red);
     Option.iter beat_min ~f:(draw_line ~color:Color.blue);
     cursor := !cursor + width
   in
-  Array.iteri t.bins ~f:(fun i beat ->
+  Array.iteri t.bins ~f:(fun i bin ->
       (* let value = bin_volume_exn t i in *)
       let value, color =
         List.find t.sources ~f:(fun source ->
@@ -243,21 +241,16 @@ let draw t ctx =
           ( 0.2
           , if not show_spectrum
             then Color.black
-            else (
-              match BD.signal beat with
-              | None -> Color.white
-              | Some Beat -> Color.red
-              | Some (Wave wave) -> Color.set_alpha Color.green ~alpha:wave)
-          )
+            else if BD.in_beat bin
+            then Color.red
+            else Color.set_alpha Color.green ~alpha:(BD.wave bin) )
       in
       Ctx.set_fill_color ctx color;
       let width = bin_w i in
-      let long = BD.Debug.long beat in
-      let wave = BD.Debug.wave beat in
       let beat_min = None (* BD.Debug.beat_min beat *) in
       let beat = None (*  BD.Debug.beat beat *) in
       (* let wave = if wave > long then Some wave else None in *)
-      draw_bin ~value ~width ?long ?wave ?beat ?beat_min ());
+      draw_bin ~value ~width ?beat ?beat_min ());
   draw_bin ~value:0. ~width:empty_w ();
   Ctx.set_fill_color ctx Color.yellow;
   let wave = MA.get_exn t.wave in
@@ -287,13 +280,12 @@ let rec update_loop (t : t) =
       let value = MA.get_exn avg in
       BD.add beat ~time ~value);
   let wave =
-    Array.fold t.bins ~init:0. ~f:(fun acc bin ->
-        acc + (BD.wave bin |> Option.value ~default:0.))
+    Array.fold t.bins ~init:0. ~f:(fun acc bin -> acc + BD.wave bin)
     / float (num_bins t)
   in
   MA.add t.wave ~param ~value:wave;
   List.iter t.on_event ~f:(fun f ->
-      f (Wave (5. * loop_interval * MA.get_exn t.wave)));
+      f (Wave (loop_interval * MA.get_exn t.wave)));
   update_sources t;
   draw t;
   update_loop t

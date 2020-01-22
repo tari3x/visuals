@@ -15,13 +15,13 @@ let rain =
   }
 ;;
 
-let tile_rain = { rain with keep_raining_probability = 0.85 }
+let tile_rain = { rain with keep_raining_probability = 0.8 }
 let wire_rain = rain
 let skin = { Config.Skin.default with color_flow = Fade_to_black_smooth }
 
 let tile_skin =
   let open Float in
-  let flash_mult = 0.5 in
+  let flash_mult = 0.3 in
   { skin with
     rain = tile_rain
   ; segment_life_span = Time.Span.(of_sec 2.)
@@ -40,7 +40,7 @@ let wire_skin =
   ; flash_cutoff = 0.35
   ; flash_duration = 0.5
   ; on_sound =
-      Some (Wave { max_drops_per_second = 100.; flash_probability = 0.4 })
+      Some (Wave { max_drops_per_second = 200.; flash_probability = 0.4 })
   }
 ;;
 

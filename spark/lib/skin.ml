@@ -366,8 +366,13 @@ module Make (Elt : Elt) = struct
             (match on_sound with
             | Rain | Drop _ -> ()
             | Wave { max_drops_per_second; flash_probability } ->
+              let num_drops = intensity * max_drops_per_second in
               let num_drops =
-                intensity * max_drops_per_second |> Int.of_float
+                if num_drops > 1.
+                then Int.of_float num_drops
+                else if Random.float 1. < num_drops
+                then 1
+                else 0
               in
               let flash = Random.float 1. < flash_probability in
               for _ = 1 to num_drops do
