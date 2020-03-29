@@ -9,11 +9,11 @@ open Lwt
 open Js_of_ocaml_lwt
 open Std_internal
 
-let get_clicks ctx =
+let get_clicks pixi =
   (* NB! We assume that mouse click coordinates are the same as canvas
      coordinates. *)
   let clicks =
-    Ctx.canvas_actions ctx |> Lwt_stream.filter_map ~f:Action.click
+    Pixi.actions pixi |> Lwt_stream.filter_map ~f:Action.click
   in
   Lwt_stream.take clicks ~n:4
 ;;
@@ -28,16 +28,16 @@ let rectangle_quad width height =
 (* CR-someday: unify this with the logic for grid *)
 let full_screen_laptop_corners = rectangle_quad full_screen_x full_screen_y
 
-let get_corners (config : Config.t) ctx =
+let get_corners (config : Config.t) pixi =
   let open Float in
   match config.calibration with
   | Laptop_aspect_ratio ->
-    let x = Ctx.width ctx in
-    let y = Ctx.height ctx in
+    let x = Pixi.width pixi in
+    let y = Pixi.height pixi in
     let a = min (x / full_screen_x) (y / full_screen_y) in
     return (Some (rectangle_quad (a * full_screen_x) (a * full_screen_y)))
   | Clicks ->
-    get_clicks ctx
+    get_clicks pixi
     >>= fun clicks -> return (Some (Prism.Quad.of_list_exn clicks))
   | Skip -> return None
 ;;
@@ -66,7 +66,7 @@ let main (config : Config.t) =
   Config.validate config;
   Random.self_init ();
   let%bind sound =
-    Sound.create_from_mic ~max_sources:config.num_sound_sources
+    Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
   in
   (*
   let sound =
@@ -75,22 +75,25 @@ let main (config : Config.t) =
       ~max_sources:config.num_sound_sources
   in
   *)
-  let ctx = Ctx.create ~id:"main_canvas" in
+  let pixi = Pixi.init_exn () in
   if config.debug_sound
-  then (
-    Sound.set_debug sound (Some ctx);
+  then
+    failwith "Fix debug sound"
+    (*
+    Sound.set_debug sound (Some pixi);
     Sound.start sound;
-    return ())
+    return ()
+    *)
   else
-    get_corners config ctx
+    get_corners config pixi
     >>= fun real_corners ->
     let shapess =
       match config.sparks with
       | Grid { skin; rows; cols } ->
-        [ Shapes.grid_exn ~ctx ~cols ~rows, skin ]
+        [ Shapes.grid_exn ~pixi ~cols ~rows, skin ]
       | Hex { tile_skin; wire_skin } ->
-        let tile_shapes = Shapes.hex_tile_exn ~ctx in
-        let wire_shapes = Shapes.hex_wire_exn ~ctx in
+        let tile_shapes = Shapes.hex_tile_exn ~pixi in
+        let wire_shapes = Shapes.hex_wire_exn ~pixi in
         [ tile_shapes, tile_skin; wire_shapes, wire_skin ]
       | Free skin ->
         let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
@@ -104,7 +107,7 @@ let main (config : Config.t) =
     in
     let sparks =
       List.map shapess ~f:(fun (shapes, config) ->
-          Spark.create ~config ~ctx ~sound ~shapes ?real_corners ())
+          Spark.create ~config ~pixi ~sound ~shapes ?real_corners ())
     in
-    Server_state.start config sparks ~ctx
+    Server_state.start config sparks ~pixi
 ;;

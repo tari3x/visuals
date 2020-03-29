@@ -29,6 +29,7 @@ let tile_skin =
   ; flash_cutoff = 0.15 * flash_mult
   ; flash_duration = 0.5
   ; color_flow = Fade_to_black
+  ; max_sound_sources = 4
   }
 ;;
 
@@ -41,6 +42,7 @@ let wire_skin =
   ; flash_duration = 0.5
   ; on_sound =
       Some (Wave { max_drops_per_second = 200.; flash_probability = 0.4 })
+  ; max_sound_sources = 4
   }
 ;;
 
@@ -50,6 +52,5 @@ let config : C.t =
   ; calibration = Skip
   ; sparks = Hex { tile_skin; wire_skin }
   ; global_channel_name = "global-hex"
-  ; num_sound_sources = 4
   }
 ;;

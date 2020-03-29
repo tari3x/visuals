@@ -11,29 +11,28 @@ open Std_internal
 type t =
   { sparks : Spark.t list
   ; global : Spark.Ctl.t Global.t
-  ; ctx : Ctx.t
+  ; pixi : Pixi.t
   }
 
 let render t =
-  Ctx.clear t.ctx;
+  Pixi.clear t.pixi;
   List.iter t.sparks ~f:(fun spark ->
       Global.iter t.global ~f:(Spark.ctl spark);
       Spark.render spark)
 ;;
 
 let rec render_loop t =
-  (* This makes it visibly slow: *)
-  (* Lwt_js_events.request_animation_frame () *)
-  Lwt_js.sleep 0.01
+  Lwt_js_events.request_animation_frame ()
+  (* Lwt_js.sleep 0.01 *)
   >>= fun () ->
   render t;
   render_loop t
 ;;
 
-let start (config : Config.t) sparks ~ctx =
+let start (config : Config.t) sparks ~pixi =
   let global_config =
-    { Global.Config.viewport_width = Ctx.width ctx
-    ; viewport_height = Ctx.height ctx
+    { Global.Config.viewport_width = Pixi.width pixi
+    ; viewport_height = Pixi.height pixi
     ; is_server = true
     ; max_clients = 6
     ; max_box_age = Config.max_box_age config
@@ -42,7 +41,7 @@ let start (config : Config.t) sparks ~ctx =
   in
   Global.create global_config ~sexp_of_a:Spark.Ctl.sexp_of_t
   >>= fun global ->
-  let t = { sparks; global; ctx } in
+  let t = { sparks; global; pixi } in
   render t;
   (* Make sure to pick up changes from [Index_load]. *)
   Global.on_change global ~f:(fun _ _ -> render t);

@@ -72,6 +72,7 @@ module Skin = struct
     ; rain : Rain.t
     ; num_silent_rains : int
     ; on_sound : On_sound.t option
+    ; max_sound_sources : int
     ; mutable bot_active : bool
     }
   [@@deriving sexp, fields]
@@ -90,11 +91,14 @@ module Skin = struct
     ; rain = Rain.default
     ; num_silent_rains = 0
     ; on_sound = Some Rain
+    ; max_sound_sources = 1
     ; bot_active = true
     }
   ;;
 
-  let validate_no_sound t = assert (Option.is_none t.on_sound)
+  let validate t =
+    if t.max_sound_sources = 0 then assert (Option.is_none t.on_sound)
+  ;;
 end
 
 module Sparks = struct
@@ -116,8 +120,6 @@ module Sparks = struct
     | Free skin -> [ skin ]
     | Hex { tile_skin; wire_skin } -> [ tile_skin; wire_skin ]
   ;;
-
-  let validate_no_sound t = skins t |> List.iter ~f:Skin.validate_no_sound
 end
 
 type t =
@@ -126,13 +128,15 @@ type t =
   ; calibration : Calibration.t
   ; sparks : Sparks.t
   ; global_channel_name : string
-  ; num_sound_sources : int
   }
 [@@deriving sexp]
 
-let validate t =
-  if t.num_sound_sources = 0 then Sparks.validate_no_sound t.sparks
+let num_sound_sources t =
+  List.fold (Sparks.skins t.sparks) ~init:0 ~f:(fun acc skin ->
+      acc + skin.max_sound_sources)
 ;;
+
+let validate t = List.iter (Sparks.skins t.sparks) ~f:Skin.validate
 
 (* CR-someday: do we even use this? *)
 let t_of_sexp s =

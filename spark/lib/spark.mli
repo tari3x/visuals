@@ -11,17 +11,18 @@ module Ctl : sig
 
   val spot : t
   val rain_control : t
+
   (* must be not empty *)
   val set_shapes_exn : Shape.t list -> t
 end
 
 type t
 
+(* CR-someday: sound must be made optional if you want to display grid on the
+   client .*)
 val create
   :  config:Config.Skin.t
-  -> ctx:Ctx.t
-  (* CR-someday: sound must be made optional if you want to display grid on the
-     client .*)
+  -> pixi:Pixi.t
   -> sound:Sound.t
   -> shapes:Shapes.t
   -> ?real_corners:Prism.Quad.t
@@ -29,5 +30,4 @@ val create
   -> t
 
 val ctl : t -> Ctl.t Box.t -> unit
-
 val render : t -> unit

@@ -1,0 +1,1 @@
+/home/avatar/docs/visuals/src/stop.sh

@@ -12,7 +12,12 @@ module Shape : sig
 
   val centre : t -> V.t
 
-  val render : t -> perspective:Matrix.t -> ctx:Ctx.t -> color:Color.t -> unit
+  val render
+    :  t
+    -> perspective:Matrix.t
+    -> pixi:Pixi.t
+    -> color:Color.t
+    -> unit
 end
 
 type t
@@ -24,7 +29,7 @@ val corners : t -> Prism.Quad.t
 val create_exn : corners:Prism.Quad.t -> Shape.t list -> t
 
 (** both must be positive *)
-val grid_exn : ctx:Ctx.t -> rows:int -> cols:int -> t
+val grid_exn : pixi:Pixi.t -> rows:int -> cols:int -> t
 
-val hex_wire_exn : ctx:Ctx.t -> t
-val hex_tile_exn : ctx:Ctx.t -> t
+val hex_wire_exn : pixi:Pixi.t -> t
+val hex_tile_exn : pixi:Pixi.t -> t

@@ -1,0 +1,7 @@
+(executables
+ (names index)
+ (libraries base lwt js_of_ocaml js_of_ocaml-lwt visuals pixi_lib)
+ (js_of_ocaml
+  (flags +weak.js))
+ (preprocess
+  (pps ppx_jane js_of_ocaml-ppx)))

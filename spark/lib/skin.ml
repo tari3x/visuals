@@ -203,6 +203,7 @@ module Make (Elt : Elt) = struct
     ; mutable min_distance : float
     ; mutable last_human_touch : Time.t
     ; mutable silent_drop_count : int
+    ; mutable num_sources : int
     }
   [@@deriving sexp_of]
 
@@ -235,6 +236,7 @@ module Make (Elt : Elt) = struct
       ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
       ; silent_drop_count = 0
       ; min_distance = 0.
+      ; num_sources = min 1 config.max_sound_sources
       }
     in
     set_elts t elts;
@@ -330,32 +332,74 @@ module Make (Elt : Elt) = struct
   let rec sound_rain t id =
     match Hashtbl.find t.sound_rain_ids id with
     | None ->
-      let taken_rains = Hashtbl.data t.sound_rain_ids in
-      let is_free id =
-        not (List.mem taken_rains id ~equal:Rain.Id.equal)
-      in
-      let free_rains =
-        Hashtbl.keys t.sound_rains |> List.filter ~f:is_free
-      in
-      let rain_id =
-        match free_rains with
-        | [] -> Rain.Id.create ()
-        | free_rains -> List.random_element_exn free_rains
-      in
-      let rain = find_or_add_rain t `sound ~id:rain_id in
-      Hashtbl.add_exn t.sound_rain_ids ~key:id ~data:rain_id;
-      rain
+      if Hashtbl.length t.sound_rains > t.num_sources
+      then None
+      else (
+        let taken_rains = Hashtbl.data t.sound_rain_ids in
+        let is_free id =
+          not (List.mem taken_rains id ~equal:Rain.Id.equal)
+        in
+        let free_rains =
+          Hashtbl.keys t.sound_rains |> List.filter ~f:is_free
+        in
+        let rain_id =
+          match free_rains with
+          | [] -> Rain.Id.create ()
+          | free_rains -> List.random_element_exn free_rains
+        in
+        let rain = find_or_add_rain t `sound ~id:rain_id in
+        Hashtbl.add_exn t.sound_rain_ids ~key:id ~data:rain_id;
+        Some rain)
     | Some rain_id ->
       (match Hashtbl.find t.sound_rains rain_id with
-      | Some rain -> rain
+      | Some rain -> Some rain
       | None ->
         Hashtbl.remove t.sound_rain_ids id;
         sound_rain t id)
   ;;
 
+  let delete_sound_rain t id =
+    match Hashtbl.find t.sound_rain_ids id with
+    | None -> ()
+    | Some rain_id ->
+      (* CR-someday: this logic trips you up. Maybe redefine saturation for
+         different rains? *)
+      let saturation_threshold =
+        match t.config.color_flow with
+        | Fade_to_base -> 0.4
+        | Fade_to_black | Fade_to_black_smooth -> 0.
+      in
+      let remove_source () = Hashtbl.remove t.sound_rain_ids id in
+      (match Hashtbl.find t.sound_rains rain_id with
+      | None -> remove_source ()
+      | Some rain ->
+        if Float.(Rain.saturation rain >= saturation_threshold)
+        then (
+          remove_source ();
+          Hashtbl.remove t.sound_rains rain_id))
+  ;;
+
+  let rec update_num_sources_loop t =
+    let%bind () = Lwt_js.sleep 30. in
+    let shift = Random.int 3 - 1 in
+    t.num_sources <- t.num_sources + shift;
+    t.num_sources <- max t.num_sources 1;
+    t.num_sources <- min t.num_sources t.config.max_sound_sources;
+    let rec trim () =
+      if Hashtbl.length t.sound_rains > t.num_sources
+      then (
+        let id, _ = Hashtbl.choose_exn t.sound_rain_ids in
+        delete_sound_rain t id;
+        trim ())
+    in
+    trim ();
+    update_num_sources_loop t
+  ;;
+
   let start t =
     let open Float in
     (* Lwt.async (fun () -> debug_loop t); *)
+    Lwt.async (fun () -> update_num_sources_loop t);
     start_silent_rains t;
     match t.config.on_sound with
     | None -> ()
@@ -381,34 +425,19 @@ module Make (Elt : Elt) = struct
           | Beat source ->
             if (not (human_playing t)) && t.config.bot_active
             then (
-              let rain = sound_rain t (Sound.Source.id source) in
-              match on_sound with
-              | Wave _ -> ()
-              | Rain -> Lwt.async (fun () -> Rain.burst rain)
-              | Drop num_drops ->
-                for _ = 1 to num_drops do
-                  Rain.drop rain ~flash:true
-                done)
+              match sound_rain t (Sound.Source.id source) with
+              | None -> ()
+              | Some rain ->
+                (match on_sound with
+                | Wave _ -> ()
+                | Rain -> Lwt.async (fun () -> Rain.burst rain)
+                | Drop num_drops ->
+                  for _ = 1 to num_drops do
+                    Rain.drop rain ~flash:true
+                  done))
           | Delete source ->
             let id = Sound.Source.id source in
-            (match Hashtbl.find t.sound_rain_ids id with
-            | None -> ()
-            | Some rain_id ->
-              (* CR-someday: this logic trips you up. Maybe redefine saturation
-                 for different rains? *)
-              let saturation_threshold =
-                match t.config.color_flow with
-                | Fade_to_base -> 0.4
-                | Fade_to_black | Fade_to_black_smooth -> 0.
-              in
-              let remove_source () = Hashtbl.remove t.sound_rain_ids id in
-              (match Hashtbl.find t.sound_rains rain_id with
-              | None -> remove_source ()
-              | Some rain ->
-                if Float.(Rain.saturation rain >= saturation_threshold)
-                then (
-                  remove_source ();
-                  Hashtbl.remove t.sound_rains rain_id))))
+            delete_sound_rain t id)
   ;;
 
   let start ~config ~sound elts =

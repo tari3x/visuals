@@ -5,7 +5,6 @@
 *)
 
 open Std_internal
-
 module C = Spark_lib.Config
 
 let skin =
@@ -16,17 +15,16 @@ let skin =
   ; on_sound = Some `rain
   ; num_silent_rains = 0
   ; segment_life_span = Time.Span.of_sec 3.
-  ; rain =
-      { C.Rain.default with
-        keep_raining_probability = 0.95
-      }
+  ; rain = { C.Rain.default with keep_raining_probability = 0.95 }
   }
+;;
 
 let config : C.t =
   { drawing_mode = false
-  ; debug_sound  = false
+  ; debug_sound = false
   ; calibration = Clicks
   ; global_channel_name = "global-wall"
   ; num_sound_sources = 3
   ; sparks = Free skin
   }
+;;

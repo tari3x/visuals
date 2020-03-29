@@ -10,6 +10,7 @@
 type t [@@deriving sexp]
 
 val create : r:int -> g:int -> b:int -> a:float -> t
+val components : t -> int * int * int * float
 val r : t -> int
 val g : t -> int
 val b : t -> int
