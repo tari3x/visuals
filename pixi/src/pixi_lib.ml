@@ -25,25 +25,9 @@ end
 module Application = struct
   include Application
 
-  module ResizeTo = struct
-    type t =
-      | Window
-      | Html_element
-  end
-
   let view t = t##.view
   let stage t = t##.stage
-
-  let resize t (resize_to : ResizeTo.t) =
-    let resize_to =
-      match resize_to with
-      | Window -> Application.ResizeTo.window
-      | Html_element -> Application.ResizeTo.html_element
-    in
-    t##.resizeTo := resize_to;
-    t##resize
-  ;;
-
+  let resize t window = t##resize window
   let renderer t = t##.renderer
 end
 

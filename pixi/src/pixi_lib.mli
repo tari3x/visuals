@@ -28,20 +28,12 @@ end
 module Application : sig
   include module type of Application
 
-  module ResizeTo : sig
-    type t =
-      | Window
-      | Html_element
-  end
-
   val create : unit -> t
   val view : t -> Html.canvasElement Js.t
   val stage : t -> Container.t
 
-  (* CR-someday: what does this do?
-     https://github.com/pixijs/pixi.js/issues/6492
-  *)
-  val resize : t -> ResizeTo.t -> unit
+  (* CR-someday: can also be an element. Doesn't work for me right now. *)
+  val resize : t -> Html.window Js.t -> unit
   val renderer : t -> Renderer.t
 end
 

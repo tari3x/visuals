@@ -49,14 +49,6 @@ module Renderer = struct
 end
 
 module Application = struct
-  module ResizeTo = struct
-    type t
-
-    let e = Js.Unsafe.eval_string
-    let window : t Js.t = e "Window"
-    let html_element : t Js.t = e "HTMLElement"
-  end
-
   type witness
 
   class type js =
@@ -67,9 +59,7 @@ module Application = struct
 
       method stage : Container.t readonly_prop
 
-      method resizeTo : ResizeTo.t Js.t prop
-
-      method resize : unit meth
+      method resize : Html.window Js.t -> unit meth
 
       method renderer : Renderer.t readonly_prop
     end

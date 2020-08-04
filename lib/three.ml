@@ -5,6 +5,7 @@ open Lwt
 open Geometry
 open Common
 module T = Three_lib
+include T
 
 module Vector2 = struct
   include T.Vector2
@@ -177,8 +178,3 @@ module WebGLRenderer = struct
     t
   ;;
 end
-
-module Mesh = T.Mesh
-module Material = T.Material
-module MeshBasicMaterial = T.MeshBasicMaterial
-module Scene = T.Scene

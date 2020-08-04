@@ -12,10 +12,11 @@ let skin =
     base_color = Color.white
   ; bot_active = true
   ; color_flow = Fade_to_black
-  ; on_sound = Some `rain
+  ; on_sound = Some Rain
   ; num_silent_rains = 0
   ; segment_life_span = Time.Span.of_sec 3.
   ; rain = { C.Rain.default with keep_raining_probability = 0.95 }
+  ; max_sound_sources = 3
   }
 ;;
 
@@ -24,7 +25,6 @@ let config : C.t =
   ; debug_sound = false
   ; calibration = Clicks
   ; global_channel_name = "global-wall"
-  ; num_sound_sources = 3
   ; sparks = Free skin
   }
 ;;

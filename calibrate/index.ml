@@ -72,7 +72,6 @@ let rec render renderer scene camera =
 
 let test_draw_honeycomb () =
   let open Three in
-  let open Three_wrappers in
   (* Texture.load_image "images/honeycomb.png" *)
   Texture.load_video "images/rotating-cube.mp4"
   >>= fun texture ->
@@ -114,7 +113,6 @@ let test_draw_honeycomb () =
 
 let draw_texture ~prism ~pos:_ ~texture =
   let open Three in
-  let open Three_wrappers in
   let scene = Scene.create () in
   let camera = OrthographicCamera.create_with_body_size () in
   let renderer = WebGLRenderer.create_with_body_size () in
@@ -206,7 +204,7 @@ let test_prism () =
 ;;
 
 let main () =
-  let open Three_wrappers in
+  let open Three in
   (* test_draw_honeycomb () *)
   let ctx = Ctx.create ~id:"canvas" in
   let _video = Video.create ~id:"video" in

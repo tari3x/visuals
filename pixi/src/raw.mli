@@ -48,13 +48,6 @@ module Renderer : sig
 end
 
 module Application : sig
-  module ResizeTo : sig
-    type t
-
-    val window : t Js.t
-    val html_element : t Js.t
-  end
-
   type witness
 
   class type js =
@@ -65,9 +58,7 @@ module Application : sig
 
       method stage : Container.t readonly_prop
 
-      method resizeTo : ResizeTo.t Js.t prop
-
-      method resize : unit meth
+      method resize : Html.window Js.t -> unit meth
 
       method renderer : Renderer.t readonly_prop
     end

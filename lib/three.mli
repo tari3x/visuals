@@ -3,6 +3,10 @@ open Js
 open Geometry
 module T = Three_lib
 
+include module type of struct
+  include T
+end
+
 module Vector2 : sig
   include module type of struct
     include T.Vector2
@@ -115,8 +119,3 @@ module WebGLRenderer : sig
 
   val create_with_body_size : unit -> t
 end
-
-module Mesh = T.Mesh
-module Material = T.Material
-module MeshBasicMaterial = T.MeshBasicMaterial
-module Scene = T.Scene

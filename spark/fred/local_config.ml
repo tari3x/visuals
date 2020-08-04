@@ -12,10 +12,11 @@ let skin =
     base_color = Color.black
   ; bot_active = true
   ; color_flow = Fade_to_base
-  ; on_sound = Some `rain
+  ; on_sound = Some Rain
   ; num_silent_rains = 0
   ; rain = C.Rain.default
   ; segment_life_span = Time.Span.of_sec 3.
+  ; max_sound_sources = 4 (* 2 *)
   }
 ;;
 
@@ -24,7 +25,6 @@ let config : C.t =
   ; debug_sound = false
   ; calibration = Laptop_aspect_ratio
   ; global_channel_name = "global-fred"
-  ; num_sound_sources = 4 (* 2 *)
   ; sparks = Free skin
   }
 ;;
