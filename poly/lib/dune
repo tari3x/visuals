@@ -2,8 +2,8 @@
  (name nullstellen_lib)
  (libraries
    graphics
-   core
-   async
+   core_kernel
+   async_kernel
    async_shell
    camlimages.core
    camlimages.png

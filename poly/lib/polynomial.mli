@@ -49,7 +49,7 @@ module Basis : sig
   val odd_powers_only : t -> t
 end
 
-(* quotient and remainder *)
+(** Quotient and remainder *)
 module Division_result : sig
   type nonrec t =
     { q : t

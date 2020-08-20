@@ -1,1 +1,2 @@
-(lang dune 1.0)
+(lang dune 1.7)
+(implicit_transitive_deps false)
