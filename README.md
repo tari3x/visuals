@@ -8,9 +8,9 @@
   
     `. ~/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true`
 
-* `opam switch create 4.09.0`
+* `opam switch create ocaml-base-compiler.4.11.0`
 
-* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom configurator`
+* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom`
   and whetever else is listed in libraries in the dune files.
 
 * For poly/ you'll need to install OpenCL drivers. Below are
