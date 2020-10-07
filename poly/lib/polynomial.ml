@@ -335,7 +335,7 @@ module Parse = struct
   ;;
 
   let parse_string_exn t s =
-    match parse_string t s with
+    match parse_string t s ~consume:All with
     | Ok v -> v
     | Error msg -> raise_s [%message s msg]
   ;;

@@ -1,7 +1,5 @@
 (executables
  (names main)
  (libraries core_kernel async_kernel async_shell nullstellen_lib)
- (js_of_ocaml
-  (flags +weak.js))
  (preprocess
   (pps ppx_jane)))

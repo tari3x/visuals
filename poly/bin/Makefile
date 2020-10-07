@@ -6,12 +6,11 @@ SRC=$(wildcard *.ml *.mli)
 
 ROOT=${shell git rev-parse --show-toplevel}
 
-all: a.exe index.js
+all: a.exe
 
-a.exe index.js: FORCE
-	dune build main.exe main.bc.js --display quiet 
+a.exe: FORCE
+	dune build main.exe --display quiet 
 	cp ${ROOT}/_build/default/poly/bin/main.exe a.exe
-	cp ${ROOT}/_build/default/poly/bin/main.bc.js index.js
 
 FORCE:
 

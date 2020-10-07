@@ -23,11 +23,13 @@
     opencl-headers
     libOpenCL1
     libigdfcl1
-    libigdrcl
     intel-opencl-neo
 
     Make sure to not install beignet - it exhibited some fascinating bugs like
     computing only some stripes of the data.
+
+    Do not install intel-opencl, it causes "error building program
+    OUT_OF_HOST_MEMORY."
 
   + ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
 
