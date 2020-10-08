@@ -65,8 +65,13 @@ let main (config : Config.t) =
   debug [%message "222"];
   Config.validate config;
   Random.self_init ();
-  let%bind sound =
-    Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
+  let sound =
+    Sound.create_from_html
+      ~id:"audio"
+      ~max_sources:(Config.num_sound_sources config)
+    (*
+       Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
+    *)
   in
   (*
   let sound =
