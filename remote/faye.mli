@@ -8,14 +8,14 @@ open Base
 
 module Channel : sig
   type t [@@deriving sexp]
+
   val global : string -> t
   val create : unit -> t
 end
 
 type 'a t
 
-val create : sexp_of_a:('a -> Sexp.t) -> 'a t
-
+val create_exn : sexp_of_a:('a -> Sexp.t) -> 'a t
 val publish : 'a t -> Channel.t -> 'a -> unit
 
 (* Clients will receive their own messages. *)

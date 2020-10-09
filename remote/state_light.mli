@@ -17,7 +17,7 @@ end
 
 type 'a t
 
-val create
+val create_exn
   :  Config.t
   -> Ctx.t
   -> 'a Box.t
@@ -25,5 +25,4 @@ val create
   -> 'a t Lwt.t
 
 val process_action : _ t -> Action.t -> unit
-
 val set_color : _ t -> Color.t -> unit

@@ -9,10 +9,9 @@ open Std_internal
 
 module Config : sig
   type t =
-    { viewport_width  : float
+    { viewport_width : float
     ; viewport_height : float
-    ; is_server : bool
-    (* CR-someday: fold this into [is_server] *)
+    ; is_server : bool (* CR-someday: fold this into [is_server] *)
     ; max_clients : int
     ; max_box_age : Time.Span.t
     ; global_channel_name : string
@@ -21,24 +20,15 @@ end
 
 type 'a t
 
-val create
-  :  Config.t
-  -> sexp_of_a:('a -> Sexp.t)
-  -> 'a t Lwt.t
-
+val create_exn : Config.t -> sexp_of_a:('a -> Sexp.t) -> 'a t Lwt.t
 val iter : 'a t -> f:('a Box.t -> unit) -> unit
 val find : 'a t -> f:('a Box.t -> bool) -> Box_id.t option
-
-val get     : 'a t -> Box_id.t -> 'a Box.t option
+val get : 'a t -> Box_id.t -> 'a Box.t option
 val get_exn : 'a t -> Box_id.t -> 'a Box.t
-
 val request : _ t -> Box_id.t -> unit
 val release : _ t -> Box_id.t -> unit
-
 val add : 'a t -> 'a Box.t -> Box_id.t
 val change : 'a t -> Box_id.t -> f:('a Box.t -> 'a Box.t) -> unit
-val delete : _  t -> Box_id.t -> unit
-
+val delete : _ t -> Box_id.t -> unit
 val on_change : 'a t -> f:(Box_id.t -> 'a Box.t -> unit) -> unit
-
 val now_on_server : _ t -> Time.t

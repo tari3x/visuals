@@ -21,15 +21,10 @@ type 'a t =
   ; mutable shape : 'a Box.t
   }
 
-let create (config : Config.t) ctx shape ~sexp_of_a =
-  let { Config.
-        max_box_age
-      ; global_channel_name
-      } = config
-  in
+let create_exn (config : Config.t) ctx shape ~sexp_of_a =
+  let { Config.max_box_age; global_channel_name } = config in
   let global_config =
-    { Global.Config.
-      viewport_width = Ctx.width ctx
+    { Global.Config.viewport_width = Ctx.width ctx
     ; viewport_height = Ctx.height ctx
     ; is_server = false
     ; max_clients = 2
@@ -37,35 +32,31 @@ let create (config : Config.t) ctx shape ~sexp_of_a =
     ; global_channel_name
     }
   in
-  Global.create global_config ~sexp_of_a
+  Global.create_exn global_config ~sexp_of_a
   >>= fun global ->
-  Lwt.return { ctx
-             ; global
-             ; touches = Multitouch.create ()
-             ; shape
-             }
+  Lwt.return { ctx; global; touches = Multitouch.create (); shape }
+;;
 
 let apply_touch_update t (update : Multitouch.Update.t) =
   List.iter update ~f:(fun (shape_id, update) ->
-    match update with
-    | None -> Global.delete t.global shape_id
-    | Some update ->
-      Global.change t.global shape_id ~f:(fun shape ->
-        let shape = Multitouch.Update.Single.apply update shape in
-        t.shape <- shape;
-        shape))
+      match update with
+      | None -> Global.delete t.global shape_id
+      | Some update ->
+        Global.change t.global shape_id ~f:(fun shape ->
+            let shape = Multitouch.Update.Single.apply update shape in
+            t.shape <- shape;
+            shape))
+;;
 
 let process_action t (action : Action.t) =
   (* debug "Action: %s" (Action.to_string action); *)
   match action.kind with
   | `move ->
-    begin
-      Multitouch.move t.touches action.changed_touches
-      |> apply_touch_update t
-    end
+    Multitouch.move t.touches action.changed_touches
+    |> apply_touch_update t
   | `down ->
     let touch = List.hd_exn action.changed_touches in
-    begin match Multitouch.active t.touches with
+    (match Multitouch.active t.touches with
     | [] ->
       let shape = Box.set_translation t.shape touch.position in
       let shape_id = Global.add t.global shape in
@@ -73,17 +64,18 @@ let process_action t (action : Action.t) =
       |> apply_touch_update t
     | shape_ids ->
       List.iter shape_ids ~f:(fun shape_id ->
-        let shape = Global.get_exn t.global shape_id in
-        (* CR-someday: this is a bit weird. *)
-        Multitouch.add t.touches shape_id (Box.frame shape) touch
-        |> apply_touch_update t)
-    end
+          let shape = Global.get_exn t.global shape_id in
+          (* CR-someday: this is a bit weird. *)
+          Multitouch.add t.touches shape_id (Box.frame shape) touch
+          |> apply_touch_update t))
   | `up ->
     Multitouch.remove t.touches action.changed_touches
     |> apply_touch_update t
+;;
 
 let set_color t color =
   let color_cycle = Color_cycle.const color in
   t.shape <- Box.set t.shape ~color_cycle;
   List.iter (Multitouch.active t.touches) ~f:(fun shape_id ->
-    Global.change t.global shape_id ~f:(Box.set ~color_cycle))
+      Global.change t.global shape_id ~f:(Box.set ~color_cycle))
+;;

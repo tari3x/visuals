@@ -49,7 +49,7 @@ type 'a t =
   ; buffers : 'a Ordered_stream.t Hashtbl.M(Channel).t
   }
 
-let create ~sexp_of_a =
+let create_exn ~sexp_of_a =
   let url =
     sprintf
       "http://%s:8000/faye"
