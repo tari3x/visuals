@@ -49,15 +49,14 @@ type 'a t =
   ; buffers : 'a Ordered_stream.t Hashtbl.M(Channel).t
   }
 
-let constr : (js_string Js.t -> faye Js.t) constr =
-  Js.Unsafe.global##._Faye##._Client
-;;
-
 let create ~sexp_of_a =
   let url =
     sprintf
       "http://%s:8000/faye"
       (to_string Html.window##.location##.hostname)
+  in
+  let constr : (js_string Js.t -> faye Js.t) constr =
+    Js.Unsafe.global##._Faye##._Client
   in
   let faye = new%js constr (string url) in
   let buffers = Hashtbl.create (module Channel) in
