@@ -66,15 +66,14 @@ let main (config : Config.t) =
   Config.validate config;
   Random.self_init ();
   let%bind sound =
-    (* CR: undo or do something more snesible *)
+    (*
     let%bind () = Lwt_js.sleep 3. in
     Sound.create_from_html
       ~id:"audio"
       ~max_sources:(Config.num_sound_sources config)
     |> return
-    (*
-       Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
     *)
+    Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
   in
   (*
   let sound =
