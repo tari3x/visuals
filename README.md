@@ -13,7 +13,7 @@
 * `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom`
   and whetever else is listed in libraries in the dune files.
 
-* For poly/ you'll need to install OpenCL drivers. Below are
+* For poly/ you'll need to install maxima and OpenCL drivers. Below are
   instructions for OpenSuSE with an Intel GPU.
 
   + In Software Management add repo
@@ -24,6 +24,7 @@
     libOpenCL1
     libigdfcl1
     intel-opencl-neo
+    maxima
 
     Make sure to not install beignet - it exhibited some fascinating bugs like
     computing only some stripes of the data.

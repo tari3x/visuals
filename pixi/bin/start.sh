@@ -1,1 +1,0 @@
-/home/avatar/docs/visuals/src/start.sh

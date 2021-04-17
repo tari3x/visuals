@@ -1,0 +1,7 @@
+(library
+ (name camlimages_core)
+ (libraries
+   camlimages.core
+   )
+ (preprocess
+  (pps ppx_jane ppx_inline_test)))

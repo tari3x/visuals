@@ -16,7 +16,7 @@ open Async
  * negative log gives interesting colour effect
  * Have two points and change relative intensity
  * Move two top points
-*)
+ *)
 
 (* CL to GL
   https://software.intel.com/en-us/articles/opencl-and-opengl-interoperability-tutorial
@@ -36,14 +36,14 @@ let draw ~animate =
     ~readme:(fun () -> "")
     ~summary:""
     [%map_open
-     let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
-     fun () ->
-       animate ~dir
-          (*
+      let dir = flag "-dir" (required Filename.arg_type) ~doc:"" in
+      fun () -> animate ~dir]
+;;
+
+(*
        Lagrange.eval_test ();
        Async.return ()
           *)
-    ]
 
 let command =
   Command.group
@@ -52,4 +52,6 @@ let command =
     ; "test-pattern", draw ~animate:Test_pattern.animate
     ; "window", Window.command
     ; "render-animation", Render_camlimage.command
+    ; "ctx", Run_ctx.command
     ]
+;;

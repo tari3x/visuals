@@ -6,9 +6,12 @@
    async_kernel
    async_shell
    camlimages.core
+   camlimages_core
    camlimages.png
    opencl
    angstrom
+   tsdl
+   tgls.tgl4
    )
  (inline_tests)
  (preprocess
