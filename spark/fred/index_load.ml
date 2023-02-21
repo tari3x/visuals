@@ -6,7 +6,4 @@
 
 open Std_internal
 
-;;
-
-let () =
-  top_level (fun () -> Load.main Local_config.config)
+let () = top_level (fun () -> Load_shapes.main Local_config.config)

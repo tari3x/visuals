@@ -19,6 +19,7 @@ let create = Fields.create
 let components { r; g; b; a } = r, g, b, a
 let white = create ~r:255 ~g:255 ~b:255 ~a:1.
 let black = create ~r:0 ~g:0 ~b:0 ~a:1.
+let none = create ~r:0 ~g:0 ~b:0 ~a:0.
 let red = create ~r:255 ~g:0 ~b:0 ~a:1.
 let green = create ~r:0 ~g:255 ~b:0 ~a:1.
 let blue = create ~r:0 ~g:0 ~b:255 ~a:1.
@@ -111,7 +112,7 @@ let set_alpha t ~alpha = { t with a = alpha }
 
 let scale t ~by:scale =
   if Float.( <= ) scale 0.
-  then black
+  then { black with a = t.a }
   else if Float.( >= ) scale 1.
   then t
   else (

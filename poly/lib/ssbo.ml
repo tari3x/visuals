@@ -87,10 +87,15 @@ let create ?vec4 data =
 ;;
 
 let glsl_declaration t ~name =
+  (* Why unsized better?
+     https://github.com/KhronosGroup/OpenGL-API/issues/36
+  *)
   let dims =
     Array.to_list t.dims
+    |> List.tl_exn
     |> List.map ~f:(sprintf "[%d]")
     |> String.concat ~sep:""
+    |> sprintf "[]%s"
   in
   sprintf
     {|

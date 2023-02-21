@@ -73,7 +73,7 @@ module Make (Elt : Elt) = struct
 
     let id t = Elt.id t.elt
     let offset t1 t2 = Elt.offset t1.elt t2.elt
-    let a c x = Color.scale c ~by:x
+    let a c alpha = Color.set_alpha c ~alpha
 
     let fade_to_black ~(config : Config.t) ~base_color ~flash =
       let open Time.Span in
@@ -141,13 +141,13 @@ module Make (Elt : Elt) = struct
       (* CR-someday: if we are faded out, why interpolate? *)
       let base_color, color =
         match t.config.color_flow with
-        | Fade_to_black ->
+        | Fade_to_none ->
           let base_color =
             Color.interpolate [ t.base_color; color ] ~arg:0.5
           in
           let color = fade_to_black ~config:t.config ~base_color ~flash in
           base_color, color
-        | Fade_to_black_smooth ->
+        | Fade_to_none_smooth ->
           let base_color =
             Color.interpolate [ t.base_color; color ] ~arg:0.5
           in
@@ -194,7 +194,8 @@ module Make (Elt : Elt) = struct
   module Rain = Rain.Make (E)
 
   type t =
-    { config : (Config.t[@sexp.opaque])
+    { mutable config : (Config.t[@sexp.opaque])
+    ; mutable elts_input : (Elts.t[@sexp.opaque])
     ; elts : (E.t Hashtbl.M(E.Id).t[@sexp.opaque] (* not empty *))
     ; sound : (Sound.t[@sexp.opaque])
     ; silent_rains : Rain.t Hashtbl.M(Rain.Id).t
@@ -207,8 +208,15 @@ module Make (Elt : Elt) = struct
     }
   [@@deriving sexp_of]
 
-  let set_elts t (elts : Elts.t) =
+  let reset_elts t =
     Hashtbl.clear t.elts;
+    List.iter t.elts_input ~f:(fun elt ->
+        let key = Elt.id elt in
+        let data = E.create elt ~config:t.config in
+        Hashtbl.set t.elts ~key ~data)
+  ;;
+
+  let set_elts t (elts : Elts.t) =
     let min_distance =
       List.cartesian_product elts elts
       |> List.filter_map ~f:(fun (e1, e2) ->
@@ -219,10 +227,8 @@ module Make (Elt : Elt) = struct
       |> Option.value_exn
     in
     t.min_distance <- min_distance;
-    List.iter elts ~f:(fun elt ->
-        let key = Elt.id elt in
-        let data = E.create elt ~config:t.config in
-        Hashtbl.set t.elts ~key ~data)
+    t.elts_input <- elts;
+    reset_elts t
   ;;
 
   let create ~(config : Config.t) ~sound elts =
@@ -232,6 +238,7 @@ module Make (Elt : Elt) = struct
       ; silent_rains = Hashtbl.create (module Rain.Id)
       ; sound_rains = Hashtbl.create (module Rain.Id)
       ; sound_rain_ids = Hashtbl.create (module Sound.Source.Id)
+      ; elts_input = elts
       ; elts = Hashtbl.create (module E.Id)
       ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
       ; silent_drop_count = 0
@@ -367,7 +374,7 @@ module Make (Elt : Elt) = struct
       let saturation_threshold =
         match t.config.color_flow with
         | Fade_to_base -> 0.4
-        | Fade_to_black | Fade_to_black_smooth -> 0.
+        | Fade_to_none | Fade_to_none_smooth -> 0.
       in
       let remove_source () = Hashtbl.remove t.sound_rain_ids id in
       (match Hashtbl.find t.sound_rains rain_id with
@@ -407,6 +414,9 @@ module Make (Elt : Elt) = struct
       Sound.start t.sound;
       Sound.on_event t.sound ~f:(function
           | Wave intensity ->
+            (* CR-someday: we do this to pick up config changes, but do
+               something more elegant. *)
+            let on_sound = Option.value_exn t.config.on_sound in
             (match on_sound with
             | Rain | Drop _ -> ()
             | Wave { max_drops_per_second; flash_probability } ->
@@ -451,5 +461,10 @@ module Make (Elt : Elt) = struct
     match Hashtbl.find t.elts (Elt.id elt) with
     | None -> ()
     | Some elt -> E.touch elt ~color ~flash:true
+  ;;
+
+  let set_config t config =
+    t.config <- config;
+    reset_elts t
   ;;
 end

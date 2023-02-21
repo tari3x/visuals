@@ -8,30 +8,32 @@ open Std_internal
 
 val default_line_width : float
 
-type coordinates = [ `internal | `canvas ]
+type coordinates =
+  [ `internal
+  | `canvas
+  ]
 
 type 'a t = private
   { kind : 'a
   ; frame : Frame.t
   ; color_cycle : Color_cycle.t
-  ; line_width : float
-  (* in the internal coordinate system of the box *)
+  ; line_width : float (* in the internal coordinate system of the box *)
   ; touches : Vector.t list
-  } [@@deriving fields, sexp]
+  }
+[@@deriving fields, sexp]
 
 val default : 'a -> 'a t
-
+val map : 'a t -> f:('a -> 'b) -> 'b t
 val touches : _ t -> coordinates:coordinates -> Vector.t list
 val color : _ t -> Color.t
 
 (* val to_string : _ t -> string  *)
 
 val create
-  :  kind:'a
-  -> ?frame:Frame.t
+  :  ?frame:Frame.t
   -> ?color_cycle:Color_cycle.t
   -> ?line_width:float
-  -> unit
+  -> 'a
   -> 'a t
 
 val set
@@ -43,7 +45,7 @@ val set
   -> 'a t
 
 val set_touches
-  : 'a t
+  :  'a t
   -> coordinates:coordinates
   -> touches:Vector.t list
   -> 'a t

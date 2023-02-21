@@ -6,7 +6,6 @@
 
 open Base
 open Std_internal
-
 module Config = Config.Skin
 
 module type Elt = sig
@@ -20,7 +19,7 @@ module type Elt = sig
   val color : t -> Color.t option
 end
 
-module Make(Elt : Elt) : sig
+module Make (Elt : Elt) : sig
   module Elts : sig
     type t
 
@@ -30,15 +29,11 @@ module Make(Elt : Elt) : sig
 
   type t
 
-  val start
-    :  config:Config.t
-    -> sound:Sound.t
-    -> Elts.t
-    -> t
+  val start : config:Config.t -> sound:Sound.t -> Elts.t -> t
+  val set_config : t -> Config.t -> unit
 
-  (* CR-someday: allow to [stop] the bot such that a new one can be created
-     with new elements. *)
+  (* CR-someday: just stop and recreate? Need to be able to unsubscribe from
+     sounds. *)
   val set_elts : t -> Elts.t -> unit
-
   val human_touch : t -> Elt.t -> Color.t -> unit
 end

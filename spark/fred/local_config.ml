@@ -25,6 +25,6 @@ let config : C.t =
   ; debug_sound = false
   ; calibration = Laptop_aspect_ratio
   ; global_channel_name = "global-fred"
-  ; sparks = Free skin
+  ; sparks = [ Free skin ]
   }
 ;;

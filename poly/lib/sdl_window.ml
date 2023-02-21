@@ -4,7 +4,7 @@ open Result.Let_syntax
 open Tsdl
 open Tgl4
 
-let gl = 4, 3
+let gl = 4, 6
 
 let pp_opengl_info ppf () =
   let pp = Format.fprintf in
@@ -73,6 +73,7 @@ module Event = struct
         { w : int
         ; h : int
         }
+    | Other
 end
 
 let poll_event { win; event; _ } : Event.t option =
@@ -97,15 +98,15 @@ let poll_event { win; event; _ } : Event.t option =
       | `Resized ->
         reshape w h;
         Some (Resized { w; h })
-      | _ -> None)
-    | _ -> None)
+      | _ -> Some Other)
+    | _ -> Some Other)
 ;;
 
-let check_events t =
+let rec check_events t =
   match poll_event t with
   | None -> ()
   | Some e ->
     (match e with
     | Quit -> exit 0
-    | Exposed _ | Resized _ -> ())
+    | Exposed _ | Resized _ | Other -> check_events t)
 ;;

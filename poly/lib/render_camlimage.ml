@@ -21,19 +21,25 @@ let draw_dot ~config image v =
 ;;
 
 module Ctx = struct
-  type t = { eval : Eval.Ctx.t }
+  type t =
+    { config : Config.t
+    ; eval : Eval.Ctx.t
+    }
 
-  let create ~config =
+  let create config =
     let eval = Eval.Ctx.create ~config in
-    { eval }
+    { config; eval }
   ;;
 end
 
-let write_image ~dir ~config ~values ~palette ?(dots = []) () =
+let write_image ~(ctx : Ctx.t) ~dir ~palette ?(dots = []) p =
   incr file_id;
+  let values =
+    Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p)
+  in
   let palette = Array.map palette ~f:Color.camlimages in
   let filename = dir ^/ sprintf "frame%08d.png" !file_id in
-  let width, height = Config.image_size config in
+  let width, height = Config.image_size ctx.config in
   let image = Rgb24.make width height Color.Camlimages.black in
   for i = 0 to Int.(width - 1) do
     for j = 0 to Int.(height - 1) do
@@ -50,26 +56,24 @@ let write_image ~dir ~config ~values ~palette ?(dots = []) () =
        let color = palette.(p_value) in
        debug [%message (p_value : int) (color : Color.t)];
     *)
-      draw_dot ~config image dot);
+      draw_dot ~config:ctx.config image dot);
   Png.save filename [] (Images.Rgb24 image)
 ;;
 
 (* CR: zeroes still happen. *)
 let write_state
     ~dir
-    ~(config : Config.t)
     ~(ctx : Ctx.t)
     { A.State.p; ps; defs = _; dots; palette }
   =
   let p = P.product (p :: ps) in
-  let values = Eval.values ctx.eval p in
   let palette = Palette.create palette in
-  write_image ~dir ~config ~values ~dots ~palette ()
+  write_image ~dir ~ctx p ~dots ~palette
 ;;
 
 let write ~dir { A.config; states } =
-  let ctx = Ctx.create ~config in
-  List.iter states ~f:(write_state ~dir ~config ~ctx);
+  let ctx = Ctx.create config in
+  List.iter states ~f:(write_state ~dir ~ctx);
   Eval.Ctx.release ctx.eval;
   Async.return ()
 ;;

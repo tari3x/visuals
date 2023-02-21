@@ -2,7 +2,7 @@
 
 (library
  (name common_lib)
- (libraries base lwt core_kernel.pairing_heap)
+ (libraries core lwt core_kernel.pairing_heap)
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_inline_test)))

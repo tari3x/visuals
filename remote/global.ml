@@ -305,7 +305,7 @@ let iter t ~f =
       match Hashtbl.find t.boxes box_id with
       | None ->
         (* CR: this does happen if you don't filter, presumably because of box
-         cleanup. *)
+           cleanup. *)
         error "box_id is not in boxes"
       | Some box -> f (Box_info.box box))
 ;;

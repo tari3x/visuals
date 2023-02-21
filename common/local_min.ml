@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Core_kernel
+open Base
 
 module Dir = struct
   type t =

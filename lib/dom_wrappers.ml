@@ -352,8 +352,8 @@ module Window = struct
   type t = Html.window Js.t
 
   let current = Html.window
-  let inner_width (t : t) = t##.innerWidth |> Js.Optdef.to_option
-  let inner_height (t : t) = t##.innerHeight |> Js.Optdef.to_option
+  let inner_width (t : t) = t##.innerWidth
+  let inner_height (t : t) = t##.innerHeight
 
   let set_reload_on_resize () =
     add_event_listener Html.window Html.Event.resize ~f:(fun _ ->

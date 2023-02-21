@@ -8,18 +8,23 @@ open Core
 open Async
 open Std_internal
 
-let debug a = debug_s ~enabled:false a
+let debug a = debug_s ~enabled:true a
 
 module G = Graphics
 module L = Lagrange
 
-let degree = 7 (* 8 *)
+let degree = 3 (* 8 *)
 
+let min_points = 5
+let max_points = 5
+
+(*
 let min_points = 15
-let max_points = 15 (* 15, 18 *)
+let max_points = 15 (* 10, 15, 18 *)
+*)
 
 let num_frames = 90_000
-let speed = 1.5 (* 0.2 *)
+let speed = 0.8
 
 (*
   let speed = Float.(0.15 / 8.5)
@@ -27,9 +32,9 @@ let speed = 1.5 (* 0.2 *)
 
 let config =
   Config.create
-    ~grid_size:(10, 10)
+    ~grid_size:(15, 10)
     ~cbrange:(-10., 10.)
-    ~image_width:1024
+    ~image_width:2048
     ~rendering_degree:degree
     ~speed
     ()
@@ -43,7 +48,7 @@ module Event = struct
     ; keypressed : bool
     ; key : char
     }
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 end
 
 module State = struct
@@ -108,7 +113,9 @@ module State = struct
       | [] -> lagrange_base
       | v :: _ -> Lagrange.add lagrange_base ~data:[ v, 0. ]
     in
-    Lagrange.result lagrange
+    let p = Lagrange.result lagrange in
+    debug [%message (zeroes : V.t list) (lagrange_base : L.t) (p : P.t)];
+    p
   ;;
 
   let make_poly ~zeroes ~lagrange_base =
@@ -124,6 +131,7 @@ module State = struct
   ;;
 
   let update t (update : Update.t) =
+    debug [%message (update : Update.t)];
     let { zeroes; nonzero; lagrange_base; poly = _; prev } = t in
     match update with
     | Finish -> t
@@ -193,6 +201,7 @@ module State = struct
     in
     let zeroes = List.map2_exn zs1 zs2 ~f:v_avg in
     let nonzero = v_avg nz1 nz2 in
+    debug [%message "point average" (w : float)];
     let poly = make_poly ~zeroes ~lagrange_base in
     { zeroes; nonzero; lagrange_base; prev; poly }
   ;;
@@ -335,27 +344,26 @@ module Auto_events : Events = struct
   ;;
 end
 
-let colors =
-  let image_x, image_y = Config.image_size config in
-  Array.init image_y ~f:(fun _ ->
-      Array.init image_x ~f:(fun _ -> Graphics.rgb 0 0 0))
-;;
-
 module Ctx = struct
+  (* CR: use OpenGL to render and remove [Eval] and [Render_camlimage]. *)
   type t =
-    { eval : Eval.Ctx.t
+    { draw : Draw.t
+    ; render_image : Render_camlimage.Ctx.t Lazy.t
     ; mutable recording : Animation.t option
     ; palettes : Palette.Basis.t Pipe.Reader.t
     ; mutable num_frames : int
     }
 
   let create ~record =
-    let eval = Eval.Ctx.create ~config in
+    let draw = Draw.create config in
+    let render_image =
+      Lazy.from_fun (fun () -> Render_camlimage.Ctx.create config)
+    in
     let palettes = Palette.Basis.pipe config in
     let recording =
       if record then Some (Animation.create ~config []) else None
     in
-    { eval; recording; palettes; num_frames = 0 }
+    { draw; render_image; recording; palettes; num_frames = 0 }
   ;;
 
   let record_frame t palette p =
@@ -391,31 +399,26 @@ let initial_state ~num_points =
   State.create ~zeroes ()
 ;;
 
+let rec check_events (ctx : Ctx.t) =
+  match Draw.poll_event ctx.draw with
+  | None -> ()
+  | Some Quit -> Caml.exit 0
+  | _ -> check_events ctx
+;;
+
 let draw_poly (ctx : Ctx.t) palette p ~write_to =
   Ctx.record_frame ctx palette p;
-  let values =
-    Probe.with_probe "eval" (fun () -> Eval.values ctx.eval p)
-  in
+  Probe.start "palette";
+  let palette = Palette.create palette in
+  Probe.stop "palette";
   match write_to with
   | None ->
-    Probe.start "palette";
-    let palette = Palette.create_graphics palette in
-    Probe.stop "palette";
-    Probe.start "colors";
-    for i = 0 to A2.dim1 values - 1 do
-      for j = 0 to A2.dim2 values - 1 do
-        let color = A2.get_flipped values i j |> Array.get palette in
-        colors.(j).(i) <- color
-      done
-    done;
-    Probe.stop "colors";
-    let image = Probe.with_probe "image" (fun () -> G.make_image colors) in
-    Probe.with_probe "draw" (fun () -> G.draw_image image 0 0)
+    Draw.update_palette ctx.draw palette;
+    Draw.draw ctx.draw p;
+    check_events ctx
   | Some dir ->
-    Probe.start "palette";
-    let palette = Palette.create palette in
-    Probe.stop "palette";
-    Render_camlimage.write_image ~dir ~config ~values ~palette ()
+    let ctx = Lazy.force ctx.render_image in
+    Render_camlimage.write_image ~ctx ~dir ~palette p
 ;;
 
 let run ~record_to ~write_to =
@@ -426,6 +429,7 @@ let run ~record_to ~write_to =
   (* 0.02, 0.05, 0.2 *)
   let max_distance = Float.(0.1 * Config.speed config) in
   let draw ~stop prev_state state =
+    let%bind () = Scheduler.yield () in
     let%bind palette = Ctx.next_palette ctx in
     Or_error.try_with (fun () ->
         State.poly state |> draw_poly ctx palette ~write_to)
@@ -485,9 +489,6 @@ let run ~record_to ~write_to =
       in
       if ctx.num_frames >= num_frames then return () else loop states
   in
-  let image_x, image_y = Config.image_size config in
-  G.open_graph (sprintf " %dx%d" image_x image_y);
-  G.set_font "-adobe-courier-*-*-*-*-*-240-*-*-*-*-*-*";
   let%bind () =
     loop (Pipe.singleton (initial_state ~num_points:max_points))
   in

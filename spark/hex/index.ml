@@ -8,7 +8,8 @@ open Std_internal
 
 let () =
   top_level (fun () ->
-      Gui_client.main
-        Local_config.config
-        (Box.create ~kind:Spark.Ctl.spot ()))
+      Spark.Ctl.spot
+      |> Ctl.all
+      |> Box.create
+      |> Gui_client.main Local_config.config)
 ;;

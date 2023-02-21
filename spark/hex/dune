@@ -1,7 +1,6 @@
 (executables
- (names index index_rain index_load index_server)
+ (names index index_rain index_load_shapes index_load_config index_server)
  (libraries base lwt js_of_ocaml js_of_ocaml-lwt visuals remote spark_lib)
- (js_of_ocaml
-  (flags +weak.js))
+ (js_of_ocaml)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx)))

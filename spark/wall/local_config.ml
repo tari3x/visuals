@@ -11,7 +11,7 @@ let skin =
   { C.Skin.default with
     base_color = Color.white
   ; bot_active = true
-  ; color_flow = Fade_to_black
+  ; color_flow = Fade_to_none
   ; on_sound = Some Rain
   ; num_silent_rains = 0
   ; segment_life_span = Time.Span.of_sec 3.
@@ -25,6 +25,6 @@ let config : C.t =
   ; debug_sound = false
   ; calibration = Clicks
   ; global_channel_name = "global-wall"
-  ; sparks = Free skin
+  ; sparks = [ Free skin ]
   }
 ;;

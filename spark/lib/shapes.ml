@@ -42,6 +42,7 @@ module Shape = struct
       Pixi.path pixi ~closed:false [ v1; v2 ];
       Pixi.end_fill pixi
     | Polygon vs ->
+      Pixi.line_style pixi ~width:0. ();
       Pixi.begin_fill pixi color;
       let vs = List.map vs ~f:(Matrix.apply perspective) in
       Pixi.path pixi ~closed:true vs;
@@ -138,11 +139,11 @@ end
 
 (* https://www.redblobgames.com/grids/hexagons/ *)
 (* CR: better interface for splitting sound sources. *)
-let hex_exn ~pixi ~(kind : Hex_kind.t) =
+let hex_exn ~pixi ~(kind : Hex_kind.t) ~r1_mult =
   let open Float in
-  let r1 = Pixi.width pixi / 25. in
+  let r1 = Pixi.width pixi * r1_mult in
   let r2 = r1 - Hex_kind.margin kind in
-  let left_margin = r1 / 2. in
+  let left_margin = 20. in
   let d_x = r1 * sqrt 3. in
   let d_y = r1 * 1.5 in
   let hex i j =
@@ -162,7 +163,9 @@ let hex_exn ~pixi ~(kind : Hex_kind.t) =
     [ Hex_kind.make_shape kind vs ]
   in
   if Float.(Pixi.width pixi = 0.) then assert false;
-  let n_x = ((Pixi.width pixi - left_margin) / d_x) - 1. |> Int.of_float in
+  let n_x =
+    ((Pixi.width pixi - left_margin) / d_x) - 0.5 |> Int.of_float
+  in
   let n_y = (Pixi.height pixi / d_y) - 1. |> Int.of_float in
   let shapes =
     List.cartesian_product (List.range 1 n_x) (List.range 1 n_y)

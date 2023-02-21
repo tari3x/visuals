@@ -2,6 +2,8 @@
 ROOT=$(shell git rev-parse --show-toplevel)
 SUBPATH=$(shell $(ROOT)/cut-path.sh $(ROOT) ${PWD})
 
+HTTP_DEPS = build external cert start.sh stop.sh index-load-shapes.html index-load-config.html index-rain.html index.html
+
 # CR-someday:
 # https://stackoverflow.com/questions/10451242/how-to-adjust-the-path-that-emacs-compile-goto-error-gets-from-the-compilation
 build:
@@ -23,6 +25,9 @@ index-load.html:
 
 external:
 	ln -s  ${ROOT}/external .
+
+cert:
+	ln -s  ${ROOT}/cert .
 
 start.sh:
 	ln -s  ${ROOT}/start.sh

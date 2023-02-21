@@ -1,20 +1,18 @@
 # Prerequisites
 
-* Install opam
-
-* `opam init --bare`
+* `opam init`
   
-    I said y to the prompt but also added the line it displays into .bashrc:
-  
-    `. ~/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true`
+    Added the line it displays into .bashrc:
+    
+    `eval $(opam env)`
 
-* `opam switch create ocaml-base-compiler.4.11.0`
+* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom tgls tsdl camlimages tgls tsdl`
+  and whetever else is listed as libraries in the dune files.
 
-* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom`
-  and whetever else is listed in libraries in the dune files.
+* poly/ is bitrotten at the moment.
 
-* For poly/ you'll need to install maxima and OpenCL drivers. Below are
-  instructions for OpenSuSE with an Intel GPU.
+  For poly/ you'll need to install maxima and OpenCL drivers. Below are
+  instructions for OpenSuSE 15.1 with an Intel GPU.
 
   + In Software Management add repo
     http://download.opensuse.org/repositories/home:/linnaea:/Intel-OpenCL/openSUSE_Leap_15.1/
@@ -34,6 +32,10 @@
 
   + ln -s /usr/lib64/libOpenCL.so.1 /usr/lib64/libOpenCL.so
 
+* For http-server:
+  + install npm
+  + `sudo npm install -g http-server`
+
 # How to run
 
 Most things can be run by going to the directory you want to run, and running
@@ -42,11 +44,14 @@ Most things can be run by going to the directory you want to run, and running
 make
 sudo su
 ./start.sh
-firefox http://localhost/index-server.html
+google-chrome https://localhost/index-server.html
 ```
 
 You should be able to use things that need microphone without microphone by
 choosing the correct 'Monitor' interface under 'Recording' in pavucontrol.
+
+We have to use https because chrome doesn't allow to use microphone otherwise,
+but you have to click through the bad certificate warning.
 
 # Tasters
 

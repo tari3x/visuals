@@ -111,8 +111,8 @@ module Window : sig
   type t = Html.window Js.t
 
   val current : t
-  val inner_width : t -> int option
-  val inner_height : t -> int option
+  val inner_width : t -> int
+  val inner_height : t -> int
   val set_reload_on_resize : unit -> unit
 end
 

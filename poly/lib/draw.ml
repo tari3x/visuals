@@ -62,6 +62,7 @@ module Compute = struct
     let coeffs_h = create_coeffs_h ~num_monos in
     let coeffs_g = create_coeffs_g ~coeffs_h in
     let colors_g = create_colors_g () in
+    debug [%message "creating program"];
     let prog = Gl.create_program () in
     let cs = Gl.create_shader Gl.compute_shader in
     (* In order to write to a texture, we have to introduce it as image2D.
@@ -72,7 +73,7 @@ module Compute = struct
     *)
     let code =
       [%string
-        {|#version 430
+        {|#version 460
 %{Ssbo.Scalar.glsl_declaration monos_g ~name:"monos"}
 %{Ssbo.Scalar.glsl_declaration coeffs_g ~name:"coeffs"}
 %{Ssbo.Color.glsl_declaration colors_g ~name:"colors"}
@@ -113,6 +114,7 @@ layout (local_size_x = %{local_size_x#Int}, local_size_y = %{local_size_y#Int}) 
     in
     debug [%message (code : string)];
     Gl.shader_source cs code;
+    debug [%message "compiling shader"];
     Gl.compile_shader cs;
     let rvalue = create_uint32_array 1 in
     Gl.get_shaderiv cs Gl.compile_status rvalue;
@@ -121,14 +123,19 @@ layout (local_size_x = %{local_size_x#Int}, local_size_y = %{local_size_y#Int}) 
       Core.eprintf "_error in compiling the compute shader\n";
       get_shader_compile_log ~shader:cs;
       failwith "exit");
+    debug [%message "attaching shader"];
     Gl.attach_shader prog cs;
+    check_errors "before linking program";
+    debug [%message "linking program"];
     Gl.link_program prog;
+    debug [%message "linking program done"];
     Gl.get_programiv prog Gl.link_status rvalue;
     if Int32.(Array1.get rvalue 0 = 0l)
     then (
       Core.eprintf "_error in linking compute shader program\n";
       get_program_info_log ~prog;
       failwith "exit");
+    debug [%message "using program"];
     Gl.use_program prog;
     Gl.uniform1i (Gl.get_uniform_location prog "destTex") texture.binding;
     check_errors "_compute shader";
@@ -154,7 +161,7 @@ layout (local_size_x = %{local_size_x#Int}, local_size_y = %{local_size_y#Int}) 
     check_errors "_dispatch compute shader"
   ;;
 
-  let update_colors t (palette : Palette.t) =
+  let update_palette t (palette : Palette.t) =
     Ssbo.Color.update t.colors_g palette
   ;;
 end
@@ -172,7 +179,7 @@ let create config =
   let texture = Texture.create ~w ~h in
   let render = Render.create texture in
   let compute = Compute.create config texture in
-  Compute.update_colors compute Palette.rgb;
+  Compute.update_palette compute Palette.rgb;
   { win; render; compute }
 ;;
 
@@ -186,5 +193,5 @@ let draw t p =
   check_errors "draw screen"
 ;;
 
-let update_colors t palette = Compute.update_colors t.compute palette
+let update_palette t palette = Compute.update_palette t.compute palette
 let poll_event t = Win.poll_event t.win

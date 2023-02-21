@@ -14,14 +14,14 @@ let config =
 
 let rec loop ctx =
   let%bind () = Clock.after (sec 0.001) in
-  Ctx.draw ctx P.(pow (x - const 5.) 2 + pow (y - const 5.) 3);
-  match Ctx.poll_event ctx with
+  Draw.draw ctx P.(pow (x - const 5.) 2 + pow (y - const 5.) 3);
+  match Draw.poll_event ctx with
   | Some Quit -> return ()
   | _ -> loop ctx
 ;;
 
 let main () =
-  let ctx = Ctx.create config in
+  let ctx = Draw.create config in
   loop ctx
 ;;
 

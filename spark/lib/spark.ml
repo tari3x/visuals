@@ -24,10 +24,8 @@ module Ctl = struct
     | Spot
     | Rain_control
     | Set_shapes of Shape.t list
-  [@@deriving sexp]
-
-  let spot = Spot
-  let rain_control = Rain_control
+    | Set_config of Config.t
+  [@@deriving sexp, variants]
 
   let set_shapes_exn shapes =
     if List.is_empty shapes then failwith "Ctl.Set_shapes: empty list";
@@ -75,7 +73,8 @@ end
 module Skin = Skin.Make (Elt)
 
 type t =
-  { config : Config.t
+  { mutable config : Config.t
+  ; sound : Sound.t
   ; pixi : Pixi.t
   ; perspective : Matrix.t
   ; skin : Skin.t
@@ -101,12 +100,12 @@ let create
   in
   (* elts are not empty by interface *)
   let skin = Skin.Elts.create_exn elts |> Skin.start ~config ~sound in
-  { config; pixi; perspective; elts; skin }
+  { config; pixi; perspective; elts; skin; sound }
 ;;
 
-let ctl t box =
+let ctl t (box : Ctl.t Box.t) =
   match Box.kind box with
-  | Ctl.Spot ->
+  | Spot ->
     let color = Box.color box in
     let touches = Box.touches box ~coordinates:`canvas in
     List.filter_map touches ~f:(fun point ->
@@ -116,7 +115,7 @@ let ctl t box =
               (Elt.distance_to_point ~point s2)))
     |> List.dedup_and_sort ~compare:Poly.compare
     |> List.iter ~f:(fun elt -> Skin.human_touch t.skin elt color)
-  | Ctl.Rain_control ->
+  | Rain_control ->
     (match Box.touches box ~coordinates:`canvas with
     | [] -> debug [%message "box with no touches!"]
     | touch :: _ ->
@@ -127,11 +126,15 @@ let ctl t box =
       t.config.bot_active <- x / w > 0.5;
       t.config.rain.keep_raining_probability
         <- max_keep_raining_probability * (y / h))
-  | Ctl.Set_shapes shapes ->
+  | Set_shapes shapes ->
     let elts = List.map shapes ~f:(fun shape -> Elt.create ~shape) in
     t.elts <- elts;
     (* elts are not empty by interface. *)
     Skin.Elts.create_exn elts |> Skin.set_elts t.skin
+  | Set_config config ->
+    debug [%message "setting new config"];
+    t.config <- config;
+    Skin.set_config t.skin config
 ;;
 
 let render t =

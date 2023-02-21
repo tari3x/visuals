@@ -62,7 +62,7 @@ let _test_quantum () =
 ;;
 
 let main (config : Config.t) =
-  debug [%message "222"];
+  debug [%message "333"];
   Config.validate config;
   Random.self_init ();
   let%bind sound =
@@ -95,22 +95,27 @@ let main (config : Config.t) =
     get_corners config pixi
     >>= fun real_corners ->
     let shapess =
-      match config.sparks with
-      | Grid { skin; rows; cols } ->
-        [ Shapes.grid_exn ~pixi ~cols ~rows, skin ]
-      | Hex { tile_skin; wire_skin } ->
-        let tile_shapes = Shapes.hex_tile_exn ~pixi in
-        let wire_shapes = Shapes.hex_wire_exn ~pixi in
-        [ tile_shapes, tile_skin; wire_shapes, wire_skin ]
-      | Free skin ->
-        let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
-        let { Svg.shapes; calibration_points } = Svg.parse_exn svg in
-        let corners =
-          match config.calibration with
-          | Laptop_aspect_ratio -> full_screen_laptop_corners
-          | Skip | Clicks -> calibration_points
-        in
-        [ Shapes.create_exn ~corners shapes, skin ]
+      List.concat_map config.sparks ~f:(function
+          | Grid { skin; rows; cols } ->
+            [ Shapes.grid_exn ~pixi ~cols ~rows, skin ]
+          | Hex { tile_skin; wire_skin; r1_mult } ->
+            let tile =
+              Option.map tile_skin ~f:(fun tile_skin ->
+                  Shapes.hex_tile_exn ~pixi ~r1_mult, tile_skin)
+            in
+            let wire = Shapes.hex_wire_exn ~pixi ~r1_mult, wire_skin in
+            List.filter_opt [ tile; Some wire ]
+          | Free skin ->
+            let svg =
+              get_element_by_id "svg-iframe" Html.CoerceTo.iframe
+            in
+            let { Svg.shapes; calibration_points } = Svg.parse_exn svg in
+            let corners =
+              match config.calibration with
+              | Laptop_aspect_ratio -> full_screen_laptop_corners
+              | Skip | Clicks -> calibration_points
+            in
+            [ Shapes.create_exn ~corners shapes, skin ])
     in
     let sparks =
       List.map shapess ~f:(fun (shapes, config) ->

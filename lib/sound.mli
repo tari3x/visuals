@@ -33,6 +33,9 @@ module Event : sig
     | Wave of float
 end
 
-(* CR-someday: make this a bus that doesn't keep the thing on the other end
-   alive. *)
+(* CR-someday: make this a bus. Sadly it's tricky because of the finicky stuff
+   we are doing inside.
+
+   Hint: async_extra.async_bus
+*)
 val on_event : t -> f:(Event.t -> unit) -> unit

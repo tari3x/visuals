@@ -9,7 +9,7 @@ open Std_internal
 module L = Lwt_stream
 module State = State_light
 
-type t = Spark.Ctl.t State.t
+type t = Ctl.t State.t
 
 let main (config : Config.t) shape =
   Window.set_reload_on_resize ();
@@ -37,7 +37,7 @@ let main (config : Config.t) shape =
     }
     ctx
     shape
-    ~sexp_of_a:Spark.Ctl.sexp_of_t
+    ~sexp_of_a:Ctl.sexp_of_t
   >>= fun t ->
   Lwt.async (fun () -> Color_picker.run color_picker t);
   Lwt_stream.iter_with_try actions ~f:(State.process_action t)

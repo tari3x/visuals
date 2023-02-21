@@ -25,6 +25,7 @@ val magenta : t
 val yellow : t
 val dark_orange : t
 val black : t
+val none : t
 val of_hex8_string : string -> t
 val random : unit -> t
 val random_interesting : unit -> t

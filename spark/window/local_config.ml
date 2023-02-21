@@ -24,7 +24,7 @@ let config : C.t =
   { drawing_mode = false
   ; debug_sound = false
   ; calibration = Clicks
-  ; sparks = Grid { skin; rows = 3; cols = 7 }
+  ; sparks = [ Grid { skin; rows = 3; cols = 7 } ]
   ; global_channel_name = "global-window"
   }
 ;;

@@ -9,7 +9,7 @@ open Async
 val smooth_speed
   :  point:(float -> 'a)
   -> distance:('a -> 'a -> float)
-  (* CR: make it max speed, normailize per framerate.  *)
-  -> max_distance:float
+  -> (* CR: make it max speed, normailize per framerate.  *)
+     max_distance:float
   -> desired_step_size:float
   -> 'a Pipe.Reader.t

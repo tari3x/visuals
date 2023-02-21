@@ -39,6 +39,7 @@ module Rain = struct
 end
 
 module On_sound = struct
+  (* CR-someday: shouldn't [Rain] only belong in [Rain]? *)
   type t =
     | Rain
     | Drop of int
@@ -52,8 +53,9 @@ end
 module Skin = struct
   module Color_flow = struct
     type t =
-      | Fade_to_black
-      | Fade_to_black_smooth
+      | Fade_to_none
+      | Fade_to_none_smooth
+      (* CR-someday: this crashes after a while: *)
       | Fade_to_base
     [@@deriving sexp]
   end
@@ -87,7 +89,7 @@ module Skin = struct
     ; drops_period_range = Time.Span.of_sec 2., Time.Span.of_sec 10.
     ; drops_value_range = 0.1, 1. (*  (0.0000002, 0.3) *)
     ; segment_life_span = Time.Span.of_sec 3.
-    ; color_flow = Fade_to_black
+    ; color_flow = Fade_to_none
     ; rain = Rain.default
     ; num_silent_rains = 0
     ; on_sound = Some Rain
@@ -109,8 +111,9 @@ module Sparks = struct
         ; cols : int
         }
     | Hex of
-        { tile_skin : Skin.t
+        { tile_skin : Skin.t option
         ; wire_skin : Skin.t
+        ; r1_mult : float
         }
     | Free of Skin.t
   [@@deriving sexp]
@@ -118,7 +121,8 @@ module Sparks = struct
   let skins = function
     | Grid { skin; _ } -> [ skin ]
     | Free skin -> [ skin ]
-    | Hex { tile_skin; wire_skin } -> [ tile_skin; wire_skin ]
+    | Hex { tile_skin; wire_skin; r1_mult = _ } ->
+      List.filter_opt [ tile_skin; Some wire_skin ]
   ;;
 end
 
@@ -126,17 +130,19 @@ type t =
   { drawing_mode : bool
   ; debug_sound : bool
   ; calibration : Calibration.t
-  ; sparks : Sparks.t
+  ; sparks : Sparks.t list
   ; global_channel_name : string
   }
-[@@deriving sexp]
+[@@deriving sexp, fields]
 
 let num_sound_sources t =
-  List.fold (Sparks.skins t.sparks) ~init:0 ~f:(fun acc skin ->
-      acc + skin.max_sound_sources)
+  List.concat_map ~f:Sparks.skins t.sparks
+  |> List.fold ~init:0 ~f:(fun acc skin -> acc + skin.max_sound_sources)
 ;;
 
-let validate t = List.iter (Sparks.skins t.sparks) ~f:Skin.validate
+let validate t =
+  List.concat_map ~f:Sparks.skins t.sparks |> List.iter ~f:Skin.validate
+;;
 
 (* CR-someday: do we even use this? *)
 let t_of_sexp s =

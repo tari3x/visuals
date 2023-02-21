@@ -91,9 +91,7 @@ let debug ~enabled a =
   ksprintf (fun s -> if enabled then Core.printf "%s\n%!" s) a
 ;;
 
-let debug_s ~enabled s =
-  if enabled then Core.printf !"%{sexp:Sexp.t}\n%!" s
-;;
+let debug_s ~enabled s = if enabled then Core.print_s s
 
 module List = struct
   include List

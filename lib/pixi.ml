@@ -23,8 +23,10 @@ type t =
 
 let init_exn () =
   let a = A.create () in
-  let width = Window.(inner_width current) |> Option.value_exn in
-  let height = Window.(inner_height current) |> Option.value_exn in
+  let width = Window.(inner_width current) in
+  let height = Window.(inner_height current) in
+  (* CR-someday: why do I need this? *)
+  let height = height - 20 in
   Renderer.resize (A.renderer a) width height;
   let (_ : Dom.node Js.t) =
     Html.document##.body##appendChild (A.view a :> Dom.node Js.t)

@@ -82,8 +82,6 @@ module Make (E : Elt) = struct
     let color = Color.random_interesting () |> Color.maximize in
     let centre = choose_new_centre_exn ~elts ~other_rains in
     let wind = V.(scale (random_unit ()) ~by:min_distance) in
-    debug [%message (min_distance : float)];
-    debug [%message (wind : V.t)];
     let next_strand =
       random_drop_around_centre
         centre

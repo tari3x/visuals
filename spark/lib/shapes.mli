@@ -31,5 +31,5 @@ val create_exn : corners:Prism.Quad.t -> Shape.t list -> t
 (** both must be positive *)
 val grid_exn : pixi:Pixi.t -> rows:int -> cols:int -> t
 
-val hex_wire_exn : pixi:Pixi.t -> t
-val hex_tile_exn : pixi:Pixi.t -> t
+val hex_wire_exn : pixi:Pixi.t -> r1_mult:float -> t
+val hex_tile_exn : pixi:Pixi.t -> r1_mult:float -> t

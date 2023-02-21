@@ -1,6 +1,6 @@
 open Std_internal
 
-type t
+type t [@@deriving sexp_of]
 
 module Datum : sig
   type t = V.t * float [@@deriving sexp]
@@ -13,14 +13,7 @@ module Data : sig
 end
 
 val error : P.t -> Data.t -> float
-
-val create
-  :  basis:P.t list
-  -> Data.t
-  -> t
-
+val create : basis:P.t list -> Data.t -> t
 val add : t -> data:Data.t -> t
-
 val result : t -> P.t
-
 val simple : basis:P.t list -> Data.t -> P.t
