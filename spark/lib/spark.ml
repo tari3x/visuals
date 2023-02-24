@@ -149,7 +149,6 @@ let ctl t (box : Ctl.t Box.t) =
     t.perspective
       <- perspective ~native_corners ~real_corners:t.real_corners
   | Set_config config ->
-    debug [%message "setting new config"];
     t.config <- config;
     Skin.set_config t.skin config
 ;;

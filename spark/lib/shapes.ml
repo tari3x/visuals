@@ -149,7 +149,6 @@ end
   d_x is full width.
   d_y is vertical distance between two centers.
 *)
-(* CR: better interface for splitting sound sources. *)
 let hex_exn ~pixi ~(kind : Hex_kind.t) ~r1 ~vertices =
   let open Float in
   let r2 = r1 - Hex_kind.margin kind in

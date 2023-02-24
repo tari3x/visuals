@@ -74,7 +74,7 @@ let main (config : Config.t) =
       ~max_sources:(Config.num_sound_sources config)
     |> return
     *)
-    Sound.create_from_mic ~max_sources:(Config.num_sound_sources config)
+    Sound.create_from_mic ()
   in
   (*
   let sound =

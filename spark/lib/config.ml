@@ -50,10 +50,16 @@ module Rain = struct
 end
 
 module On_sound = struct
+  module On_beat = struct
+    type t =
+      | Burst of { drops_at_once : int }
+      | Drop of int
+    [@@deriving sexp]
+  end
+
   (* CR-someday: shouldn't [Rain] only belong in [Rain]? *)
   type t =
-    | Burst of { drops_at_once : int }
-    | Drop of int
+    | Beat of On_beat.t
     | Wave of { max_drops_per_second : float }
   [@@deriving sexp]
 end
@@ -100,7 +106,7 @@ module Skin = struct
     ; color_flow = Fade_to_none
     ; rain = Rain.default
     ; num_silent_rains = 0
-    ; on_sound = Some (Burst { drops_at_once = 1 })
+    ; on_sound = Some (Beat (Burst { drops_at_once = 1 }))
     ; max_sound_sources = 1
     ; bot_active = true
     }
@@ -134,10 +140,11 @@ module Sparks = struct
   [@@deriving sexp]
 
   let skin = function
-    | Grid { skin; _ } -> skin
-    | Free skin -> skin
-    | Hex_tile { skin; _ } | Hex_wire { skin; _ } | Hex_bone { skin; _ } ->
-      skin
+    | Grid { skin; _ }
+    | Free skin
+    | Hex_tile { skin; _ }
+    | Hex_wire { skin; _ }
+    | Hex_bone { skin; _ } -> skin
   ;;
 end
 
@@ -149,11 +156,6 @@ type t =
   ; global_channel_name : string
   }
 [@@deriving sexp, fields]
-
-let num_sound_sources t =
-  List.map ~f:Sparks.skin t.sparks
-  |> List.fold ~init:0 ~f:(fun acc skin -> acc + skin.max_sound_sources)
-;;
 
 let validate t =
   List.map ~f:Sparks.skin t.sparks |> List.iter ~f:Skin.validate
