@@ -44,7 +44,7 @@ Most things can be run by going to the directory you want to run, and running
 make
 sudo su
 ./start.sh
-google-chrome https://localhost/index-server.html
+google-chrome http://localhost/index-server.html
 ```
 
 You should be able to use things that need microphone without microphone by

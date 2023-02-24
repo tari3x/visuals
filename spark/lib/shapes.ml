@@ -4,27 +4,19 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
 open Std_internal
+
+(* CR-someday: something in Std_internal shadows Fn.id *)
+open Core_kernel
 
 (* window: 18.
    hex: 3., 7, or 13
 *)
 let line_width = 3. (* 18. for window *)
-
 let shorten_by = 0. (* 7. *)
 
 module Shape = struct
   include Shape
-
-  let centre t =
-    let open Vector in
-    match t with
-    | Segment (v1, v2) -> (v1 + v2) / 2.
-    | Polygon vs | Path vs ->
-      let n = List.length vs in
-      List.reduce_exn vs ~f:( + ) / float n
-  ;;
 
   let shortened_ends v1 v2 =
     let open Vector in
@@ -58,12 +50,13 @@ end
 type t =
   { shapes : Shape.t list
   ; corners : Prism.Quad.t
+  ; step : float
   }
-[@@deriving fields]
+[@@deriving fields, sexp]
 
-let create_exn ~corners shapes =
+let create_exn ~corners ~step shapes =
   if List.is_empty shapes then failwith "Shapes.set_exn: empty list";
-  { corners; shapes }
+  { corners; shapes; step }
 ;;
 
 let pixi_corners ?(wmargin = 0.) ?(hmargin = 0.) pixi =
@@ -76,15 +69,20 @@ let pixi_corners ?(wmargin = 0.) ?(hmargin = 0.) pixi =
   Rectangle.create_corners top_left bottom_right
 ;;
 
+let create_with_pixi shapes ~pixi ~step =
+  let corners = pixi_corners pixi |> Prism.Quad.rectangle in
+  create_exn ~corners shapes ~step
+;;
+
 let grid_exn ~pixi ~rows ~cols =
   let corners = pixi_corners pixi ~wmargin:0.1 ~hmargin:0.1 in
   let top_left = Rectangle.top_left corners in
   let width = Rectangle.width corners in
   let height = Rectangle.height corners in
   if rows <= 0 || cols <= 0 then failwith "rows or cols not positive";
+  let dy = height /. float rows in
+  let dx = width /. float cols in
   let shapes =
-    let dy = height /. float rows in
-    let dx = width /. float cols in
     let point row col =
       Vector.(top_left + create_float (float col *. dx) (float row *. dy))
     in
@@ -100,7 +98,7 @@ let grid_exn ~pixi ~rows ~cols =
     in
     let make ~kind =
       List.init (rows + 1) ~f:(fun row ->
-          List.init (cols + 1) ~f:(fun col -> segment ~row ~col ~kind))
+        List.init (cols + 1) ~f:(fun col -> segment ~row ~col ~kind))
       |> List.concat
       |> List.filter_opt
     in
@@ -116,64 +114,96 @@ let grid_exn ~pixi ~rows ~cols =
     let v4 = tr 0. h in
     Prism.Quad.create v1 v2 v3 v4
   in
-  { shapes; corners }
+  let step = Float.min dx dy in
+  create_exn shapes ~corners ~step
 ;;
 
 module Hex_kind = struct
   type t =
+    | Bone
     | Wire
     | Tile
 
+  let segment = function
+    | [ v1; v2 ] -> Shape.segment v1 v2
+    | _ -> raise_s [%message "not a segment"]
+  ;;
+
   let make_shape = function
+    | Bone -> segment
     | Wire -> Shape.path
     | Tile -> Shape.polygon
   ;;
 
   let margin = function
-    | Wire -> line_width /. 2.
+    | Wire | Bone -> line_width /. 2.
     | Tile -> line_width +. 10.
   ;;
 
   (* 9., 10., 20. *)
 end
 
-(* https://www.redblobgames.com/grids/hexagons/ *)
+(* https://www.redblobgames.com/grids/hexagons/
+
+  r1 is half height.
+  d_x is full width.
+  d_y is vertical distance between two centers.
+*)
 (* CR: better interface for splitting sound sources. *)
-let hex_exn ~pixi ~(kind : Hex_kind.t) ~r1_mult =
+let hex_exn ~pixi ~(kind : Hex_kind.t) ~r1 ~vertices =
   let open Float in
-  let r1 = Pixi.width pixi * r1_mult in
   let r2 = r1 - Hex_kind.margin kind in
-  let left_margin = 20. in
   let d_x = r1 * sqrt 3. in
   let d_y = r1 * 1.5 in
+  let left_margin = 20. in
   let hex i j =
     let c_y = float j * d_y in
     let c_x = float i * d_x in
     let c_x = if Int.(j % 2 = 0) then c_x else c_x - (d_x / 2.) in
     let c_x = c_x + left_margin in
     let c = Vector.create_float c_x c_y in
-    let corner i =
+    let vertex i =
       let angle_deg = (60. * float i) - 30. in
       let angle_rad = pi / 180. * angle_deg in
       let d_x = r2 * cos angle_rad in
       let d_y = r2 * sin angle_rad in
       V.(c + create_float d_x d_y)
     in
-    let vs = List.init 6 ~f:corner in
+    let vs = List.map vertices ~f:vertex in
     [ Hex_kind.make_shape kind vs ]
   in
   if Float.(Pixi.width pixi = 0.) then assert false;
   let n_x =
-    ((Pixi.width pixi - left_margin) / d_x) - 0.5 |> Int.of_float
+    ((Pixi.width pixi - left_margin) / d_x) + 0.5 |> Int.of_float
   in
-  let n_y = (Pixi.height pixi / d_y) - 1. |> Int.of_float in
-  let shapes =
-    List.cartesian_product (List.range 1 n_x) (List.range 1 n_y)
-    |> List.concat_map ~f:(fun (i, j) -> hex i j)
-  in
-  let corners = pixi_corners pixi |> Prism.Quad.rectangle in
-  { shapes; corners }
+  let n_y = ((Pixi.height pixi - r1) / d_y) + 1. |> Int.of_float in
+  List.cartesian_product (List.range 1 n_x) (List.range 1 n_y)
+  |> List.concat_map ~f:(fun (i, j) -> hex i j)
 ;;
 
-let hex_wire_exn ~pixi = hex_exn ~pixi ~kind:Wire
-let hex_tile_exn ~pixi = hex_exn ~pixi ~kind:Tile
+let all_vertices = List.init 6 ~f:Fn.id
+
+let r1 ~pixi ~r1_mult =
+  let open Float in
+  Pixi.width pixi * r1_mult
+;;
+
+let hex_wire_exn ~pixi ~r1_mult =
+  let r1 = r1 ~pixi ~r1_mult in
+  hex_exn ~pixi ~kind:Wire ~vertices:all_vertices ~r1
+  |> create_with_pixi ~pixi ~step:r1
+;;
+
+let hex_tile_exn ~pixi ~r1_mult =
+  let r1 = r1 ~pixi ~r1_mult in
+  hex_exn ~pixi ~kind:Tile ~vertices:all_vertices ~r1
+  |> create_with_pixi ~pixi ~step:r1
+;;
+
+let hex_bone_exn ~pixi ~r1_mult =
+  let r1 = r1 ~pixi ~r1_mult in
+  List.init 6 ~f:(fun i ->
+    hex_exn ~pixi ~kind:Bone ~r1 ~vertices:[ i; i + 1 ])
+  |> List.concat
+  |> create_with_pixi ~pixi ~step:r1
+;;

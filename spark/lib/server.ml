@@ -8,6 +8,7 @@ open Base
 open Lwt
 open Js_of_ocaml_lwt
 open Std_internal
+open Lwt.Let_syntax
 
 let get_clicks pixi =
   (* NB! We assume that mouse click coordinates are the same as canvas
@@ -91,35 +92,33 @@ let main (config : Config.t) =
     Sound.start sound;
     return ()
     *)
-  else
-    get_corners config pixi
-    >>= fun real_corners ->
+  else (
+    let%bind real_corners = get_corners config pixi in
     let shapess =
-      List.concat_map config.sparks ~f:(function
-          | Grid { skin; rows; cols } ->
-            [ Shapes.grid_exn ~pixi ~cols ~rows, skin ]
-          | Hex { tile_skin; wire_skin; r1_mult } ->
-            let tile =
-              Option.map tile_skin ~f:(fun tile_skin ->
-                  Shapes.hex_tile_exn ~pixi ~r1_mult, tile_skin)
-            in
-            let wire = Shapes.hex_wire_exn ~pixi ~r1_mult, wire_skin in
-            List.filter_opt [ tile; Some wire ]
-          | Free skin ->
-            let svg =
-              get_element_by_id "svg-iframe" Html.CoerceTo.iframe
-            in
-            let { Svg.shapes; calibration_points } = Svg.parse_exn svg in
-            let corners =
-              match config.calibration with
-              | Laptop_aspect_ratio -> full_screen_laptop_corners
-              | Skip | Clicks -> calibration_points
-            in
-            [ Shapes.create_exn ~corners shapes, skin ])
+      List.map config.sparks ~f:(function
+        | Grid { skin; rows; cols } ->
+          Shapes.grid_exn ~pixi ~cols ~rows, skin
+        | Hex_tile { skin; r1_mult } ->
+          Shapes.hex_tile_exn ~pixi ~r1_mult, skin
+        | Hex_wire { skin; r1_mult } ->
+          Shapes.hex_wire_exn ~pixi ~r1_mult, skin
+        | Hex_bone { skin; r1_mult } ->
+          Shapes.hex_bone_exn ~pixi ~r1_mult, skin
+        | Free skin ->
+          let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
+          let { Svg.shapes; calibration_points; step } =
+            Svg.parse_exn svg
+          in
+          let corners =
+            match config.calibration with
+            | Laptop_aspect_ratio -> full_screen_laptop_corners
+            | Skip | Clicks -> calibration_points
+          in
+          Shapes.create_exn ~corners shapes ~step, skin)
     in
     let sparks =
       List.map shapess ~f:(fun (shapes, config) ->
-          Spark.create ~config ~pixi ~sound ~shapes ?real_corners ())
+        Spark.create ~config ~pixi ~sound ~shapes ?real_corners ())
     in
-    Server_state.start config sparks ~pixi
+    Server_state.start config sparks ~pixi)
 ;;

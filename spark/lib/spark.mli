@@ -10,12 +10,9 @@ module Ctl : sig
   type t = private
     | Spot
     | Rain_control
-    | Set_shapes of Shape.t list
+    | Set_shapes of Shapes.t
     | Set_config of Config.Skin.t
   [@@deriving sexp, variants]
-
-  (* must be not empty *)
-  val set_shapes_exn : Shape.t list -> t
 end
 
 type t

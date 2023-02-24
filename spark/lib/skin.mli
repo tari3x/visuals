@@ -24,7 +24,7 @@ module Make (Elt : Elt) : sig
     type t
 
     (** Must have at least two elements *)
-    val create_exn : Elt.t list -> t
+    val create_exn : Elt.t list -> step:float -> t
   end
 
   type t

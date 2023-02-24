@@ -23,14 +23,9 @@ module Ctl = struct
   type t =
     | Spot
     | Rain_control
-    | Set_shapes of Shape.t list
+    | Set_shapes of Shapes.t
     | Set_config of Config.t
   [@@deriving sexp, variants]
-
-  let set_shapes_exn shapes =
-    if List.is_empty shapes then failwith "Ctl.Set_shapes: empty list";
-    Set_shapes shapes
-  ;;
 end
 
 module Elt = struct
@@ -60,7 +55,17 @@ module Elt = struct
     centre t1 - centre t2
   ;;
 
-  let touch t color = t.color <- Some color
+  let touch t new_color =
+    let set () = t.color <- Some new_color in
+    match t.color with
+    | None -> set ()
+    | Some old_color ->
+      let old_color = CF.eval old_color in
+      let new_color = CF.eval new_color in
+      (* Transitions "down" look ragged, avoid. *)
+      if Float.(Color.a new_color >= Color.a old_color) then set ()
+  ;;
+
   let color t = Option.map t.color ~f:CF.eval
 
   let render t ~perspective ~pixi =
@@ -76,31 +81,37 @@ type t =
   { mutable config : Config.t
   ; sound : Sound.t
   ; pixi : Pixi.t
-  ; perspective : Matrix.t
+  ; real_corners : Prism.Quad.t
+  ; mutable perspective : Matrix.t
   ; skin : Skin.t
   ; mutable elts : Elt.t list
   }
 
+let perspective ~native_corners ~real_corners =
+  Prism.Surface.create ~canvas:real_corners ~camera:native_corners
+  |> Prism.Surface.camera_to_canvas
+;;
+
 let create
-    ~(config : Config.t)
-    ~pixi
-    ~sound
-    ~(shapes : Shapes.t)
-    ?real_corners
-    ()
+  ~(config : Config.t)
+  ~pixi
+  ~sound
+  ~(shapes : Shapes.t)
+  ?real_corners
+  ()
   =
   let native_corners = Shapes.corners shapes in
   let real_corners = Option.value real_corners ~default:native_corners in
-  let perspective =
-    Prism.Surface.create ~canvas:real_corners ~camera:native_corners
-    |> Prism.Surface.camera_to_canvas
-  in
+  let perspective = perspective ~native_corners ~real_corners in
   let elts =
     Shapes.shapes shapes |> List.map ~f:(fun shape -> Elt.create ~shape)
   in
+  let step = Shapes.step shapes in
   (* elts are not empty by interface *)
-  let skin = Skin.Elts.create_exn elts |> Skin.start ~config ~sound in
-  { config; pixi; perspective; elts; skin; sound }
+  let skin =
+    Skin.Elts.create_exn elts ~step |> Skin.start ~config ~sound
+  in
+  { config; pixi; perspective; elts; skin; sound; real_corners }
 ;;
 
 let ctl t (box : Ctl.t Box.t) =
@@ -109,28 +120,34 @@ let ctl t (box : Ctl.t Box.t) =
     let color = Box.color box in
     let touches = Box.touches box ~coordinates:`canvas in
     List.filter_map touches ~f:(fun point ->
-        List.min_elt t.elts ~compare:(fun s1 s2 ->
-            Float.compare
-              (Elt.distance_to_point ~point s1)
-              (Elt.distance_to_point ~point s2)))
+      List.min_elt t.elts ~compare:(fun s1 s2 ->
+        Float.compare
+          (Elt.distance_to_point ~point s1)
+          (Elt.distance_to_point ~point s2)))
     |> List.dedup_and_sort ~compare:Poly.compare
     |> List.iter ~f:(fun elt -> Skin.human_touch t.skin elt color)
   | Rain_control ->
     (match Box.touches box ~coordinates:`canvas with
-    | [] -> debug [%message "box with no touches!"]
-    | touch :: _ ->
-      let open Float in
-      let x, y = Vector.coords touch in
-      let w = Pixi.width t.pixi in
-      let h = Pixi.height t.pixi in
-      t.config.bot_active <- x / w > 0.5;
-      t.config.rain.keep_raining_probability
-        <- max_keep_raining_probability * (y / h))
+     | [] -> debug [%message "box with no touches!"]
+     | touch :: _ ->
+       let open Float in
+       let x, y = Vector.coords touch in
+       let w = Pixi.width t.pixi in
+       let h = Pixi.height t.pixi in
+       t.config.bot_active <- x / w > 0.5;
+       t.config.rain.keep_raining_probability
+         <- max_keep_raining_probability * (y / h))
   | Set_shapes shapes ->
-    let elts = List.map shapes ~f:(fun shape -> Elt.create ~shape) in
+    let elts =
+      Shapes.shapes shapes |> List.map ~f:(fun shape -> Elt.create ~shape)
+    in
+    let step = Shapes.step shapes in
+    let native_corners = Shapes.corners shapes in
     t.elts <- elts;
     (* elts are not empty by interface. *)
-    Skin.Elts.create_exn elts |> Skin.set_elts t.skin
+    Skin.Elts.create_exn elts ~step |> Skin.set_elts t.skin;
+    t.perspective
+      <- perspective ~native_corners ~real_corners:t.real_corners
   | Set_config config ->
     debug [%message "setting new config"];
     t.config <- config;

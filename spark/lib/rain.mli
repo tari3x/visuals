@@ -20,13 +20,13 @@ module Make (E : Elt) : sig
 
   val create_exn
     :  other_rains:t list
-    -> min_distance:float
+    -> step:float
     -> elts:E.t list
     -> id:Id.t
     -> config:Config.Rain.t
     -> t
 
   val drop : t -> flash:bool -> unit
-  val burst : t -> unit Lwt.t
+  val burst : t -> drops_at_once:int -> unit Lwt.t
   val saturation : t -> float
 end

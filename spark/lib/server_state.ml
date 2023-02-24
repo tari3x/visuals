@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Core
+open Core_kernel
 open Lwt
 open Js_of_ocaml_lwt
 open Std_internal

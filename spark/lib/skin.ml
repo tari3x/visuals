@@ -52,12 +52,15 @@ end
 
 module Make (Elt : Elt) = struct
   module Elts = struct
-    type t = Elt.t list
+    type t =
+      { elts : Elt.t list
+      ; step : float
+      }
 
-    let create_exn elts : t =
+    let create_exn elts ~step : t =
       match elts with
       | [] | [ _ ] -> failwith "Elts.create_exn: too short"
-      | elts -> elts
+      | elts -> { elts; step }
     ;;
   end
 
@@ -93,10 +96,10 @@ module Make (Elt : Elt) = struct
     ;;
 
     let fade_to_black_smooth
-        ~(config : Config.t)
-        ~start_color
-        ~end_color
-        ~flash
+      ~(config : Config.t)
+      ~start_color
+      ~end_color
+      ~flash
       =
       let open Float in
       let open Time.Span in
@@ -201,7 +204,6 @@ module Make (Elt : Elt) = struct
     ; silent_rains : Rain.t Hashtbl.M(Rain.Id).t
     ; sound_rains : Rain.t Hashtbl.M(Rain.Id).t
     ; sound_rain_ids : Rain.Id.t Hashtbl.M(Sound.Source.Id).t
-    ; mutable min_distance : float
     ; mutable last_human_touch : Time.t
     ; mutable silent_drop_count : int
     ; mutable num_sources : int
@@ -210,23 +212,13 @@ module Make (Elt : Elt) = struct
 
   let reset_elts t =
     Hashtbl.clear t.elts;
-    List.iter t.elts_input ~f:(fun elt ->
-        let key = Elt.id elt in
-        let data = E.create elt ~config:t.config in
-        Hashtbl.set t.elts ~key ~data)
+    List.iter t.elts_input.elts ~f:(fun elt ->
+      let key = Elt.id elt in
+      let data = E.create elt ~config:t.config in
+      Hashtbl.set t.elts ~key ~data)
   ;;
 
   let set_elts t (elts : Elts.t) =
-    let min_distance =
-      List.cartesian_product elts elts
-      |> List.filter_map ~f:(fun (e1, e2) ->
-             if phys_equal e1 e2
-             then None
-             else Some (V.length (Elt.offset e1 e2)))
-      |> List.min_elt ~compare:Float.compare
-      |> Option.value_exn
-    in
-    t.min_distance <- min_distance;
     t.elts_input <- elts;
     reset_elts t
   ;;
@@ -242,7 +234,6 @@ module Make (Elt : Elt) = struct
       ; elts = Hashtbl.create (module E.Id)
       ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
       ; silent_drop_count = 0
-      ; min_distance = 0.
       ; num_sources = min 1 config.max_sound_sources
       }
     in
@@ -269,7 +260,7 @@ module Make (Elt : Elt) = struct
     Rain.create_exn
       ~id
       ~config:t.config.rain
-      ~min_distance:t.min_distance
+      ~step:t.elts_input.step
       ~other_rains:(rains t)
       ~elts:(Hashtbl.data t.elts)
   ;;
@@ -359,10 +350,10 @@ module Make (Elt : Elt) = struct
         Some rain)
     | Some rain_id ->
       (match Hashtbl.find t.sound_rains rain_id with
-      | Some rain -> Some rain
-      | None ->
-        Hashtbl.remove t.sound_rain_ids id;
-        sound_rain t id)
+       | Some rain -> Some rain
+       | None ->
+         Hashtbl.remove t.sound_rain_ids id;
+         sound_rain t id)
   ;;
 
   let delete_sound_rain t id =
@@ -378,12 +369,12 @@ module Make (Elt : Elt) = struct
       in
       let remove_source () = Hashtbl.remove t.sound_rain_ids id in
       (match Hashtbl.find t.sound_rains rain_id with
-      | None -> remove_source ()
-      | Some rain ->
-        if Float.(Rain.saturation rain >= saturation_threshold)
-        then (
-          remove_source ();
-          Hashtbl.remove t.sound_rains rain_id))
+       | None -> remove_source ()
+       | Some rain ->
+         if Float.(Rain.saturation rain >= saturation_threshold)
+         then (
+           remove_source ();
+           Hashtbl.remove t.sound_rains rain_id))
   ;;
 
   let rec update_num_sources_loop t =
@@ -413,41 +404,41 @@ module Make (Elt : Elt) = struct
     | Some on_sound ->
       Sound.start t.sound;
       Sound.on_event t.sound ~f:(function
-          | Wave intensity ->
-            (* CR-someday: we do this to pick up config changes, but do
+        | Wave intensity ->
+          (* CR-someday: we do this to pick up config changes, but do
                something more elegant. *)
-            let on_sound = Option.value_exn t.config.on_sound in
-            (match on_sound with
-            | Rain | Drop _ -> ()
-            | Wave { max_drops_per_second; flash_probability } ->
-              let num_drops = intensity * max_drops_per_second in
-              let num_drops =
-                if num_drops > 1.
-                then Int.of_float num_drops
-                else if Random.float 1. < num_drops
-                then 1
-                else 0
-              in
-              let flash = Random.float 1. < flash_probability in
-              for _ = 1 to num_drops do
-                drop t ~flash
-              done)
-          | Beat source ->
-            if (not (human_playing t)) && t.config.bot_active
-            then (
-              match sound_rain t (Sound.Source.id source) with
-              | None -> ()
-              | Some rain ->
-                (match on_sound with
-                | Wave _ -> ()
-                | Rain -> Lwt.async (fun () -> Rain.burst rain)
-                | Drop num_drops ->
-                  for _ = 1 to num_drops do
-                    Rain.drop rain ~flash:true
-                  done))
-          | Delete source ->
-            let id = Sound.Source.id source in
-            delete_sound_rain t id)
+          let on_sound = Option.value_exn t.config.on_sound in
+          (match on_sound with
+           | Burst _ | Drop _ -> ()
+           | Wave { max_drops_per_second } ->
+             let num_drops = intensity * max_drops_per_second in
+             let num_drops =
+               if num_drops > 1.
+               then Int.of_float num_drops
+               else if Random.float 1. < num_drops
+               then 1
+               else 0
+             in
+             for _ = 1 to num_drops do
+               drop t
+             done)
+        | Beat source ->
+          if (not (human_playing t)) && t.config.bot_active
+          then (
+            match sound_rain t (Sound.Source.id source) with
+            | None -> ()
+            | Some rain ->
+              (match on_sound with
+               | Wave _ -> ()
+               | Burst { drops_at_once } ->
+                 Lwt.async (fun () -> Rain.burst rain ~drops_at_once)
+               | Drop num_drops ->
+                 for _ = 1 to num_drops do
+                   Rain.drop rain ~flash:true
+                 done))
+        | Delete source ->
+          let id = Sound.Source.id source in
+          delete_sound_rain t id)
   ;;
 
   let start ~config ~sound elts =

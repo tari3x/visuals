@@ -15,33 +15,35 @@ open Prism
 type t =
   { shapes : Shape.t list
   ; calibration_points : Quad.t
-  } [@@deriving sexp]
+  ; step : float
+  }
+[@@deriving sexp]
 
 module Svg_list = struct
   type 'a t = 'a Js.t Dom_svg.list Js.t
 
   let to_list (t : 'a t) : 'a Js.t list =
     List.init t##.numberOfItems ~f:(fun i -> t##getItem i)
+  ;;
 end
 
 (* This is not a correct representation. One should cast based on the value of
    [pathSegType]. But this works for now. *)
 module Path_seg = struct
   type witness
-  class type js = object
-    inherit Dom_svg.pathSeg
-    method path_seg_witness : witness
-    method x : float readonly_prop
-    method y : float readonly_prop
-  end
+
+  class type js =
+    object
+      inherit Dom_svg.pathSeg
+      method path_seg_witness : witness
+      method x : float readonly_prop
+      method y : float readonly_prop
+    end
 
   type t = js Js.t
 
-  let of_path_seg (seg : Dom_svg.pathSeg Js.t) : t =
-    Caml.Obj.magic seg
-
-  let vector (t : t) =
-    Vector.create_float t##.x t##.y
+  let of_path_seg (seg : Dom_svg.pathSeg Js.t) : t = Caml.Obj.magic seg
+  let vector (t : t) = Vector.create_float t##.x t##.y
 end
 
 module Circle = struct
@@ -51,6 +53,7 @@ module Circle = struct
     let x = t##.cx##.baseVal##.value in
     let y = t##.cy##.baseVal##.value in
     Vector.create_float x y
+  ;;
 end
 
 let collect_segments (segments : Path_seg.t list) =
@@ -62,21 +65,20 @@ let collect_segments (segments : Path_seg.t list) =
       | [] -> []
       | (seg : Path_seg.t) :: segs ->
         let v2 = Path_seg.vector seg in
-        match seg##.pathSegType with
-        | PATHSEG_LINETO_ABS ->
-          (v1, v2) :: collect v2 segs
-        | PATHSEG_LINETO_REL ->
-          let v2 = Vector.(v1 + v2) in
-          (v1, v2) :: collect v2 segs
-        | PATHSEG_CLOSEPATH ->
-          (v1, v0) :: collect v0 segs
-        | _ ->
-          collect v2 segs
+        (match seg##.pathSegType with
+         | PATHSEG_LINETO_ABS -> (v1, v2) :: collect v2 segs
+         | PATHSEG_LINETO_REL ->
+           let v2 = Vector.(v1 + v2) in
+           (v1, v2) :: collect v2 segs
+         | PATHSEG_CLOSEPATH -> (v1, v0) :: collect v0 segs
+         | _ -> collect v2 segs)
     in
     collect v0 segments
+;;
 
 let is_polygon (path : Dom_svg.pathElement Js.t) =
   String.(Js.to_string path##.style##.fill <> "none")
+;;
 
 (* inspired by
    view-source:http://xn--dahlstrm-t4a.net/svg/html/get-embedded-svg-document-script.html
@@ -90,39 +92,53 @@ let shapes (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "path")
   |> Node_list.to_list
   |> List.concat_map ~f:(fun path ->
-    let path =
-      Dom_svg.CoerceTo.element path
-      |> Opt.value_exn ~here:[%here]
-      |> Dom_svg.CoerceTo.path
-      |> Opt.value_exn ~here:[%here]
-    in
-    (* CR-someday: normalizedPathSegList blows up. *)
-    let segments =
-      path##.pathSegList
-      |> Svg_list.to_list
-      |> List.map ~f:Path_seg.of_path_seg
-      |> collect_segments
-    in
-    if is_polygon path
-    then [Shape.polygon (List.map segments ~f:fst)]
-    else List.map segments ~f:(fun (v1, v2) -> Shape.segment v1 v2))
+       let path =
+         Dom_svg.CoerceTo.element path
+         |> Opt.value_exn ~here:[%here]
+         |> Dom_svg.CoerceTo.path
+         |> Opt.value_exn ~here:[%here]
+       in
+       (* CR-someday: normalizedPathSegList blows up. *)
+       let segments =
+         path##.pathSegList
+         |> Svg_list.to_list
+         |> List.map ~f:Path_seg.of_path_seg
+         |> collect_segments
+       in
+       if is_polygon path
+       then [ Shape.polygon (List.map segments ~f:fst) ]
+       else List.map segments ~f:(fun (v1, v2) -> Shape.segment v1 v2))
+;;
 
 let calibration_points (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "circle")
   |> Node_list.to_list
   |> List.map ~f:(fun circle ->
-      Dom_svg.CoerceTo.element circle
-      |> Opt.value_exn ~here:[%here]
-      |> Dom_svg.CoerceTo.circle
-      |> Opt.value_exn ~here:[%here])
+       Dom_svg.CoerceTo.element circle
+       |> Opt.value_exn ~here:[%here]
+       |> Dom_svg.CoerceTo.circle
+       |> Opt.value_exn ~here:[%here])
   |> function
-    | [c1; c2; c3; c4] ->
-      let c = Circle.center in
-      Quad.create (c c1) (c c2) (c c3) (c c4)
-    | _ -> failwith "expecting exactly 4 circles"
+  | [ c1; c2; c3; c4 ] ->
+    let c = Circle.center in
+    Quad.create (c c1) (c c2) (c c3) (c c4)
+  | _ -> failwith "expecting exactly 4 circles"
+;;
 
 let parse_exn (elt : Html.iFrameElement Js.t) =
   let doc = Opt.value_exn elt##.contentDocument ~here:[%here] in
   let shapes = shapes doc in
   let calibration_points = calibration_points doc in
-  { shapes; calibration_points }
+  let step =
+    List.cartesian_product shapes shapes
+    |> List.filter_map ~f:(fun (s1, s2) ->
+         if phys_equal s1 s2
+         then None
+         else
+           let open Vector in
+           Some (length (Shape.centre s1 - Shape.centre s2)))
+    |> List.min_elt ~compare:Float.compare
+    |> Option.value_exn
+  in
+  { shapes; calibration_points; step }
+;;

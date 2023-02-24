@@ -12,6 +12,7 @@ open Prism
 type t =
   { shapes : Shape.t list
   ; calibration_points : Quad.t
+  ; step : float
   }
 
 val parse_exn : Html.iFrameElement Js.t -> t

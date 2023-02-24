@@ -8,79 +8,72 @@ open Base
 open Common
 
 module Elt = struct
-  type 'a t = ('a * float) [@@deriving sexp]
+  type 'a t = 'a * float [@@deriving sexp]
 
-  let create ~weight x =
-    (x, weight)
+  let create_exn ~weight x =
+    let open Float in
+    if weight < 0.
+    then failwithf "PD.create: negative weight %f" weight ()
+    else if weight = 0.
+    then None
+    else Some (x, weight)
+  ;;
 
-  let weight (_, w) = w
+  let weight = snd
 end
 
 module Elts = struct
-  type 'a t = 'a Elt.t list [@@deriving sexp]
+  type 'a t =
+    { elts : 'a Elt.t list
+    ; total : float
+    }
+  [@@deriving sexp]
 
-  let normalize (t : 'a t) : 'a t =
+  let create_exn (elts : 'a Elt.t list) : 'a t =
     let open Float in
-    let t = List.filter t ~f:(fun (_, weight) ->
-      if weight < 0. then failwithf "PD.create: negative weight %f" weight ();
-      weight <> 0.)
-    in
-    let total, t =
-      List.fold_map t ~init:0. ~f:(fun total (value, weight) ->
-        let total = total + weight in
-        total, (value, total))
-    in
+    let total = List.sum (module Float) elts ~f:snd in
     if total = 0. then failwith "PD.create: all weights are zero";
-    List.map t ~f:(fun (value, boundary) ->
-      (value, boundary / total))
+    { elts; total }
+  ;;
 
-  let draw t =
+  let draw (t : _ t) =
     let open Float in
-    let r = Random.float 1. in
-    List.find_map_exn t ~f:(fun (value, boundary) ->
-      if boundary >= r then Some value else None)
+    let r = Random.float t.total in
+    let rec loop acc = function
+      | [] -> assert false
+      | (value, weight) :: elts ->
+        let acc = acc + weight in
+        if acc >= r then value else loop acc elts
+    in
+    loop 0. t.elts
+  ;;
 end
 
 (* CR-someday: optimize *)
 type 'a t =
-| List of 'a   Elts.t
-| Tree of 'a t Elts.t
-    [@@deriving sexp]
+  | List of 'a Elts.t
+  | Tree of 'a t Elts.t
+[@@deriving sexp]
 
-let create_exn t =
-  List (Elts.normalize t)
-
-let of_list_exn ts =
-  Tree (Elts.normalize ts)
-
-let singleton x =
-  create_exn [Elt.create x ~weight:1.]
+let create_exn t = List (Elts.create_exn t)
 
 let rec draw = function
   | List xs -> Elts.draw xs
   | Tree ts -> Elts.draw ts |> draw
+;;
 
 (* CR-someday: figure out how to create unit tests. *)
 let () =
-  let t = create_exn
-    [ 1, 0.
-    ; 2, 10.
-    ; 3, 0. ]
-  in
+  let t = create_exn [ 1, 0.; 2, 10.; 3, 0. ] in
   assert (draw t = 2)
+;;
 
 let () =
-  let t = create_exn
-    [ 1, 10.
-    ; 2, 0.
-    ; 3, 0. ]
-  in
+  let t = create_exn [ 1, 10.; 2, 0.; 3, 0. ] in
   assert (draw t = 1)
+;;
 
 let () =
-  let t = create_exn
-    [ 1, 0.
-    ; 2, 0.
-    ; 3, 10. ]
-  in
+  let t = create_exn [ 1, 0.; 2, 0.; 3, 10. ] in
   assert (draw t = 3)
+;;

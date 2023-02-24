@@ -20,16 +20,18 @@ module Shape : sig
     -> unit
 end
 
-type t
+type t [@@deriving sexp]
 
 val shapes : t -> Shape.t list
 val corners : t -> Prism.Quad.t
+val step : t -> float
 
 (** must be not empty *)
-val create_exn : corners:Prism.Quad.t -> Shape.t list -> t
+val create_exn : corners:Prism.Quad.t -> step:float -> Shape.t list -> t
 
 (** both must be positive *)
 val grid_exn : pixi:Pixi.t -> rows:int -> cols:int -> t
 
 val hex_wire_exn : pixi:Pixi.t -> r1_mult:float -> t
 val hex_tile_exn : pixi:Pixi.t -> r1_mult:float -> t
+val hex_bone_exn : pixi:Pixi.t -> r1_mult:float -> t

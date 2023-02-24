@@ -16,6 +16,12 @@ module Calibration = struct
 end
 
 module Rain = struct
+  module Kind = struct
+    type t =
+      | Wind of { dropoff : float }
+      | Random_walk
+  end
+
   type t =
     { rain_dropoff : float
     ; wind_dropoff : float
@@ -23,17 +29,22 @@ module Rain = struct
     ; fade_to_base_interpolation_arg : float
     ; drop_interval : Time.Span.t
     ; mutable keep_raining_probability : float
+    ; flash_probability : float
+    ; flash_first : bool
     }
   [@@deriving sexp]
 
   let default =
     { rain_dropoff = 0.5 (* 1.5 *)
-    ; wind_dropoff = 10. (* CR-someday is 0.01 equivalent to infinity? *)
-    ; new_strand_probability =
-        0.01 (* Do not set lower than 1/256 since color is an int. *)
-    ; fade_to_base_interpolation_arg = 0.01 (* 0.03 *)
+    ; wind_dropoff = 10.
+    ; (* CR-someday is 0.01 equivalent to infinity? *)
+      new_strand_probability = 0.01
+    ; (* Do not set lower than 1/256 since color is an int. *)
+      fade_to_base_interpolation_arg = 0.01 (* 0.03 *)
     ; drop_interval = Time.Span.of_sec 0.01
     ; keep_raining_probability = 0.8
+    ; flash_probability = 0.1
+    ; flash_first = true
     }
   ;;
 end
@@ -41,12 +52,9 @@ end
 module On_sound = struct
   (* CR-someday: shouldn't [Rain] only belong in [Rain]? *)
   type t =
-    | Rain
+    | Burst of { drops_at_once : int }
     | Drop of int
-    | Wave of
-        { max_drops_per_second : float
-        ; flash_probability : float
-        }
+    | Wave of { max_drops_per_second : float }
   [@@deriving sexp]
 end
 
@@ -92,7 +100,7 @@ module Skin = struct
     ; color_flow = Fade_to_none
     ; rain = Rain.default
     ; num_silent_rains = 0
-    ; on_sound = Some Rain
+    ; on_sound = Some (Burst { drops_at_once = 1 })
     ; max_sound_sources = 1
     ; bot_active = true
     }
@@ -110,19 +118,26 @@ module Sparks = struct
         ; rows : int
         ; cols : int
         }
-    | Hex of
-        { tile_skin : Skin.t option
-        ; wire_skin : Skin.t
+    | Hex_wire of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Hex_tile of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Hex_bone of
+        { skin : Skin.t
         ; r1_mult : float
         }
     | Free of Skin.t
   [@@deriving sexp]
 
-  let skins = function
-    | Grid { skin; _ } -> [ skin ]
-    | Free skin -> [ skin ]
-    | Hex { tile_skin; wire_skin; r1_mult = _ } ->
-      List.filter_opt [ tile_skin; Some wire_skin ]
+  let skin = function
+    | Grid { skin; _ } -> skin
+    | Free skin -> skin
+    | Hex_tile { skin; _ } | Hex_wire { skin; _ } | Hex_bone { skin; _ } ->
+      skin
   ;;
 end
 
@@ -136,12 +151,12 @@ type t =
 [@@deriving sexp, fields]
 
 let num_sound_sources t =
-  List.concat_map ~f:Sparks.skins t.sparks
+  List.map ~f:Sparks.skin t.sparks
   |> List.fold ~init:0 ~f:(fun acc skin -> acc + skin.max_sound_sources)
 ;;
 
 let validate t =
-  List.concat_map ~f:Sparks.skins t.sparks |> List.iter ~f:Skin.validate
+  List.map ~f:Sparks.skin t.sparks |> List.iter ~f:Skin.validate
 ;;
 
 (* CR-someday: do we even use this? *)

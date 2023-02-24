@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Core
+open Core_kernel
 module Q = Queue
 module H = Pairing_heap
 
