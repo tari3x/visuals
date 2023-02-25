@@ -1,6 +1,4 @@
-open Core_kernel
+open Core
 
-type t =
-  | All of Spark.Ctl.t
-  | List of Spark.Ctl.t list
+type t = All of Spark.Ctl.t | List of Spark.Ctl.t list
 [@@deriving sexp, variants]

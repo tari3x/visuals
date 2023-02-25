@@ -70,17 +70,17 @@ module Source = struct
     let name = "Sound_source_id"
   end)
 
-  type t =
-    { id : Id.t
-    ; bin : int
-    ; beat : (BD.t[@sexp.opaque])
-    ; mutable last_in_beat : bool
-    ; mutable last_beat_time : Time.t
-    ; mutable on_beat : (unit -> unit) list [@sexp.opaque]
-    ; mutable on_delete : (unit -> unit) list [@sexp.opaque]
-    ; color : Color.t
-    ; created : Time.t
-    }
+  type t = {
+    id : Id.t;
+    bin : int;
+    beat : (BD.t[@sexp.opaque]);
+    mutable last_in_beat : bool;
+    mutable last_beat_time : Time.t;
+    mutable on_beat : (unit -> unit) list; [@sexp.opaque]
+    mutable on_delete : (unit -> unit) list; [@sexp.opaque]
+    color : Color.t;
+    created : Time.t;
+  }
   [@@deriving fields, sexp_of]
 
   let do_on_beat t = List.iter t.on_beat ~f:(fun f -> f ())
@@ -90,24 +90,23 @@ module Source = struct
     let id = Id.create () in
     let color = Color.random () |> Color.maximize in
     let now = Time.now () in
-    { id
-    ; beat
-    ; bin
-    ; last_in_beat = false
-    ; last_beat_time = now
-    ; on_beat = []
-    ; on_delete = []
-    ; color
-    ; created = now
+    {
+      id;
+      beat;
+      bin;
+      last_in_beat = false;
+      last_beat_time = now;
+      on_beat = [];
+      on_delete = [];
+      color;
+      created = now;
     }
-  ;;
 
   let update t =
     let in_beat = BD.in_beat t.beat in
     if (not t.last_in_beat) && in_beat then do_on_beat t;
     t.last_in_beat <- in_beat;
     if in_beat then t.last_beat_time <- Time.now ()
-  ;;
 
   let in_beat t = BD.in_beat t.beat
   let on_beat t ~f = t.on_beat <- f :: t.on_beat
@@ -120,14 +119,10 @@ module Source = struct
     let too_idle = now - t.last_beat_time > source_idle_timeout in
     let too_old = now - t.created > max_source_age in
     not (too_idle || too_old)
-  ;;
 end
 
 module Event = struct
-  type t =
-    | Beat of Source.t
-    | Delete of Source.t
-    | Wave of float
+  type t = Beat of Source.t | Delete of Source.t | Wave of float
 end
 
 module Listener = struct
@@ -135,74 +130,68 @@ module Listener = struct
     let name = "Sound_listener_id"
   end)
 
-  type t =
-    { id : Id.t
-    ; mutable active : bool
-    ; max_sources : int
-    ; mutable num_sources : int
-    ; on_event : Event.t -> unit [@sexp.opaque]
-    }
+  type t = {
+    id : Id.t;
+    mutable active : bool;
+    max_sources : int;
+    mutable num_sources : int;
+    on_event : Event.t -> unit; [@sexp.opaque]
+  }
   [@@deriving sexp_of]
 
   let create ~max_sources ~on_event =
     let id = Id.create () in
     { id; active = true; max_sources; num_sources = 0; on_event }
-  ;;
 end
 
-type t =
-  { analyser : AnalyserNode.t
-  ; fft_bins : uint8Array Js.t
-  ; bins : BD.t array
-  ; (* CR-someday: normalizer for this as well? *)
-    wave : MA.t
-  ; wave_listeners : Listener.t Hashtbl.M(Listener.Id).t
-  ; mutable waiting_listeners : Listener.t list
-  ; mutable sources : Source.t list
-  ; mutable debug : Ctx.t option
-  ; mutable started : bool
-  }
+type t = {
+  analyser : AnalyserNode.t;
+  fft_bins : uint8Array Js.t;
+  bins : BD.t array;
+  (* CR-someday: normalizer for this as well? *)
+  wave : MA.t;
+  wave_listeners : Listener.t Hashtbl.M(Listener.Id).t;
+  mutable waiting_listeners : Listener.t list;
+  mutable sources : Source.t list;
+  mutable debug : Ctx.t option;
+  mutable started : bool;
+}
 
 let num_bins t = Array.length t.bins
-
-let bin_volume_exn t i =
-  float (Typed_array.unsafe_get t.fft_bins i) /. 256.
-;;
+let bin_volume_exn t i = float (Typed_array.unsafe_get t.fft_bins i) /. 256.
 
 (* List.iter t.on_event ~f:(fun f -> f (Beat source)) *)
 
 let find_new_source t ~sources =
   let listeners = List.permute t.waiting_listeners in
-  debug [%message (listeners : Listener.t list) (sources : Source.t list)];
   match listeners with
   | [] -> None
-  | listener :: listeners ->
-    if List.exists sources ~f:Source.in_beat
-    then None
-    else (
-      match Array.count t.bins ~f:BD.in_beat with
-      | 0 -> None
-      | num_bins ->
-        let n = ref (Random.int num_bins + 1) in
-        let bin, beat =
-          Array.findi_exn t.bins ~f:(fun _i beat ->
-            if BD.in_beat beat then n := !n - 1;
-            !n = 0)
-        in
-        let source = Source.create ~beat ~bin in
-        Source.on_beat source ~f:(fun () ->
-          listener.on_event (Beat source));
-        Source.on_delete source ~f:(fun () ->
-          listener.on_event (Delete source);
-          if listener.active && listener.num_sources = listener.max_sources
-          then t.waiting_listeners <- listener :: t.waiting_listeners;
-          listener.num_sources <- listener.num_sources - 1);
-        listener.num_sources <- listener.num_sources + 1;
-        if (not listener.active)
-           || listener.num_sources = listener.max_sources
-        then t.waiting_listeners <- listeners;
-        Some source)
-;;
+  | listener :: listeners -> (
+      if List.exists sources ~f:Source.in_beat then None
+      else
+        match Array.count t.bins ~f:BD.in_beat with
+        | 0 -> None
+        | num_bins ->
+            let n = ref (Random.int num_bins + 1) in
+            let bin, beat =
+              Array.findi_exn t.bins ~f:(fun _i beat ->
+                  if BD.in_beat beat then n := !n - 1;
+                  !n = 0)
+            in
+            let source = Source.create ~beat ~bin in
+            Source.on_beat source ~f:(fun () -> listener.on_event (Beat source));
+            Source.on_delete source ~f:(fun () ->
+                listener.on_event (Delete source);
+                if
+                  listener.active && listener.num_sources = listener.max_sources
+                then t.waiting_listeners <- listener :: t.waiting_listeners;
+                listener.num_sources <- listener.num_sources - 1);
+            listener.num_sources <- listener.num_sources + 1;
+            if
+              (not listener.active)
+              || listener.num_sources = listener.max_sources
+            then t.waiting_listeners <- listeners;
+            Some source)
 
 let update_sources t =
   List.iter t.sources ~f:Source.update;
@@ -212,7 +201,6 @@ let update_sources t =
   List.iter deleted_sources ~f:Source.do_on_delete;
   let sources = Option.to_list (find_new_source t ~sources) @ sources in
   t.sources <- sources
-;;
 
 let draw t ctx =
   let open Float in
@@ -256,32 +244,29 @@ let draw t ctx =
     cursor := !cursor + width
   in
   Array.iteri t.bins ~f:(fun i bin ->
-    (* let value = bin_volume_exn t i in *)
-    let value, color =
-      List.find t.sources ~f:(fun source ->
-        Source.in_beat source && Int.(Source.bin source = i))
-      |> function
-      | Some source when show_beats -> 0.3, Source.color source
-      | _ ->
-        ( 0.2
-        , if not show_spectrum
-          then Color.black
-          else if BD.in_beat bin
-          then Color.red
-          else Color.set_alpha Color.green ~alpha:(BD.wave bin) )
-    in
-    Ctx.set_fill_color ctx color;
-    let width = bin_w i in
-    let beat_min = None (* BD.Debug.beat_min beat *) in
-    let beat = None (*  BD.Debug.beat beat *) in
-    (* let wave = if wave > long then Some wave else None in *)
-    draw_bin ~value ~width ?beat ?beat_min ());
+      (* let value = bin_volume_exn t i in *)
+      let value, color =
+        List.find t.sources ~f:(fun source ->
+            Source.in_beat source && Int.(Source.bin source = i))
+        |> function
+        | Some source when show_beats -> (0.3, Source.color source)
+        | _ ->
+            ( 0.2,
+              if not show_spectrum then Color.black
+              else if BD.in_beat bin then Color.red
+              else Color.set_alpha Color.green ~alpha:(BD.wave bin) )
+      in
+      Ctx.set_fill_color ctx color;
+      let width = bin_w i in
+      let beat_min = None (* BD.Debug.beat_min beat *) in
+      let beat = None (*  BD.Debug.beat beat *) in
+      (* let wave = if wave > long then Some wave else None in *)
+      draw_bin ~value ~width ?beat ?beat_min ());
   draw_bin ~value:0. ~width:empty_w ();
   Ctx.set_fill_color ctx Color.yellow;
   let wave = MA.get_exn t.wave in
   draw_bin ~value:wave ~width:wave_w ();
   Ctx.restore ctx
-;;
 
 let draw t = Option.iter t.debug ~f:(draw t)
 
@@ -293,28 +278,26 @@ let rec update_loop (t : t) =
   *)
   (* CR-someday: to much work with lower loop interval *)
   let loop_interval = 0.01 in
-  Lwt_js.sleep loop_interval
-  >>= fun () ->
+  Lwt_js.sleep loop_interval >>= fun () ->
   t.analyser##getByteFrequencyData t.fft_bins;
   let time = Time.now () in
   let param = Time.to_sec time in
   let avg = MA.create ~window:smoothing_window in
   Array.iteri t.bins ~f:(fun i beat ->
-    let value = bin_volume_exn t i in
-    MA.add avg ~param:(Float.of_int i) ~value;
-    let value = MA.get_exn avg in
-    BD.add beat ~time ~value);
+      let value = bin_volume_exn t i in
+      MA.add avg ~param:(Float.of_int i) ~value;
+      let value = MA.get_exn avg in
+      BD.add beat ~time ~value);
   let wave =
     Array.fold t.bins ~init:0. ~f:(fun acc bin -> acc + BD.wave bin)
     / float (num_bins t)
   in
   MA.add t.wave ~param ~value:wave;
   Hashtbl.iter t.wave_listeners ~f:(fun listener ->
-    listener.on_event (Wave (loop_interval * MA.get_exn t.wave)));
+      listener.on_event (Wave (loop_interval * MA.get_exn t.wave)));
   update_sources t;
   draw t;
   update_loop t
-;;
 
 (**
    See https://webaudio.github.io/web-audio-api/#dictdef-analyseroptions
@@ -325,7 +308,7 @@ let create_from_src ~ctx ~src =
      keep coming back to 0, and the min filter doesn't work.
 
      Perhaps I should doe smoothing myself, but it is applied before converting
-     to dB in the analyzer, so it wouldn't be the same.  *)
+     to dB in the analyzer, so it wouldn't be the same. *)
   (* analyser##.smoothingTimeConstant := 0.3; *)
   (* from -90. to -10. *)
   analyser##.minDecibels := -100.;
@@ -345,59 +328,52 @@ let create_from_src ~ctx ~src =
   in
   let bins = Array.init num_bins ~f:(fun _i -> BD.create ()) in
   let wave = MA.create ~window:wave_window in
-  { analyser
-  ; fft_bins
-  ; bins
-  ; sources = []
-  ; waiting_listeners = []
-  ; wave_listeners = Hashtbl.create (module Listener.Id)
-  ; debug = None
-  ; started = false
-  ; wave
+  {
+    analyser;
+    fft_bins;
+    bins;
+    sources = [];
+    waiting_listeners = [];
+    wave_listeners = Hashtbl.create (module Listener.Id);
+    debug = None;
+    started = false;
+    wave;
   }
-;;
 
 let start t =
   if not t.started then Lwt.async (fun () -> update_loop t);
   t.started <- true
-;;
 
 let create_from_html ~id =
   let audio = Audio.create ~id in
   let ctx = AudioContext.create () in
   let src = ctx##createMediaElementSource audio in
   create_from_src ~ctx ~src
-;;
 
 let create_from_mic () =
   let open Js_std in
   let constraints =
     MediaStreamConstraints.of_js_expr "{audio : true, video : false}"
   in
-  Lwt.wrap (fun c -> get_user_media_exn c ~constraints)
-  >>= fun stream ->
+  Lwt.wrap (fun c -> get_user_media_exn c ~constraints) >>= fun stream ->
   let ctx = AudioContext.create () in
   let src = ctx##createMediaStreamSource stream in
   create_from_src ~ctx ~src |> Lwt.return
-;;
 
 let on_beat t ~f ~max_sources =
   let listener = Listener.create ~on_event:f ~max_sources in
   t.waiting_listeners <- listener :: t.waiting_listeners;
   update_sources t;
   listener
-;;
 
 let on_wave t ~f =
   let listener = Listener.create ~on_event:f ~max_sources:0 in
   Hashtbl.add_exn t.wave_listeners ~key:listener.id ~data:listener;
   listener
-;;
 
 let stop_listening t (listener : Listener.t) =
   listener.active <- false;
   Hashtbl.remove t.wave_listeners listener.id;
   update_sources t
-;;
 
 let set_debug t ctx = t.debug <- ctx

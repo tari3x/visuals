@@ -247,7 +247,10 @@ end = struct
     let to_string t = sprintf "%f seconds" t
   end
 
-  let now () = Unix.gettimeofday ()
+  let now () =
+    let open Core in
+    Time.now () |> Time.to_span_since_epoch |> Time.Span.to_sec
+
   let of_sec t = t
   let to_sec t = t
   let sub = ( -. )

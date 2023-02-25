@@ -9,14 +9,17 @@ module C = Spark_lib.Config
 open C
 
 (* CR-someday: the current config is wasteful when you just set things to zero.
-Problem is I can't remove tiles without restarting *)
+   Problem is I can't remove tiles without restarting *)
 
-(* CR avatar: make it possible to switch on to off without reloading *)
 (* CR avatar: learn to make it less manic *)
+(* CR avatar: wire intensity doesn't update? DONE *)
+(* CR avatar: per thing intensity *)
+(* CR avatar: the misalignment between the hexagons is what is ugly in bone. *)
+(* CR avatar: there's a jump when you do a config update. *)
 
-let wire_intensity = 1.
+let wire_intensity = 2.
 let tile_intensity = 20.
-let zoom = 1.
+let zoom = 1.5
 let new_strand_probability = 0.05
 let rain = { Config.Rain.default with wind_dropoff = 1.5 }
 
@@ -67,6 +70,7 @@ let wire ~flash_mult =
         Some (Wave { max_drops_per_second = wire_intensity * 100. })
     ; max_sound_sources = 2
     ; base_color = Color.none
+    ; num_silent_rains = 2
     }
   in
   Wire skin
@@ -133,30 +137,30 @@ let config : C.t =
   let size3 = Hex.spark ~r1_mult:(zoom * 0.06) in
   let size4 = Hex.spark ~r1_mult:(zoom * 0.08) in
   let size1 =
-    [ wire ~flash_mult:0.2 |> off
-    ; tile ~flash_mult:1.
+    [ wire ~flash_mult:1. |> off
+    ; tile ~flash_mult:0.1 |> off
     ; bone ~flash_mult:1.0 ~intensity:5 |> off
     ]
     |> List.map ~f:size1
   in
   let size2 =
-    [ wire ~flash_mult:1. |> off
-    ; tile ~flash_mult:0.1 |> off
+    [ wire ~flash_mult:0.1 |> off
+    ; tile ~flash_mult:0.2 |> off
     ; bone ~flash_mult:1. ~intensity:5 |> off
     ]
     |> List.map ~f:size2
   in
   let size3 =
-    [ wire ~flash_mult:0.1 |> off
-    ; tile ~flash_mult:0.2 |> off
-    ; bone ~flash_mult:1.0 ~intensity:6 |> off
+    [ wire ~flash_mult:0. |> off
+    ; tile ~flash_mult:0.5 |> off
+    ; bone ~flash_mult:0.2 ~intensity:50
     ]
     |> List.map ~f:size3
   in
   let size4 =
-    [ wire ~flash_mult:0.4 |> off
-    ; tile ~flash_mult:0.2 |> off
-    ; bone ~flash_mult:0.4 ~intensity:5 |> off
+    [ wire ~flash_mult:0. |> off
+    ; tile ~flash_mult:0.5 |> off
+    ; bone ~flash_mult:1. ~intensity:50 |> off
     ]
     |> List.map ~f:size4
   in

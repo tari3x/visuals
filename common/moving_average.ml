@@ -4,27 +4,18 @@
   See LICENSE file for copyright notice.
 *)
 
-open Core_kernel
+open Core
 module Q = Queue
 
 module Sample = struct
-  type t =
-    { param : float
-    ; value : float
-    }
-  [@@deriving sexp_of]
+  type t = { param : float; value : float } [@@deriving sexp_of]
 end
 
-type t =
-  { q : Sample.t Q.t
-  ; mutable avg : float
-  ; window : float
-  }
+type t = { q : Sample.t Q.t; mutable avg : float; window : float }
 
 let create ~window =
   let q = Q.create () in
   { q; avg = 0.; window }
-;;
 
 let cleanup t ~param =
   let open Float in
@@ -32,17 +23,14 @@ let cleanup t ~param =
     match Q.peek t.q with
     | None -> ()
     | Some sample ->
-      if sample.param + t.window < param
-      then (
-        let n = Q.length t.q |> Float.of_int in
-        if n = 1.
-        then t.avg <- 0.
-        else t.avg <- ((t.avg * n) - sample.value) / (n - 1.);
-        ignore (Q.dequeue t.q : Sample.t option);
-        loop ())
+        if sample.param + t.window < param then (
+          let n = Q.length t.q |> Float.of_int in
+          if n = 1. then t.avg <- 0.
+          else t.avg <- ((t.avg * n) - sample.value) / (n - 1.);
+          ignore (Q.dequeue t.q : Sample.t option);
+          loop ())
   in
   loop ()
-;;
 
 let add t ~param ~value =
   let open Float in
@@ -51,7 +39,6 @@ let add t ~param ~value =
   let n = Q.length t.q |> Float.of_int in
   t.avg <- ((n * t.avg) + value) / (n + 1.);
   Q.enqueue t.q sample
-;;
 
 let get t = if Q.is_empty t.q then None else Some t.avg
 let get_exn t = get t |> Option.value_exn
@@ -82,4 +69,3 @@ let%expect_test _ =
   [%expect {| (value (2)) |}];
   add 6. 0.;
   [%expect {| (value (1)) |}]
-;;

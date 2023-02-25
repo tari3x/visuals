@@ -33,14 +33,11 @@ end
 
 module Event : sig
   (** Wave intensity normalized per second *)
-  type t =
-    | Beat of Source.t
-    | Delete of Source.t
-    | Wave of float
+  type t = Beat of Source.t | Delete of Source.t | Wave of float
 end
 
 (* CR-someday: this should just be a bus and multiplexing should be done by the
-user.
+   user.
 *)
 val on_beat : t -> f:(Event.t -> unit) -> max_sources:int -> Listener.t
 val on_wave : t -> f:(Event.t -> unit) -> Listener.t

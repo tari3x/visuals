@@ -225,6 +225,11 @@ module Make (Elt : Elt) = struct
   ;;
 
   let create ~(config : Config.t) ~sound elts =
+    debug [%message "creating skin"];
+    let last_human_touch =
+      Time.(sub (now ()) config.human_playing_timeout)
+    in
+    debug [%message "human touch"];
     let t =
       { config
       ; sound
@@ -233,12 +238,13 @@ module Make (Elt : Elt) = struct
       ; sound_rain_ids = Hashtbl.create (module Sound.Source.Id)
       ; elts_input = elts
       ; elts = Hashtbl.create (module E.Id)
-      ; last_human_touch = Time.(sub (now ()) config.human_playing_timeout)
+      ; last_human_touch
       ; silent_drop_count = 0
       ; num_sources = min 1 config.max_sound_sources
       ; listener = None
       }
     in
+    debug [%message "created skin"];
     set_elts t elts;
     t
   ;;
@@ -278,10 +284,10 @@ module Make (Elt : Elt) = struct
 
   (* No other function should be creating rains. *)
   let run_silent_rain t =
-    let open Float in
     let rec loop rain =
-      let%bind () = Lwt_js.sleep 1. in
-      if Rain.saturation rain < 1.
+      let%bind () = Lwt_js.sleep 15. in
+      (* CR avatar: undo *)
+      if (* Rain.saturation rain < 0.0001 *) false
       then loop rain
       else (
         Hashtbl.remove t.silent_rains (Rain.id rain);
@@ -299,7 +305,7 @@ module Make (Elt : Elt) = struct
     Option.iter (List.random_element (rains t)) ~f:(Rain.drop ~flash)
   ;;
 
-  let run_silent_drops t =
+  let _run_silent_drops t =
     let open Lwt.Let_syntax in
     let open Float in
     (* CR-someday: surely there's something smarter possible that doesn't wake
@@ -322,12 +328,16 @@ module Make (Elt : Elt) = struct
 
   let start_silent_rains t =
     if t.config.num_silent_rains > 0
-    then (
+    then
       for _ = 1 to t.config.num_silent_rains do
         Lwt.async (fun () -> run_silent_rain t)
-      done;
-      Lwt.async (fun () -> run_silent_drops t))
+      done
   ;;
+
+  (* CR avatar: undo *)
+  (*
+      Lwt.async (fun () -> run_silent_drops t))
+      *)
 
   let rec sound_rain t id =
     match Hashtbl.find t.sound_rain_ids id with
@@ -363,7 +373,7 @@ module Make (Elt : Elt) = struct
     | None -> ()
     | Some rain_id ->
       (* CR-someday: this logic trips you up. Maybe redefine saturation for
-         different rains? *)
+           different rains? *)
       let saturation_threshold =
         match t.config.color_flow with
         | Fade_to_base -> 0.4
@@ -397,69 +407,61 @@ module Make (Elt : Elt) = struct
   ;;
 
   let set_config t config =
-    debug [%message "setting skin config"];
     t.config <- config;
     reset_elts t;
-    match config.on_sound with
-    | None ->
-      (match t.listener with
-       | None -> ()
-       | Some listener ->
-         Sound.stop_listening t.sound listener;
-         t.listener <- None)
-    | Some on_sound ->
-      (match t.listener with
-       | Some _ -> ()
-       | None ->
-         Sound.start t.sound;
-         let listener =
-           match on_sound with
-           | Wave { max_drops_per_second } ->
-             Sound.on_wave t.sound ~f:(fun event ->
-               debug [%message "wave"];
-               match event with
-               | Beat _ -> assert false
-               | Wave intensity ->
-                 let open Float in
-                 let num_drops = intensity * max_drops_per_second in
-                 let num_drops =
-                   if num_drops > 1.
-                   then Int.of_float num_drops
-                   else if Random.float 1. < num_drops
-                   then 1
-                   else 0
-                 in
-                 for _ = 1 to num_drops do
-                   drop t
-                 done
-               | Delete _ -> ())
-           | Beat on_beat ->
-             Sound.on_beat
-               t.sound
-               ~max_sources:config.max_sound_sources
-               ~f:(function
-               | Wave _ -> assert false
-               | Beat source ->
-                 debug [%message "beat"];
-                 if (not (human_playing t)) && t.config.bot_active
-                 then (
-                   match sound_rain t (Sound.Source.id source) with
-                   | None -> ()
-                   | Some rain ->
-                     (match on_beat with
-                      | Burst { drops_at_once } ->
-                        Lwt.async (fun () ->
-                          Rain.burst rain ~drops_at_once)
-                      | Drop num_drops ->
-                        for _ = 1 to num_drops do
-                          Rain.drop rain ~flash:true
-                        done))
-               | Delete source ->
-                 debug [%message "delete source"];
-                 let id = Sound.Source.id source in
-                 delete_sound_rain t id)
-         in
-         t.listener <- Some listener)
+    Option.iter t.listener ~f:(Sound.stop_listening t.sound);
+    let listener =
+      match config.on_sound with
+      | None -> None
+      | Some on_sound ->
+        Sound.start t.sound;
+        (match on_sound with
+         | Wave { max_drops_per_second } ->
+           Sound.on_wave t.sound ~f:(fun event ->
+             debug [%message "wave"];
+             match event with
+             | Beat _ -> assert false
+             | Wave intensity ->
+               let open Float in
+               let num_drops = intensity * max_drops_per_second in
+               let num_drops =
+                 if num_drops > 1.
+                 then Int.of_float num_drops
+                 else if Random.float 1. < num_drops
+                 then 1
+                 else 0
+               in
+               for _ = 1 to num_drops do
+                 drop t
+               done
+             | Delete source ->
+               let id = Sound.Source.id source in
+               delete_sound_rain t id)
+         | Beat on_beat ->
+           Sound.on_beat
+             t.sound
+             ~max_sources:config.max_sound_sources
+             ~f:(function
+             | Wave _ -> assert false
+             | Beat source ->
+               if (not (human_playing t)) && t.config.bot_active
+               then (
+                 match sound_rain t (Sound.Source.id source) with
+                 | None -> ()
+                 | Some rain ->
+                   (match on_beat with
+                    | Burst { drops_at_once } ->
+                      Lwt.async (fun () -> Rain.burst rain ~drops_at_once)
+                    | Drop num_drops ->
+                      for _ = 1 to num_drops do
+                        Rain.drop rain ~flash:true
+                      done))
+             | Delete source ->
+               let id = Sound.Source.id source in
+               delete_sound_rain t id))
+        |> Some
+    in
+    t.listener <- listener
   ;;
 
   let start t =
