@@ -32,15 +32,21 @@ let debug_table x : unit =
   Js.Unsafe.fun_call
     (Js.Unsafe.js_expr "console.table")
     [| Js.Unsafe.inject x |]
+;;
 
 let debugf f =
   Printf.ksprintf (fun s -> Firebug.console ## (log (Js.string s))) f
+;;
 
 let debug s = Firebug.console ## (log (Js.string (Sexp.to_string_hum s)))
-let alert f = Printf.ksprintf (fun s -> Html.window ## (alert (Js.string s))) f
+
+let alert f =
+  Printf.ksprintf (fun s -> Html.window ## (alert (Js.string s))) f
+;;
 
 let console_error f =
   Printf.ksprintf (fun s -> Firebug.console ## (error (Js.string s))) f
+;;
 
 (* CR-someday: do something about dev vs prod. *)
 let error = console_error
@@ -57,14 +63,15 @@ let () =
 
 let raise_s s =
   (new%js Js.error_constr (string s)
-  |> Js.raise_js_error)
-  [@alert "-deprecated"]
+  |> Js.raise_js_error) [@alert "-deprecated"]
+;;
 
 let raise e = raise_s (Exn.to_string e)
 let failwithf f = Printf.ksprintf raise_s f
 
 let current_url =
   sprintf "http://%s" (Js.to_string Html.window##.location##.host)
+;;
 
 let float = Float.of_int
 let int = Int.of_float
@@ -73,6 +80,7 @@ let pi =
   let pi = Float.acos (-1.0) in
   assert (Float.( >= ) pi 3.0 && Float.( <= ) pi 4.);
   pi
+;;
 
 module type Comparable_and_to_stringable = sig
   type t
@@ -99,7 +107,12 @@ module Opt = struct
 
   let value_exn ~here ?(message = "") t =
     Opt.get t (fun () ->
-        failwithf !"Opt.value_exn: %{Source_code_position}: %s" here message ())
+      failwithf
+        !"Opt.value_exn: %{Source_code_position}: %s"
+        here
+        message
+        ())
+  ;;
 end
 
 module Option = struct
@@ -108,6 +121,7 @@ module Option = struct
   let to_string a_to_string = function
     | None -> "none"
     | Some a -> a_to_string a
+  ;;
 
   let some_if b x = if b then Some x else None
 end
@@ -123,7 +137,11 @@ module List = struct
 
   let delete xs x ~equal = filter xs ~f:(fun x' -> not (equal x' x))
   let bring_to_front xs x ~equal = x :: delete xs x ~equal
-  let diff xs ys ~equal = filter xs ~f:(fun x -> not (List.mem ys x ~equal))
+
+  let diff xs ys ~equal =
+    filter xs ~f:(fun x -> not (List.mem ys x ~equal))
+  ;;
+
   let max_elt_exn xs ~compare = max_elt xs ~compare |> Option.value_exn
   let range min max = List.init (max - min + 1) ~f:(fun i -> min + i)
 end
@@ -138,16 +156,18 @@ module Typed_array = struct
       | Some x -> loop (i + 1) (f acc x)
     in
     loop 0 init
+  ;;
 
   let iter (t : ('a, 'b) typedArray Js.t) ~f =
     let rec loop i =
       match get t i |> Optdef.to_option with
       | None -> ()
       | Some x ->
-          f x;
-          loop (i + 1)
+        f x;
+        loop (i + 1)
     in
     loop 0
+  ;;
 end
 
 (* CR-someday: There is no way to close the reader. Try [create_bounded] or
@@ -159,21 +179,24 @@ module Lwt_stream = struct
 
   let iter_with_try t ~f =
     let f x =
-      try f x
-      with e ->
+      try f x with
+      | e ->
         error "%s" (Exn.to_string e);
         ()
     in
     iter f t
+  ;;
 
   let filter_map t ~f = filter_map f t
 
   let take t ~n =
     let rec loop n acc =
-      if n = 0 then Lwt.return (List.rev acc)
+      if n = 0
+      then Lwt.return (List.rev acc)
       else next t >>= fun x -> loop (n - 1) (x :: acc)
     in
     loop n []
+  ;;
 end
 
 module type Id = sig
@@ -250,6 +273,7 @@ end = struct
   let now () =
     let open Core in
     Time.now () |> Time.to_span_since_epoch |> Time.Span.to_sec
+  ;;
 
   let of_sec t = t
   let to_sec t = t
@@ -264,6 +288,7 @@ module Lwt = struct
     let cont x = Lwt.wakeup w x in
     f cont;
     t
+  ;;
 
   let every span ~f =
     let span = Time.Span.to_sec span in
@@ -272,36 +297,41 @@ module Lwt = struct
       Lwt_js.sleep span >>= fun () -> loop ()
     in
     Lwt.async loop
+  ;;
 
   module Let_syntax = struct
     module Let_syntax = struct
       let return = return
       let bind t ~f = bind t f
       let map t ~f = map t f
-
-      let both t1 t2 =
-        t1 >>= fun t1 ->
-        t2 >>= fun t2 -> return (t1, t2)
+      let both t1 t2 = t1 >>= fun t1 -> t2 >>= fun t2 -> return (t1, t2)
     end
   end
 end
 
 (* CR: move this to [Dom_wrappers]. *)
 let add_event_listener elt event ~f =
-  (Html.addEventListener elt event
+  (Html.addEventListener
+     elt
+     event
      (Html.handler (fun ev ->
-          (try f ev with
-          | Shutdown -> raise Shutdown
-          | exn -> error "uncaught exn in handler: %s" (Exn.to_string exn));
-          Js._true))
+        (try f ev with
+         | Shutdown -> raise Shutdown
+         | exn -> error "uncaught exn in handler: %s" (Exn.to_string exn));
+        Js._true))
      Js._true
     : Html.event_listener_id)
   |> ignore
+;;
 
 let top_level f =
   add_event_listener Html.window Html.Event.load ~f:(fun _ ->
-      Lwt.async (fun () -> Lwt.catch f raise))
+    Lwt.async (fun () -> Lwt.catch f raise))
+;;
 
 let get_element_by_id id coerce_to =
   Opt.bind (Html.document##getElementById (string id)) coerce_to
-  |> Opt.value_exn ~here:[%here] ~message:(sprintf "can't find element %s" id)
+  |> Opt.value_exn
+       ~here:[%here]
+       ~message:(sprintf "can't find element %s" id)
+;;

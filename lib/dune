@@ -1,6 +1,6 @@
 (library
  (name visuals)
- (libraries core lwt js_of_ocaml js_of_ocaml-lwt common_lib three_lib pixi_lib)
+ (libraries core_kernel js_of_ocaml js_of_ocaml-lwt common_lib three_lib pixi_lib)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx))
  (js_of_ocaml
