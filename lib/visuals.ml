@@ -7,6 +7,7 @@
 include Common
 include Dom_wrappers
 include Geometry
+module Geometry = Geometry
 module Color = Color
 module Color_cycle = Color_cycle
 module Color_flow = Color_flow

@@ -9,7 +9,6 @@ open Common
 type t [@@deriving sexp]
 
 val start_now : Color.t -> t
-
 val add : t -> after:Time.Span.t -> color:Color.t -> t
-
 val eval : t -> Color.t
+val finished : t -> bool

@@ -69,6 +69,9 @@ end
 module Matrix = struct
   include Math.Matrix
 
+  let sexp_of_t t = to_array t |> [%sexp_of: float Array.t Array.t]
+  let t_of_sexp s = [%of_sexp: float Array.t Array.t] s |> of_array
+
   let create (x1, x2, x3) (y1, y2, y3) (z1, z2, z3) =
     of_array [| [| x1; x2; x3 |]; [| y1; y2; y3 |]; [| z1; z2; z3 |] |]
   ;;
@@ -230,6 +233,13 @@ module Shape = struct
     | Polygon of Vector.t list (* not empty *)
   [@@deriving sexp, variants]
 
+  let map t ~f =
+    match t with
+    | Segment (v1, v2) -> Segment (f v1, f v2)
+    | Polygon vs -> Polygon (List.map vs ~f)
+    | Path vs -> Path (List.map vs ~f)
+  ;;
+
   let segment v1 v2 = Segment (v1, v2)
 
   let centre t =
@@ -240,4 +250,6 @@ module Shape = struct
       let n = List.length vs in
       List.reduce_exn vs ~f:( + ) / float n
   ;;
+
+  let transform t m = map t ~f:(Matrix.apply m)
 end

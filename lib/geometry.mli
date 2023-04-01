@@ -41,7 +41,7 @@ module Vector : sig
 end
 
 module Matrix : sig
-  type t
+  type t [@@deriving sexp]
 
   val create
     :  float * float * float
@@ -107,4 +107,5 @@ module Shape : sig
   val polygon : Vector.t list -> t
   val path : Vector.t list -> t
   val centre : t -> Vector.t
+  val transform : t -> Matrix.t -> t
 end

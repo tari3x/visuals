@@ -4,6 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
+open Js_of_ocaml
 open Raw
 
 module DisplayObject = struct
@@ -35,6 +36,12 @@ module Color = struct
   include Color
 end
 
+module Matrix = struct
+  include Matrix
+
+  let from_array t array = t##fromArray (Js.array array)
+end
+
 module Graphics = struct
   include Graphics
 
@@ -53,14 +60,14 @@ module Graphics = struct
   let close_path t = t##closePath
 
   let line_style
-      (t : t)
-      ?(width = 0.)
-      ?(color = Color.white)
-      ?(alpha = 1.)
-      (* ?alignment
+    (t : t)
+    ?(width = 0.)
+    ?(color = Color.white)
+    ?(alpha = 1.)
+    (* ?alignment
            ?native
       *)
-        ()
+      ()
     =
     (*
     let params =
@@ -70,4 +77,6 @@ module Graphics = struct
   *)
     t##lineStyle ~width ~color ~alpha
   ;;
+
+  let set_matrix t m = t##setMatrix m
 end

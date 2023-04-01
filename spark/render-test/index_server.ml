@@ -7,7 +7,7 @@
 open Base
 open Js_of_ocaml_lwt
 open Std_internal
-module Shape = Spark_lib.Shapes.Shape
+module Shape = Spark_lib.Shapes.Elt
 
 type t =
   { ctx : Ctx.t

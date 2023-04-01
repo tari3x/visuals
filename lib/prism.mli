@@ -17,13 +17,10 @@ module Quad : sig
   type t [@@deriving sexp]
 
   val create : Vector.t -> Vector.t -> Vector.t -> Vector.t -> t
-
+  val create_offset : Vector.t -> width:float -> height:float -> t
   val rectangle : Rectangle.t -> t
-
   val of_list_exn : Vector.t list -> t
-
   val draw_border : t -> ctx:Ctx.t -> color:Color.t -> unit
-
   val contains : t -> Vector.t -> bool
 end
 
@@ -31,14 +28,12 @@ module Surface : sig
   type t
 
   val create : canvas:Quad.t -> camera:Quad.t -> t
-
   val camera_to_canvas : t -> Matrix.t
 end
 
 type t
 
 val create : Surface.t list -> t
-
 val camera_vector_to_canvas : t -> Vector.t -> Vector.t option
 
 (* CR: change name, you aren't actually drawing. Make it just return the

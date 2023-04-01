@@ -9,15 +9,25 @@ open Lwt
 open Lwt.Let_syntax
 module State = State_light
 
-let main (config : Config.t) =
-  Window.set_reload_on_resize ();
-  Random.self_init ();
+let load () =
+  (* CR avatar: remove, wondering why I'm blowing up. *)
+  ignore (assert false);
   let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
   let { Svg.shapes; calibration_points = corners; step } =
     Svg.parse_exn svg
   in
-  let shapes = Shapes.create_exn shapes ~corners ~step in
-  let box = Spark.Ctl.set_shapes shapes |> Ctl.all |> Box.create in
+  Shapes.create shapes ~corners ~step ~line_width:3.
+;;
+
+let main (config : Config.t) =
+  Random.self_init ();
+  let shapes = load () in
+  let spark_config : Config.Spark.t =
+    match config.sparks with
+    | [ Free { skin; shapes = _ } ] -> Free { skin; shapes }
+    | _ -> assert false
+  in
+  let box = Spark.Ctl.set_config spark_config |> Ctl.all |> Box.create in
   let global_config =
     { Global.Config.viewport_width = 1.
     ; viewport_height = 1.

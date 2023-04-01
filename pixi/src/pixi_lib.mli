@@ -6,6 +6,8 @@
 
 (* CR-someday: there's also two.js. *)
 
+(* CR-someday: drop this extra layer, you really want your own geometry. *)
+
 open Js_of_ocaml
 open Raw
 
@@ -43,8 +45,15 @@ module Color : sig
   val create : int -> int -> int -> t
 end
 
+(* CR-someday avatar: we really want to construct it from [Geometry.Matrix]
+  which is not defined here.  *)
+module Matrix : sig
+  include module type of Matrix
+
+  val from_array : t -> float array -> unit
+end
+
 (* CR-someday: polygon *)
-(* CR-someday: matrix transformations. *)
 module Graphics : sig
   include module type of Graphics
 
@@ -58,13 +67,15 @@ module Graphics : sig
   val move_to : t -> float -> float -> unit
   val line_to : t -> float -> float -> unit
   val close_path : t -> unit
+  val set_matrix : t -> Matrix.t -> unit
 
   val line_style
     :  t
     -> ?width:float
     -> ?color:Color.t
     -> ?alpha:
-         float (*
+         float
+         (*
     -> ?alignment:float
     -> ?native:bool Js.t
     *)

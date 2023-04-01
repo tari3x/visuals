@@ -5,7 +5,10 @@
 *)
 
 (* CR-someday: make these use float, otherwise you get weird aliasing effects,
-   like the darkening in fred when you set interpolation arg too low. *)
+   like the darkening in fred when you set interpolation arg too low.
+
+   Make the range 0-1 everywhere.
+*)
 
 type t [@@deriving sexp]
 

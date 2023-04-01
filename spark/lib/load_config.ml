@@ -10,11 +10,10 @@ open Lwt.Let_syntax
 module State = State_light
 
 let main (config : Config.t) =
-  debug [%message "333"];
+  debug [%message "111"];
   Window.set_reload_on_resize ();
   let box =
     Config.sparks config
-    |> List.map ~f:Config.Sparks.skin
     |> List.map ~f:Spark.Ctl.set_config
     |> Ctl.list
     |> Box.create

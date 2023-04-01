@@ -16,6 +16,10 @@ module Quad = struct
   let create v1 v2 v3 v4 = v1, v2, v3, v4
   let rectangle r = Rectangle.corners r
 
+  let create_offset v ~width ~height =
+    Rectangle.create_offset v ~width ~height |> rectangle
+  ;;
+
   let of_list_exn = function
     | [ v1; v2; v3; v4 ] -> create v1 v2 v3 v4
     | _ -> failwith "Quad.of_list_exn"
@@ -139,10 +143,10 @@ module Surface = struct
   ;;
 
   let draw_camera_image_on_canvas
-      t
-      ~texture
-      ~(scene : Three.Scene.t)
-      ~canvas
+    t
+    ~texture
+    ~(scene : Three.Scene.t)
+    ~canvas
     =
     let open Three in
     let camera_mesh =
@@ -183,7 +187,7 @@ let create t = t
 
 let camera_vector_to_canvas t v =
   List.find_map t ~f:(fun surface ->
-      Surface.camera_vector_to_canvas surface v)
+    Surface.camera_vector_to_canvas surface v)
 ;;
 
 let draw_camera_image_on_canvas t ~texture ~scene ~canvas =

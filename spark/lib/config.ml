@@ -11,7 +11,10 @@ module Calibration = struct
   type t =
     | Skip
     | Clicks
-    | Laptop_aspect_ratio
+    | Aspect_ratio of
+        { x : float
+        ; y : float
+        }
   [@@deriving sexp]
 end
 
@@ -20,6 +23,15 @@ module Rain = struct
     type t =
       | Wind of { dropoff : float }
       | Random_walk
+  end
+
+  module Color = struct
+    type t =
+      | Any
+      | Choose of Color.t list
+    [@@deriving sexp]
+
+    let default = Choose [ Color.white ]
   end
 
   type t =
@@ -31,6 +43,7 @@ module Rain = struct
     ; mutable keep_raining_probability : float
     ; flash_probability : float
     ; flash_first : bool
+    ; color : Color.t
     }
   [@@deriving sexp]
 
@@ -45,6 +58,7 @@ module Rain = struct
     ; keep_raining_probability = 0.8
     ; flash_probability = 0.1
     ; flash_first = true
+    ; color = Color.default
     }
   ;;
 end
@@ -117,8 +131,24 @@ module Skin = struct
   ;;
 end
 
-module Sparks = struct
+module Spark = struct
+  module Speed = struct
+    type t =
+      | Range of
+          { min : float
+          ; max : float
+          }
+      | List of float list
+    [@@deriving sexp]
+  end
+
+  (* CR-someday avatar: unify [Free] and [Star]. Just need to sort out the
+     step and corners. *)
   type t =
+    | Free of
+        { skin : Skin.t
+        ; shapes : Shapes.t
+        }
     | Grid of
         { skin : Skin.t
         ; rows : int
@@ -136,15 +166,21 @@ module Sparks = struct
         { skin : Skin.t
         ; r1_mult : float
         }
-    | Free of Skin.t
+    | Star of
+        { skin : Skin.t
+        ; shapes : Shape.t list
+        ; speed : Speed.t
+        ; line_width : float
+        }
   [@@deriving sexp]
 
   let skin = function
     | Grid { skin; _ }
-    | Free skin
+    | Free { skin; _ }
     | Hex_tile { skin; _ }
     | Hex_wire { skin; _ }
-    | Hex_bone { skin; _ } -> skin
+    | Hex_bone { skin; _ }
+    | Star { skin; _ } -> skin
   ;;
 end
 
@@ -152,13 +188,13 @@ type t =
   { drawing_mode : bool
   ; debug_sound : bool
   ; calibration : Calibration.t
-  ; sparks : Sparks.t list
+  ; sparks : Spark.t list
   ; global_channel_name : string
   }
 [@@deriving sexp, fields]
 
 let validate t =
-  List.map ~f:Sparks.skin t.sparks |> List.iter ~f:Skin.validate
+  List.map ~f:Spark.skin t.sparks |> List.iter ~f:Skin.validate
 ;;
 
 (* CR-someday: do we even use this? *)

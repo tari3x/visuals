@@ -17,27 +17,38 @@ end
 *)
 type t = Node.t list [@@deriving sexp]
 
-let start_now color : t =
-  [ Time.now (), color ]
+let start_now color : t = [ Time.now (), color ]
 
 let add (t : t) ~after ~color : t =
-  let (last, _) = List.last_exn t in
+  let last, _ = List.last_exn t in
   t @ [ Time.(last + after), color ]
+;;
 
 let eval t =
   let now_ = Time.now () in
   let rec eval = function
     | [] -> failwith "BUG: Color_flow empty"
-    | [_, color] -> color
-    | ((time1, color1) :: (time2, color2) :: _) as t ->
+    | [ (_, color) ] -> color
+    | (time1, color1) :: (time2, color2) :: _ as t ->
       let open Float in
       let time1 = Time.to_sec time1 in
       let time2 = Time.to_sec time2 in
       let now_ = Time.to_sec now_ in
-      if now_ > time2 then eval (List.tl_exn t)
-      else if time1 = time2 then color1
-      else Color.interpolate_two
-        color1 color2
-        ((now_ - time1) / (time2 - time1))
+      if now_ > time2
+      then eval (List.tl_exn t)
+      else if time1 = time2
+      then color1
+      else
+        Color.interpolate_two
+          color1
+          color2
+          ((now_ - time1) / (time2 - time1))
   in
   eval t
+;;
+
+let finished t =
+  let now_ = Time.now () in
+  let last, _ = List.last_exn t in
+  Time.(now_ > last)
+;;

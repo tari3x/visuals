@@ -8,7 +8,6 @@ open Base
 open Lwt
 open Js_of_ocaml_lwt
 open Std_internal
-open Lwt.Let_syntax
 
 let get_clicks pixi =
   (* NB! We assume that mouse click coordinates are the same as canvas
@@ -19,24 +18,18 @@ let get_clicks pixi =
   Lwt_stream.take clicks ~n:4
 ;;
 
-let full_screen_x = 1707.
-let full_screen_y = 1133.
-
 let rectangle_quad width height =
-  Rectangle.create_offset V.zero ~width ~height |> Prism.Quad.rectangle
+  Prism.Quad.create_offset V.zero ~width ~height
 ;;
-
-(* CR-someday: unify this with the logic for grid *)
-let full_screen_laptop_corners = rectangle_quad full_screen_x full_screen_y
 
 let get_corners (config : Config.t) pixi =
   let open Float in
   match config.calibration with
-  | Laptop_aspect_ratio ->
+  | Aspect_ratio { x = screen_x; y = screen_y } ->
     let x = Pixi.width pixi in
     let y = Pixi.height pixi in
-    let a = min (x / full_screen_x) (y / full_screen_y) in
-    return (Some (rectangle_quad (a * full_screen_x) (a * full_screen_y)))
+    let a = min (x / screen_x) (y / screen_y) in
+    return (Some (rectangle_quad (a * screen_x) (a * screen_y)))
   | Clicks ->
     get_clicks pixi
     >>= fun clicks -> return (Some (Prism.Quad.of_list_exn clicks))
@@ -63,10 +56,9 @@ let _test_quantum () =
 ;;
 
 let main (config : Config.t) =
-  debug [%message "111"];
+  debug [%message "333"];
   Config.validate config;
   Random.self_init ();
-  debug [%message "before sound"];
   let%bind sound =
     (*
     let%bind () = Lwt_js.sleep 3. in
@@ -77,16 +69,8 @@ let main (config : Config.t) =
     *)
     Sound.create_from_mic ()
   in
-  debug [%message "after sound"];
-  (*
-  let sound =
-    Sound.create_from_html
-      ~id:"audio"
-      ~max_sources:config.num_sound_sources
-  in
-  *)
+  Sound.start sound;
   let pixi = Pixi.init_exn () in
-  debug [%message "after pixi"];
   if config.debug_sound
   then
     failwith "Fix debug sound"
@@ -97,34 +81,9 @@ let main (config : Config.t) =
     *)
   else (
     let%bind real_corners = get_corners config pixi in
-    debug [%message "got corners"];
-    let shapess =
-      List.map config.sparks ~f:(function
-        | Grid { skin; rows; cols } ->
-          Shapes.grid_exn ~pixi ~cols ~rows, skin
-        | Hex_tile { skin; r1_mult } ->
-          Shapes.hex_tile_exn ~pixi ~r1_mult, skin
-        | Hex_wire { skin; r1_mult } ->
-          Shapes.hex_wire_exn ~pixi ~r1_mult, skin
-        | Hex_bone { skin; r1_mult } ->
-          Shapes.hex_bone_exn ~pixi ~r1_mult, skin
-        | Free skin ->
-          let svg = get_element_by_id "svg-iframe" Html.CoerceTo.iframe in
-          let { Svg.shapes; calibration_points; step } =
-            Svg.parse_exn svg
-          in
-          let corners =
-            match config.calibration with
-            | Laptop_aspect_ratio -> full_screen_laptop_corners
-            | Skip | Clicks -> calibration_points
-          in
-          Shapes.create_exn ~corners shapes ~step, skin)
-    in
-    debug [%message "got shapes"];
     let sparks =
-      List.map shapess ~f:(fun (shapes, config) ->
-        Spark.create ~config ~pixi ~sound ~shapes ?real_corners ())
+      List.map config.sparks ~f:(fun config ->
+        Spark.create ~config ~pixi ~sound ?real_corners ())
     in
-    debug [%message "got sparks"];
     Server_state.start config sparks ~pixi)
 ;;

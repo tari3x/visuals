@@ -1,11 +1,11 @@
-open Base
+open Core
 open Js_of_ocaml_lwt
 open Std_internal
 module PD = Probability_distribution
 module V = Vector
 
 module type Elt = sig
-  module Id : Id
+  module Id : Identifiable.S
 
   type t
 
@@ -25,6 +25,24 @@ module Make (E : Elt) = struct
   module Id = Id (struct
     let name = "Rain"
   end)
+
+  (*
+  module Color = struct
+    type t =
+      { fst : Color.t
+      ; snd : Color.t
+    }
+
+    let create (config : Config.Rain.Color.t) =
+      match config.color with
+      | This color -> { fst = color; snd = color }
+      | Any ->
+        let color =
+          Color.random_interesting () |> Color.maximize
+        in
+        { fst = color; snd = color }
+  end
+*)
 
   type t =
     { id : Id.t
@@ -54,7 +72,12 @@ module Make (E : Elt) = struct
       then 1.
       else if List.mem cs e ~equal:phys_equal
       then 0.
-      else List.map cs ~f:(E.distance e) |> List.reduce_exn ~f:Float.( + )
+      else
+        let open Float in
+        let sum =
+          List.map cs ~f:(E.distance e) |> List.reduce_exn ~f:Float.( + )
+        in
+        max sum 1.
     in
     List.filter_map elts ~f:(fun e ->
       PD.Elt.create_exn e ~weight:(weight e))
@@ -67,7 +90,7 @@ module Make (E : Elt) = struct
     let other_elts =
       List.filter elts ~f:(fun e -> not (phys_equal e centre))
       |> List.filter_map ~f:(fun e ->
-           let distance = E.distance centre e in
+           let distance = max step (E.distance centre e) in
            let weight = (step / distance) **. dropoff in
            PD.Elt.create_exn e ~weight)
     in
@@ -83,28 +106,35 @@ module Make (E : Elt) = struct
     ~(id : Id.t)
     ~(config : Config.Rain.t)
     =
-    let color = Color.random_interesting () |> Color.maximize in
-    let centre = choose_new_centre_exn ~elts ~other_rains in
-    let wind = V.(scale (random_unit ()) ~by:step) in
-    let next_strand =
-      random_drop_around_centre
-        centre
-        elts
-        ~step
-        ~dropoff:config.rain_dropoff
-    in
-    { id
-    ; config
-    ; color
-    ; elts
-    ; next_strand
-    ; last_drop = centre
-    ; centre
-    ; wind
-    ; step
-    ; centre_drops = 0
-    ; num_drops = 0
-    }
+    match elts with
+    | [] | [ _ ] -> failwith "not enough rain elements"
+    | elts ->
+      let color =
+        match config.color with
+        | Choose colors -> List.random_element_exn colors
+        | Any -> Color.random_interesting () |> Color.maximize
+      in
+      let centre = choose_new_centre_exn ~elts ~other_rains in
+      let wind = V.(scale (random_unit ()) ~by:step) in
+      let next_strand =
+        random_drop_around_centre
+          centre
+          elts
+          ~step
+          ~dropoff:config.rain_dropoff
+      in
+      { id
+      ; config
+      ; color
+      ; elts
+      ; next_strand
+      ; last_drop = centre
+      ; centre
+      ; wind
+      ; step
+      ; centre_drops = 0
+      ; num_drops = 0
+      }
   ;;
 
   let next_strand_drop t =
@@ -112,7 +142,7 @@ module Make (E : Elt) = struct
     let last_drop = t.last_drop in
     let raw_weight e =
       let v = E.offset e last_drop in
-      let d = Float.max 1. V.(length (v - t.wind)) in
+      let d = Float.max t.step V.(length (v - t.wind)) in
       (1. / d) **. t.config.wind_dropoff
     in
     let weight e = if phys_equal e last_drop then 0. else raw_weight e in
@@ -124,7 +154,7 @@ module Make (E : Elt) = struct
     let max_weight =
       List.map elts ~f:PD.Elt.weight
       |> List.max_elt ~compare:Float.compare
-      |> Option.value_exn
+      |> Option.value_exn ~here:[%here]
     in
     if Float.(max_weight = raw_weight last_drop)
     then (* We hit the wall, start a new strand *) PD.draw t.next_strand

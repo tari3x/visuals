@@ -12,7 +12,7 @@ let skin =
     base_color = Color.black
   ; bot_active = true
   ; color_flow = Fade_to_base
-  ; on_sound = Some Rain
+  ; on_sound = Some (Beat (Drop 3))
   ; num_silent_rains = 0
   ; rain = C.Rain.default
   ; segment_life_span = Time.Span.of_sec 3.
@@ -20,11 +20,13 @@ let skin =
   }
 ;;
 
+let shapes = Load_shapes.load ()
+
 let config : C.t =
   { drawing_mode = false
   ; debug_sound = false
-  ; calibration = Laptop_aspect_ratio
+  ; calibration = Aspect_ratio { x = 1707.; y = 1133. }
   ; global_channel_name = "global-fred"
-  ; sparks = [ Free skin ]
+  ; sparks = [ Free { skin; shapes } ]
   }
 ;;

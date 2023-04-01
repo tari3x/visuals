@@ -1,8 +1,8 @@
-open Base
+open Core
 open Std_internal
 
 module type Elt = sig
-  module Id : Id
+  module Id : Identifiable.S
 
   type t
 

@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
+open Core
 open Lwt
 open Js_of_ocaml
 open Js_of_ocaml_lwt
@@ -62,8 +62,8 @@ let () =
 *)
 
 let raise_s s =
-  (new%js Js.error_constr (string s)
-  |> Js.raise_js_error) [@alert "-deprecated"]
+  (new%js Js.error_constr (string s) |> Js.raise_js_error
+  ) [@alert "-deprecated"]
 ;;
 
 let raise e = raise_s (Exn.to_string e)
@@ -211,8 +211,10 @@ module Id (M : sig
 end) : Id = struct
   include String
 
+  (* CR avatar: do we still see collisions? We want this to be globally
+     unique. *)
   let () = Random.self_init ()
-  let create () = Printf.sprintf "%s%d" M.name (Random.int 100_000_000)
+  let create () = Printf.sprintf "%s%d" M.name (Random.int Int.max_value)
 end
 
 module Client_id = Id (struct

@@ -11,6 +11,18 @@ module G = Graphics
 module C = Container
 open G
 
+module Matrix = struct
+  include Pixi_lib.Matrix
+
+  let create m =
+    let t = create () in
+    let get = Geometry.Matrix.get m in
+    [| get 0 0; get 0 1; get 0 2; get 1 0; get 1 1; get 1 2 |]
+    |> from_array t;
+    t
+  ;;
+end
+
 let color_to_pixi color =
   let r, g, b, alpha = Color.components color in
   Pixi_lib.Color.create r g b, alpha
@@ -49,12 +61,14 @@ let begin_fill (t : t) color =
 ;;
 
 let move_to t v =
-  let x, y = Vector.coords v in
+  let x = Vector.x v in
+  let y = Vector.y v in
   move_to t.g x y
 ;;
 
 let line_to t v =
-  let x, y = Vector.coords v in
+  let x = Vector.x v in
+  let y = Vector.y v in
   line_to t.g x y
 ;;
 
@@ -83,3 +97,5 @@ let actions t =
   let canvas = (Application.view t.a :> #Html.element Js.t) in
   Dom_wrappers.actions canvas
 ;;
+
+let set_matrix t m = set_matrix t.g m

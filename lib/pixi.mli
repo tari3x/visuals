@@ -1,5 +1,11 @@
 open Geometry
 
+module Matrix : sig
+  type t
+
+  val create : Matrix.t -> t
+end
+
 type t
 
 val init_exn : unit -> t
@@ -17,7 +23,9 @@ val close_path : t -> unit
 val line_style
   :  t
   -> ?width:float
-  -> ?color:Color.t (*
+  -> ?color:
+       Color.t
+       (*
   -> ?alignment:float
   -> ?native:bool Js.t
   *)
@@ -25,3 +33,4 @@ val line_style
   -> unit
 
 val actions : t -> Action.t Lwt_stream.t
+val set_matrix : t -> Matrix.t -> unit
