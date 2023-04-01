@@ -41,6 +41,7 @@ let () = ignore purple
 (* CR avatar: reloading one window affects all, do I not have enough CPU? *)
 (* CR avatar: burst does seem better than drop for tile *)
 (* CR avatar: have some sort of health indicator *)
+(* CR avatar: upgrade jquery, they say some vulnerability *)
 
 let zoom = 1.
 let new_strand_probability = 0.05
@@ -313,12 +314,12 @@ let config : C.t =
   let size1 =
     [ wire ~flash_mult:0.3 ~intensity:7. |> off
     ; tile ~flash_mult:0.4 ~intensity:4 |> off
-    ; bone ~flash_mult:0.2 ~intensity:20 |> off
+    ; bone ~flash_mult:1. ~intensity:200 |> off
     ]
     |> List.map ~f:size1
   in
   let size2 =
-    [ wire ~flash_mult:0.1 ~intensity:10.
+    [ wire ~flash_mult:0.1 ~intensity:10. |> off
     ; tile ~flash_mult:0.2 ~intensity:3 |> off
     ; bone ~flash_mult:0.2 ~intensity:20 |> off
     ]
@@ -326,13 +327,13 @@ let config : C.t =
   in
   let size3 =
     [ wire ~flash_mult:0.1 ~intensity:7. |> off
-    ; tile ~flash_mult:0.35 ~intensity:6
-    ; bone ~flash_mult:1. ~intensity:30
+    ; tile ~flash_mult:0.35 ~intensity:6 |> off
+    ; bone ~flash_mult:1. ~intensity:30 |> off
     ]
     |> List.map ~f:size3
   in
   let size4 =
-    [ wire ~flash_mult:0.2 ~intensity:1. |> off
+    [ wire ~flash_mult:1. ~intensity:1.
     ; tile ~flash_mult:0.35 ~intensity:15 |> off
     ; bone ~flash_mult:1. ~intensity:100 |> off
     ]

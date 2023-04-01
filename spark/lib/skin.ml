@@ -89,7 +89,6 @@ module E = struct
     ~end_color
     ~flash
     =
-    let open Float in
     let open Time.Span in
     let sls = config.segment_life_span in
     if not flash
@@ -98,7 +97,7 @@ module E = struct
       |> CF.add ~after:(sls * 0.5) ~color:(a end_color config.flash_cutoff)
       |> CF.add ~after:(sls * 0.5) ~color:(a end_color 0.)
     else (
-      let flash_step = config.flash_duration / 2.5 in
+      let flash_step = Float.(config.flash_duration / 2.5) in
       CF.start_now start_color
       |> CF.add
            ~after:(sls * flash_step)
@@ -258,7 +257,7 @@ let create ~(config : Config.t) ~sound shapes =
 let human_playing t =
   let open Time in
   let open Span in
-  now () - t.last_human_touch < t.config.human_playing_timeout
+  diff (now ()) t.last_human_touch < t.config.human_playing_timeout
 ;;
 
 let rains t = Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains

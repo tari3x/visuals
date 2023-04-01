@@ -81,7 +81,7 @@ let start_transform_loop t =
     | Free _ | Grid _ | Hex_tile _ | Hex_wire _ | Hex_bone _ -> loop ()
     | Star { skin = _; shapes = _; speed; line_width = _ } ->
       let now_ = Time.now () in
-      let d = Time.(now_ - t.last_transform_time) |> Time.Span.to_sec in
+      let d = Time.(diff now_ t.last_transform_time) |> Time.Span.to_sec in
       t.last_transform_time <- now_;
       let make_speed = Memo.unit (fun () -> make_speed speed) in
       Shapes.elts t.shapes

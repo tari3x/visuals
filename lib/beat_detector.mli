@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Common
+open Core
 
 type t
 

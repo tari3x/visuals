@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Common
+open Core
 
 (* CR-someday: self-adjusting resonant flow, want to be able to say "100
    flashes" per round.
@@ -17,9 +17,9 @@ open Common
 type t
 
 val create_exn
-  :  period_range : (Time.Span.t * Time.Span.t)
-  (* max value will be reached in each period, min value is just a bound. *)
-  -> value_range  : (float * float)
+  :  period_range:Time.Span.t * Time.Span.t
+  -> (* max value will be reached in each period, min value is just a bound. *)
+     value_range:float * float
   -> t
 
 val eval : t -> float

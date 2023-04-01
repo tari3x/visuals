@@ -45,7 +45,7 @@ let _test_quantum () =
     (* let%bind () = Lwt_js.sleep quantum in *)
     let%bind () = Lwt_js_events.request_animation_frame () in
     Int.incr count;
-    if Time.(Span.(now () - !start > Time.Span.of_sec 1.))
+    if Time.(Span.(diff (now ()) !start > Time.Span.of_sec 1.))
     then (
       debug [%message (!count : int)];
       start := Time.now ();

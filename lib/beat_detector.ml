@@ -4,7 +4,6 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
 open Common_lib
 open Common
 module MA = Moving_average

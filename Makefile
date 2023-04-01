@@ -1,7 +1,7 @@
 
 # CR-someday: separate libs more so you don't have to include three everywhere.
 
-DIRS = atoms calibrate spark/wall spark/window spark/fred
+DIRS = atoms calibrate spark/wall spark/window spark/fred spark/hex
 
 # bitrotten, to be restored:
 # poly/bin

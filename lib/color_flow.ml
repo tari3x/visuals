@@ -4,7 +4,7 @@
   See LICENSE file for copyright notice.
 *)
 
-open Base
+open Core
 open Common
 
 module Node = struct
@@ -21,7 +21,7 @@ let start_now color : t = [ Time.now (), color ]
 
 let add (t : t) ~after ~color : t =
   let last, _ = List.last_exn t in
-  t @ [ Time.(last + after), color ]
+  t @ [ Time.(add last after), color ]
 ;;
 
 let eval t =

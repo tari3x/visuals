@@ -230,56 +230,17 @@ module Fn = struct
   let const c _ = c
 end
 
-(* [Base] doesn't contain [Time] it seems. *)
-module Time : sig
-  type t [@@deriving sexp]
-
-  (* prints the float *)
-  val to_string : t -> string
-  val of_sec : float -> t
-  val to_sec : t -> float
-  val now : unit -> t
-  val epoch : t
-
-  module Span : sig
-    type t [@@deriving sexp]
-
-    include Comparable.S with type t := t
-
-    val zero : t
-    val to_sec : t -> float
-    val of_sec : float -> t
-    val ( * ) : t -> float -> t
-    val to_string : t -> string
-  end
-
-  val ( - ) : t -> t -> Span.t
-  val ( + ) : t -> Span.t -> t
-  val ( > ) : t -> t -> bool
-  val ( < ) : t -> t -> bool
-  val sub : t -> Span.t -> t
-end = struct
-  include Float
-
-  let to_string = Float.to_string
-  let epoch = 0.
+module Time = struct
+  include Time
+  include Time.Stable.With_utc_sexp.V2
 
   module Span = struct
-    include Float
+    include Span
 
-    let to_sec t = t
-    let of_sec t = t
-    let to_string t = sprintf "%f seconds" t
+    let ( * ) t x = scale t x
   end
 
-  let now () =
-    let open Core in
-    Time.now () |> Time.to_span_since_epoch |> Time.Span.to_sec
-  ;;
-
-  let of_sec t = t
-  let to_sec t = t
-  let sub = ( -. )
+  let to_sec t = to_span_since_epoch t |> Span.to_sec
 end
 
 module Lwt = struct

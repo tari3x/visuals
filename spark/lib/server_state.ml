@@ -13,6 +13,8 @@ type t =
   { sparks : Spark.t list
   ; global : Ctl.t Global.t option
   ; pixi : Pixi.t
+  ; mutable frames : int
+  ; mutable last_frame_report : Time_ns.t
   }
 
 let render t =
@@ -36,11 +38,24 @@ let render t =
   List.iter t.sparks ~f:Spark.render
 ;;
 
+let one_sec = Time_ns.Span.of_sec 1.
+
+let report_frame t =
+  t.frames <- t.frames + 1;
+  let now_ = Time_ns.now () in
+  if Time_ns.(add t.last_frame_report one_sec < now_)
+  then (
+    debug [%message (t.frames : int)];
+    t.frames <- 0;
+    t.last_frame_report <- now_)
+;;
+
 let rec render_loop t =
   Lwt_js_events.request_animation_frame ()
   (* Lwt_js.sleep 0.01 *)
   >>= fun () ->
   render t;
+  report_frame t;
   render_loop t
 ;;
 
@@ -65,7 +80,14 @@ let start (config : Config.t) sparks ~pixi =
        debug [%message (exn : Exn.t)];
        return None)
   >>= fun global ->
-  let t = { sparks; global; pixi } in
+  let t =
+    { sparks
+    ; global
+    ; pixi
+    ; frames = 0
+    ; last_frame_report = Time_ns.now ()
+    }
+  in
   render t;
   (* Make sure to pick up changes from [Index_load]. *)
   Option.iter global ~f:(Global.on_change ~f:(fun _ _ -> render t));
