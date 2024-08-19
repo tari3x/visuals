@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Core
@@ -76,9 +76,9 @@ let start (config : Config.t) sparks ~pixi =
       in
       return (Some global))
     (function
-     | exn ->
-       debug [%message (exn : Exn.t)];
-       return None)
+      | exn ->
+        debug [%message (exn : Exn.t)];
+        return None)
   >>= fun global ->
   let t =
     { sparks

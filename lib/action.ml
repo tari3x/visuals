@@ -10,20 +10,30 @@ open Geometry
 open Printf
 
 module Kind = struct
-  type t = [ `down | `up | `move ]
+  type t =
+    [ `down
+    | `up
+    | `move
+    ]
   [@@deriving compare]
 
   let to_string = function
     | `down -> "down"
-    | `up   -> "up"
+    | `up -> "up"
     | `move -> "move"
+  ;;
 
-  let equal =
-    [%compare.equal: t]
+  let equal = [%compare.equal: t]
 end
 
 module Button = struct
-  type t = [ `left | `right | `middle | `touch | `none ]
+  type t =
+    [ `left
+    | `right
+    | `middle
+    | `touch
+    | `none
+    ]
 
   let to_string = function
     | `left -> "left"
@@ -31,13 +41,13 @@ module Button = struct
     | `middle -> "middle"
     | `touch -> "touch"
     | `none -> "none"
+  ;;
 end
 
 module Pointer_id = struct
   include String
 
-  let create id =
-    Printf.sprintf "pointer%d" id
+  let create id = Printf.sprintf "pointer%d" id
 end
 
 module Pointer = struct
@@ -46,11 +56,8 @@ module Pointer = struct
     ; position : Vector.t
     }
 
-  let id t =
-    t.id
-
-  let to_string t =
-    Vector.to_string t.position
+  let id t = t.id
+  let to_string t = Vector.to_string t.position
 end
 
 type t =
@@ -60,14 +67,17 @@ type t =
   }
 
 let to_string { kind; changed_touches; button = _ } =
-  sprintf "{ kind = %s; changed_touches = (%s)}"
+  sprintf
+    "{ kind = %s; changed_touches = (%s)}"
     (Kind.to_string kind)
-    (String.concat ~sep:" " (List.map changed_touches ~f:Pointer.to_string))
+    (String.concat
+       ~sep:" "
+       (List.map changed_touches ~f:Pointer.to_string))
+;;
 
 let coords t =
   let p = List.hd_exn t.changed_touches in
   p.position
+;;
 
-let click t =
-  Option.some_if (Kind.equal t.kind `down) (coords t)
-
+let click t = Option.some_if (Kind.equal t.kind `down) (coords t)

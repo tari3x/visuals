@@ -80,7 +80,9 @@ let main (config : Config.t) =
     return ()
     *)
   else (
+    debug [%message "getting corners"];
     let%bind real_corners = get_corners config pixi in
+    debug [%message "got corners"];
     let sparks =
       List.map config.sparks ~f:(fun config ->
         Spark.create ~config ~pixi ~sound ?real_corners ())

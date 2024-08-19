@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 (* CR-someday: there's also two.js. *)
@@ -46,7 +46,7 @@ module Color : sig
 end
 
 (* CR-someday avatar: we really want to construct it from [Geometry.Matrix]
-  which is not defined here.  *)
+   which is not defined here. *)
 module Matrix : sig
   include module type of Matrix
 
@@ -76,9 +76,9 @@ module Graphics : sig
     -> ?alpha:
          float
          (*
-    -> ?alignment:float
-    -> ?native:bool Js.t
-    *)
+            -> ?alignment:float
+            -> ?native:bool Js.t
+         *)
     -> unit
     -> unit
 end

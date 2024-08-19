@@ -11,8 +11,8 @@ let skin =
   { C.Skin.default with
     base_color = Color.white
   ; bot_active = true
-  ; color_flow = Fade_to_base
-  ; on_sound = Some (Beat (Burst { drops_at_once = 3 }))
+  ; color_flow = Fade_to_none
+  ; on_sound = Some (Beat (Burst { drops_at_once = 1 }))
   ; num_silent_rains = 0
   ; rain = { C.Rain.default with keep_raining_probability = 0.95 }
   ; segment_life_span = Time.Span.of_sec 3.

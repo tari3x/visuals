@@ -42,7 +42,7 @@ module Path_seg = struct
 
   type t = js Js.t
 
-  let of_path_seg (seg : Dom_svg.pathSeg Js.t) : t = Caml.Obj.magic seg
+  let of_path_seg (seg : Dom_svg.pathSeg Js.t) : t = Stdlib.Obj.magic seg
   let vector (t : t) = Vector.create_float t##.x t##.y
 end
 

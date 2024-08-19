@@ -71,7 +71,6 @@ module Matrix4 = struct
         -> unit meth
 
       method elements : float js_array Js.t readonly_prop
-
       method identity : unit meth
     end
 
@@ -127,7 +126,6 @@ module Texture = struct
   class type js =
     object
       method texture_witness : witness
-
       method minFilter : MinFilter.t Js.t prop
     end
 
@@ -179,7 +177,7 @@ module Face3 = struct
   type t = js Js.t
 
   let constr
-      : (int -> int -> int -> Vector3.t -> Color.t -> int -> t) constr
+    : (int -> int -> int -> Vector3.t -> Color.t -> int -> t) constr
     =
     Js.Unsafe.global ##. THREE ##. Face3
   ;;
@@ -195,18 +193,13 @@ module Geometry = struct
   class type js =
     object
       method geometry_witness : witness
-
       method faces : Face3.t js_array Js.t prop
 
       (* if you change faces, set these to true. *)
       method elementsNeedUpdate : bool Js.t prop
-
       method colorsNeedUpdate : bool Js.t prop
-
       method normalsNeedUpdate : bool Js.t prop
-
       method vertices : Vector3.t js_array Js.t prop
-
       method verticesNeedUpdate : bool Js.t prop
 
       method faceVertexUvs :
@@ -236,9 +229,7 @@ module Material = struct
   class type js =
     object
       method material_witness : witness
-
       method side : Side.t Js.t prop
-
       method transparent : bool Js.t prop
     end
 
@@ -254,9 +245,7 @@ module MeshBasicMaterial = struct
   class type js =
     object
       inherit Material.js
-
       method mesh_basic_material_witness : witness
-
       method wireframe : bool Js.t prop
     end
 
@@ -266,7 +255,6 @@ module MeshBasicMaterial = struct
     class type js =
       object
         method color : Color.t optdef_prop
-
         method map : Texture.t optdef_prop
       end
 
@@ -274,7 +262,7 @@ module MeshBasicMaterial = struct
 
     let create ?color ?map () =
       (* CR-someday: Js.Unsafe.coerce *)
-      let t : t = Caml.Obj.magic (object%js end) in
+      let t : t = Stdlib.Obj.magic (object%js end) in
       Option.iter color ~f:(fun color -> t##.color := color);
       Option.iter map ~f:(fun map -> t##.map := map);
       t
@@ -294,14 +282,11 @@ module Object3D = struct
   class type js =
     object
       method object3d_witness : witness
-
       method matrix : Matrix4.t prop
-
       method matrixAutoUpdate : bool Js.t prop
 
       (* This only takes the position, rotation, and scale of the matrix. *)
       method applyMatrix : Matrix4.t -> unit meth
-
       method add : js Js.t -> unit meth
     end
 
@@ -317,7 +302,6 @@ module Mesh = struct
   class type js =
     object
       inherit Object3D.js
-
       method mesh_witness : witness
     end
 
@@ -336,7 +320,6 @@ module Camera = struct
   class type js =
     object
       inherit Object3D.js
-
       method camera_witness : witness
     end
 
@@ -352,14 +335,13 @@ module OrthographicCamera = struct
   class type js =
     object
       inherit Camera.js
-
       method orthographic_camera_witness : witness
     end
 
   type t = js Js.t
 
   let constr
-      : (float -> float -> float -> float -> float -> float -> t) constr
+    : (float -> float -> float -> float -> float -> float -> t) constr
     =
     Js.Unsafe.global ##. THREE ##. OrthographicCamera
   ;;
@@ -375,7 +357,6 @@ module Scene = struct
   class type js =
     object
       inherit Object3D.js
-
       method scene_witness : witness
     end
 
@@ -396,9 +377,7 @@ module WebGLRenderer = struct
         width:float -> height:float -> updateStyle:bool Js.t -> unit meth
 
       method setClearColor : Color.t -> unit meth
-
       method domElement : Html.canvasElement Js.t readonly_prop
-
       method render : Scene.t -> Camera.t -> unit meth
     end
 

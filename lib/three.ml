@@ -90,18 +90,17 @@ module Face = struct
   class type js =
     object
       inherit T.Face3.js
-
       method uvs : T.Vector2.t js_array Js.t prop
     end
 
   type t = js Js.t
 
   let create
-      ?(color = T.Color.create 1. 1. 1.)
-      ?((* CR-someday: just call [computeFaceNormals] *)
+    ?(color = T.Color.create 1. 1. 1.)
+    ?((* CR-someday: just call [computeFaceNormals] *)
       normal = Vector3.create 1. 1. 1.)
-      ~uvs:(uv1, uv2, uv3)
-      (i1, i2, i3)
+    ~uvs:(uv1, uv2, uv3)
+    (i1, i2, i3)
     =
     let uvs =
       [| uv1; uv2; uv3 |] |> Array.map ~f:Vector2.of_vector |> Js.array
@@ -111,7 +110,7 @@ module Face = struct
        class in an inheritable way. *)
     let (t : t) =
       T.Face3.create i1 i2 i3 ~normal color ~material_index:0
-      |> Caml.Obj.magic
+      |> Stdlib.Obj.magic
     in
     t##.uvs := uvs;
     t

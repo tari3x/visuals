@@ -15,9 +15,14 @@ module Matrix = struct
   include Pixi_lib.Matrix
 
   let create m =
-    let t = create () in
     let get = Geometry.Matrix.get m in
+    let t = create () in
+    (*     t##set (get 0 0) (get 1 0) (get 0 1) (get 1 1) (get 0 2) (get 1 2); *)
     [| get 0 0; get 0 1; get 0 2; get 1 0; get 1 1; get 1 2 |]
+    (* [| get 0 0; get 1 0; get 0 2; get 0 1; get 1 1; get 1 2 |] *)
+    (* [| get 0 0; get 0 1; get 2 0; get 1 0; get 1 1; get 2 1 |] *)
+    (* [| get 0 0; get 1 0; get 0 1; get 1 1; get 0 2; get 1 2 |] *)
+    (* [| get 0 0; get 0 1; get 0 2; get 1 0; get 1 1; get 1 2 |] *)
     |> from_array t;
     t
   ;;

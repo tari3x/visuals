@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Core
@@ -13,6 +13,7 @@ module Elt : sig
 
   type t [@@deriving sexp]
 
+  val create : Shape.t -> line_width:float -> t
   val id : t -> Id.t
   val centre : t -> V.t
 
@@ -52,7 +53,14 @@ val grid_exn : pixi:Pixi.t -> rows:int -> cols:int -> t
 val hex_wire_exn : pixi:Pixi.t -> r1_mult:float -> t
 val hex_tile_exn : pixi:Pixi.t -> r1_mult:float -> t
 val hex_bone_exn : pixi:Pixi.t -> r1_mult:float -> t
+val quad_wire_exn : pixi:Pixi.t -> r1_mult:float -> t
+val quad_tile_exn : pixi:Pixi.t -> r1_mult:float -> t
+val quad_bone_exn : pixi:Pixi.t -> r1_mult:float -> t
+val diamond_wire_exn : pixi:Pixi.t -> r1_mult:float -> t
+val diamond_tile_exn : pixi:Pixi.t -> r1_mult:float -> t
+val diamond_bone_exn : pixi:Pixi.t -> r1_mult:float -> t
 val set_transform : t -> Matrix.t -> unit
 
-(* CR avatar: short this crazy out *)
+(* CR avatar: short this crazy out. We don't fix [quad] here. *)
 val update : t -> t -> t
+val find_rect : t -> Rectangle.t -> Elt.t list

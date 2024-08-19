@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Core
@@ -78,7 +78,17 @@ let start_transform_loop t =
   let rec loop () =
     let%bind () = Lwt_js_events.request_animation_frame () in
     match t.config with
-    | Free _ | Grid _ | Hex_tile _ | Hex_wire _ | Hex_bone _ -> loop ()
+    | Free _
+    | Grid _
+    | Hex_tile _
+    | Hex_wire _
+    | Hex_bone _
+    | Quad_tile _
+    | Quad_wire _
+    | Quad_bone _
+    | Diamond_tile _
+    | Diamond_wire _
+    | Diamond_bone _ -> loop ()
     | Star { skin = _; shapes = _; speed; line_width = _ } ->
       let now_ = Time.now () in
       let d = Time.(diff now_ t.last_transform_time) |> Time.Span.to_sec in
@@ -86,24 +96,24 @@ let start_transform_loop t =
       let make_speed = Memo.unit (fun () -> make_speed speed) in
       Shapes.elts t.shapes
       |> Map.iteri ~f:(fun ~key ~data:shape ->
-           let open Float in
-           let speed =
-             Hashtbl.find_or_add t.speeds key ~default:(fun () ->
-               make_speed () ())
-           in
-           let d = d * speed in
-           let angle =
-             match Hashtbl.find t.angles key with
-             | None -> t.last_angle
-             | Some angle -> Angle.(angle + of_degrees d)
-           in
-           t.last_angle <- angle;
-           Hashtbl.set t.angles ~key ~data:angle;
-           let m =
-             let open Matrix in
-             translate center * rotate angle
-           in
-           Shape.set_transform shape m);
+        let open Float in
+        let speed =
+          Hashtbl.find_or_add t.speeds key ~default:(fun () ->
+            make_speed () ())
+        in
+        let d = d * speed in
+        let angle =
+          match Hashtbl.find t.angles key with
+          | None -> t.last_angle
+          | Some angle -> Angle.(angle + of_degrees d)
+        in
+        t.last_angle <- angle;
+        Hashtbl.set t.angles ~key ~data:angle;
+        let m =
+          let open Matrix in
+          translate center * rotate angle
+        in
+        Shape.set_transform shape m);
       loop ()
   in
   Lwt.async loop
@@ -115,6 +125,15 @@ let shapes (config : Config.t) ~pixi =
   | Hex_tile { skin = _; r1_mult } -> Shapes.hex_tile_exn ~pixi ~r1_mult
   | Hex_wire { skin = _; r1_mult } -> Shapes.hex_wire_exn ~pixi ~r1_mult
   | Hex_bone { skin = _; r1_mult } -> Shapes.hex_bone_exn ~pixi ~r1_mult
+  | Quad_tile { skin = _; r1_mult } -> Shapes.quad_tile_exn ~pixi ~r1_mult
+  | Quad_wire { skin = _; r1_mult } -> Shapes.quad_wire_exn ~pixi ~r1_mult
+  | Quad_bone { skin = _; r1_mult } -> Shapes.quad_bone_exn ~pixi ~r1_mult
+  | Diamond_tile { skin = _; r1_mult } ->
+    Shapes.diamond_tile_exn ~pixi ~r1_mult
+  | Diamond_wire { skin = _; r1_mult } ->
+    Shapes.diamond_wire_exn ~pixi ~r1_mult
+  | Diamond_bone { skin = _; r1_mult } ->
+    Shapes.diamond_bone_exn ~pixi ~r1_mult
   | Free { skin = _; shapes } -> shapes
   | Star { skin = _; shapes; speed = _; line_width } ->
     Shapes.create_with_pixi ~pixi ~step:100. shapes ~line_width
@@ -149,7 +168,7 @@ let create ~(config : Config.t) ~pixi ~sound ?real_corners () =
 ;;
 
 (* This used to try and find the distance to the actual line rather than to
-     the centre. Not sure what the point was, try the new method out. *)
+   the centre. Not sure what the point was, try the new method out. *)
 let distance_to_point shape ~point =
   let open Vector in
   length (Shape.centre shape - point)
@@ -165,9 +184,9 @@ let ctl t (box : Ctl.t Box.t) =
       Shapes.elts t.shapes
       |> Map.data
       |> List.min_elt ~compare:(fun s1 s2 ->
-           Float.compare
-             (distance_to_point ~point s1)
-             (distance_to_point ~point s2)))
+        Float.compare
+          (distance_to_point ~point s1)
+          (distance_to_point ~point s2)))
     |> List.dedup_and_sort ~compare:Poly.compare
     |> List.iter ~f:(fun elt -> Skin.human_touch t.skin elt color)
   | Rain_control ->
@@ -181,7 +200,7 @@ let ctl t (box : Ctl.t Box.t) =
        let skin_config = Config.skin t.config in
        skin_config.bot_active <- x / w > 0.5;
        skin_config.rain.keep_raining_probability
-         <- max_keep_raining_probability * (y / h))
+       <- max_keep_raining_probability * (y / h))
   | Set_config config ->
     t.config <- config;
     let shapes = shapes config ~pixi:t.pixi in

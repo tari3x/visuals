@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -10,7 +10,7 @@ open Std_internal
 module Shape = Spark_lib.Shapes.Elt
 
 type t =
-  { ctx : Ctx.t
+  { pixi : Pixi.t
   ; perspective : Matrix.t
   ; shape : Shape.t
   ; frames : int ref
@@ -26,13 +26,13 @@ let rec fps_loop t =
   fps_loop t
 ;;
 
-let render_loop { perspective; ctx; shape; frames } =
+let render_loop { perspective; pixi; shape; frames } =
   let rec loop () =
     (* This makes it visibly slow: *)
     (* let%bind () = Lwt_js_events.request_animation_frame () in *)
     let%bind () = Lwt_js.sleep 0.01 in
     for _ = 1 to 5 do
-      Shape.render shape ~perspective ~ctx ~color
+      Shape.render shape ~perspective ~pixi ~color
     done;
     Int.incr frames;
     loop ()
@@ -41,15 +41,22 @@ let render_loop { perspective; ctx; shape; frames } =
 ;;
 
 let main () =
-  let ctx = Ctx.create ~id:"main_canvas" in
+  let pixi = Pixi.init_exn () in
   let perspective = Matrix.ident in
   let shape =
     Rectangle.create_offset V.zero ~width:100. ~height:100.
     |> Rectangle.corner_list
-    |> Shape.polygon
-    |> Shape.shift ~by:(V.create_float 100. 100.)
+    |> Geometry.Shape.polygon
+    |> Shape.create ~line_width:10.
   in
-  let t = { ctx; shape; perspective; frames = ref 0 } in
+  let m =
+    let open Matrix in
+    rotate (Angle.of_degrees 45.)
+    *> scale ~scale_x:1. ~scale_y:0.1
+    *> translate (Vector.create 500 500)
+  in
+  Shape.set_transform shape m;
+  let t = { pixi; shape; perspective; frames = ref 0 } in
   Lwt.async (fun () -> render_loop t);
   Lwt.async (fun () -> fps_loop t);
   Lwt.return ()

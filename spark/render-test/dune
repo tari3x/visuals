@@ -1,7 +1,6 @@
 (executables
  (names index_server)
  (libraries base lwt js_of_ocaml js_of_ocaml-lwt visuals spark_lib)
- (js_of_ocaml
-  (flags +weak.js))
+ (js_of_ocaml)
  (preprocess
   (pps ppx_jane js_of_ocaml-ppx)))

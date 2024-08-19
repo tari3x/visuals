@@ -44,14 +44,12 @@ module E = struct
   module Id = Shape.Id
 
   type t =
-    { mutable config : Config.t
-    ; shape : Shape.t
+    { shape : Shape.t
     ; mutable color_flow : Color_flow.t option
     ; mutable base_color : Color.t
     }
   [@@deriving fields]
 
-  let id t = Shape.id t.shape
   let a c alpha = Color.set_alpha c ~alpha
   let current_color t = Option.map t.color_flow ~f:CF.eval
 
@@ -125,15 +123,15 @@ module E = struct
          ~color:(a new_base config.flash_cutoff)
   ;;
 
-  let touch t ~color ~flash =
+  let touch t ~(config : Config.t) ~color ~flash =
     (* CR-someday: if we are faded out, why interpolate? *)
     let base_color, color =
-      match t.config.color_flow with
+      match config.color_flow with
       | Fade_to_none ->
         let base_color =
           Color.interpolate [ t.base_color; color ] ~arg:0.5
         in
-        let color = fade_to_black ~config:t.config ~base_color ~flash in
+        let color = fade_to_black ~config ~base_color ~flash in
         base_color, color
       | Fade_to_none_smooth ->
         let base_color =
@@ -144,7 +142,7 @@ module E = struct
         in
         let color =
           fade_to_black_smooth
-            ~config:t.config
+            ~config
             ~start_color
             ~end_color:base_color
             ~flash
@@ -154,15 +152,15 @@ module E = struct
         let new_base =
           Color.interpolate
             [ t.base_color; color ]
-            ~arg:t.config.rain.fade_to_base_interpolation_arg
+            ~arg:config.rain.fade_to_base_interpolation_arg
         in
         let flash_color =
           (* t.base_color *)
           Color.interpolate
             [ t.base_color; color ]
-            ~arg:t.config.flash_color_weight
+            ~arg:config.flash_color_weight
         in
-        let color = fade_to_base ~config:t.config ~flash_color ~new_base in
+        let color = fade_to_base ~config ~flash_color ~new_base in
         new_base, color
     in
     t.base_color <- base_color;
@@ -171,16 +169,9 @@ module E = struct
 
   let create shape ~(config : Config.t) =
     let base_color = config.base_color in
-    let t = { base_color; shape; config; color_flow = None } in
-    touch t ~color:base_color ~flash:false;
+    let t = { base_color; shape; color_flow = None } in
+    touch t ~config ~color:base_color ~flash:false;
     t
-  ;;
-
-  let centre t = Shape.centre t.shape
-
-  let offset t1 t2 =
-    let open Vector in
-    centre t1 - centre t2
   ;;
 
   let render t ~perspective ~pixi =
@@ -193,8 +184,6 @@ module E = struct
       Shape.render t.shape ~perspective ~pixi ~color
   ;;
 end
-
-module Rain = Rain.Make (E)
 
 type t =
   { mutable config : (Config.t[@sexp.opaque])
@@ -262,14 +251,19 @@ let human_playing t =
 
 let rains t = Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
 
+let touch t shape ~color ~flash =
+  match Hashtbl.find t.elts (Shape.id shape) with
+  | None -> ()
+  | Some elt -> E.touch elt ~config:t.config ~color ~flash
+;;
+
 let new_rain t id =
-  let step = Shapes.step t.shapes in
   Rain.create_exn
     ~id
     ~config:t.config.rain
-    ~step
+    ~shapes:t.shapes
     ~other_rains:(rains t)
-    ~elts:(Hashtbl.data t.elts)
+    ~touch:(touch t)
 ;;
 
 let find_or_add_rain t which ~id =
@@ -407,7 +401,6 @@ let rec update_num_sources_loop t =
 
 let set_config t config =
   t.config <- config;
-  Hashtbl.iter t.elts ~f:(fun elt -> elt.config <- config);
   Option.iter t.listener ~f:(Sound.stop_listening t.sound);
   let listener =
     match config.on_sound with
@@ -486,9 +479,7 @@ let create ~config ~sound elts =
 
 let human_touch t shape color =
   t.last_human_touch <- Time.now ();
-  match Hashtbl.find t.elts (Shape.id shape) with
-  | None -> ()
-  | Some elt -> E.touch elt ~color ~flash:true
+  touch t shape ~color ~flash:true
 ;;
 
 let render t ~perspective ~pixi =

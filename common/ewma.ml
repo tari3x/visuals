@@ -37,7 +37,7 @@ let get_exn t = get t |> Option.value_exn
 
 let%expect_test _ =
   let t = create ~half_life:1. in
-  let print () = Caml.Printf.printf !"%{Sexp}" [%message (t : t)] in
+  let print () = Stdlib.Printf.printf !"%{Sexp}" [%message (t : t)] in
   let add param value =
     add t ~param ~value;
     print ()

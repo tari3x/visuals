@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 module Angle : sig
@@ -90,22 +90,33 @@ module Rectangle : sig
 
   val create_corners : V.t -> V.t -> t
   val create_offset : V.t -> width:float -> height:float -> t
+  val create_bounding : V.t list -> t
   val top_left : t -> V.t
   val width : t -> float
   val height : t -> float
   val corners : t -> V.t * V.t * V.t * V.t
+  val corner_list : t -> V.t list
+  val x1 : t -> float
+  val x2 : t -> float
+  val y1 : t -> float
+  val y2 : t -> float
 end
 
 module Shape : sig
-  type t =
-    | Segment of Vector.t * Vector.t
-    | Path of Vector.t list
-    | Polygon of Vector.t list (* not empty *)
-  [@@deriving sexp]
+  module Corners : sig
+    type t = private
+      | Segment of Vector.t * Vector.t
+      | Path of Vector.t list
+      | Polygon of Vector.t list (* not empty *)
+    [@@deriving sexp]
+  end
+
+  type t [@@deriving sexp]
 
   val segment : Vector.t -> Vector.t -> t
   val polygon : Vector.t list -> t
   val path : Vector.t list -> t
+  val corners : t -> Corners.t
   val centre : t -> Vector.t
   val transform : t -> Matrix.t -> t
 end

@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Js_of_ocaml
@@ -11,10 +11,9 @@ module Html = Dom_html
 module DisplayObject : sig
   type witness
 
-  class type js =
-    object
-      method display_object_witness : witness
-    end
+  class type js = object
+    method display_object_witness : witness
+  end
 
   type t = js Js.t
 end
@@ -22,12 +21,11 @@ end
 module Container : sig
   type witness
 
-  class type js =
-    object
-      inherit DisplayObject.js
-      method container_witness : witness
-      method addChild : DisplayObject.t -> unit meth
-    end
+  class type js = object
+    inherit DisplayObject.js
+    method container_witness : witness
+    method addChild : DisplayObject.t -> unit meth
+  end
 
   type t = js Js.t
 end
@@ -35,11 +33,10 @@ end
 module Renderer : sig
   type witness
 
-  class type js =
-    object
-      method renderer_witness : witness
-      method resize : int -> int -> unit meth
-    end
+  class type js = object
+    method renderer_witness : witness
+    method resize : int -> int -> unit meth
+  end
 
   type t = js Js.t
 end
@@ -47,14 +44,13 @@ end
 module Application : sig
   type witness
 
-  class type js =
-    object
-      method application_witness : witness
-      method view : Html.canvasElement Js.t readonly_prop
-      method stage : Container.t readonly_prop
-      method resize : Html.window Js.t -> unit meth
-      method renderer : Renderer.t readonly_prop
-    end
+  class type js = object
+    method application_witness : witness
+    method view : Html.canvasElement Js.t readonly_prop
+    method stage : Container.t readonly_prop
+    method resize : Html.window Js.t -> unit meth
+    method renderer : Renderer.t readonly_prop
+  end
 
   type t = js Js.t
 
@@ -71,11 +67,13 @@ end
 module Matrix : sig
   type witness
 
-  class type js =
-    object
-      method witness : witness
-      method fromArray : float js_array Js.t -> unit meth
-    end
+  class type js = object
+    method witness : witness
+    method fromArray : float js_array Js.t -> unit meth
+
+    method set :
+      float -> float -> float -> float -> float -> float -> unit meth
+  end
 
   type t = js Js.t
 
@@ -98,25 +96,24 @@ module Graphics : sig
       -> t
   end
 
-  class type js =
-    object
-      inherit Container.js
-      method graphics_witness : witness
-      method clear : unit meth
-      method width : float readonly_prop
-      method height : float readonly_prop
-      method drawCircle : x:float -> y:float -> radius:float -> unit meth
-      method beginFill : color:Color.t -> alpha:float -> unit meth
-      method endFill : unit meth
-      method moveTo : float -> float -> unit meth
-      method lineTo : float -> float -> unit meth
-      method closePath : unit meth
+  class type js = object
+    inherit Container.js
+    method graphics_witness : witness
+    method clear : unit meth
+    method width : float readonly_prop
+    method height : float readonly_prop
+    method drawCircle : x:float -> y:float -> radius:float -> unit meth
+    method beginFill : color:Color.t -> alpha:float -> unit meth
+    method endFill : unit meth
+    method moveTo : float -> float -> unit meth
+    method lineTo : float -> float -> unit meth
+    method closePath : unit meth
 
-      method lineStyle :
-        width:float -> color:Color.t -> alpha:float -> unit meth
+    method lineStyle :
+      width:float -> color:Color.t -> alpha:float -> unit meth
 
-      method setMatrix : Matrix.t -> unit meth
-    end
+    method setMatrix : Matrix.t -> unit meth
+  end
 
   type t = js Js.t
 

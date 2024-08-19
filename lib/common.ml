@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Core
@@ -56,9 +56,9 @@ let error = console_error
    gets caught all right.
 *)
 (*
-let () =
-  Lwt.async_exception_hook := fun exn ->
-    error "uncaught exn in aysnc: %s" (Printexc.to_string exn)
+   let () =
+   Lwt.async_exception_hook := fun exn ->
+   error "uncaught exn in aysnc: %s" (Printexc.to_string exn)
 *)
 
 let raise_s s =
@@ -231,8 +231,8 @@ module Fn = struct
 end
 
 module Time = struct
-  include Time
-  include Time.Stable.With_utc_sexp.V2
+  include Time_float
+  include Time_float.Stable.With_utc_sexp.V2
 
   module Span = struct
     include Span

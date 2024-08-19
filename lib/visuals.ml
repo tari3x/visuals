@@ -23,3 +23,4 @@ module Resonant_flow = Resonant_flow
 module Sound = Sound
 module Svg = Svg
 module Pixi = Pixi
+module Quadtree = Quadtree

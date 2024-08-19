@@ -1,10 +1,10 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
-open Core
+open Common
 
 (* CR-someday: self-adjusting resonant flow, want to be able to say "100
    flashes" per round.

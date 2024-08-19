@@ -21,7 +21,11 @@ module Quad = struct
   ;;
 
   let of_list_exn = function
-    | [ v1; v2; v3; v4 ] -> create v1 v2 v3 v4
+    | [ v1; v2; v3; v4 ] ->
+      debug
+        [%message
+          (v1 : Vector.t) (v2 : Vector.t) (v3 : Vector.t) (v4 : Vector.t)];
+      create v1 v2 v3 v4
     | _ -> failwith "Quad.of_list_exn"
   ;;
 

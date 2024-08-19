@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -166,6 +166,30 @@ module Spark = struct
         { skin : Skin.t
         ; r1_mult : float
         }
+    | Quad_wire of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Quad_tile of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Quad_bone of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Diamond_wire of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Diamond_tile of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
+    | Diamond_bone of
+        { skin : Skin.t
+        ; r1_mult : float
+        }
     | Star of
         { skin : Skin.t
         ; shapes : Shape.t list
@@ -180,6 +204,12 @@ module Spark = struct
     | Hex_tile { skin; _ }
     | Hex_wire { skin; _ }
     | Hex_bone { skin; _ }
+    | Quad_tile { skin; _ }
+    | Quad_wire { skin; _ }
+    | Quad_bone { skin; _ }
+    | Diamond_tile { skin; _ }
+    | Diamond_wire { skin; _ }
+    | Diamond_bone { skin; _ }
     | Star { skin; _ } -> skin
   ;;
 end

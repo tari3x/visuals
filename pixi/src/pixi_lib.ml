@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Js_of_ocaml
@@ -65,16 +65,16 @@ module Graphics = struct
     ?(color = Color.white)
     ?(alpha = 1.)
     (* ?alignment
-           ?native
-      *)
+       ?native
+    *)
       ()
     =
     (*
-    let params =
-    LineStyleParams.create ?width ?color ?alpha ?alignment ?native ()
-    in
-    t##lineStyle params
-  *)
+       let params =
+       LineStyleParams.create ?width ?color ?alpha ?alignment ?native ()
+       in
+       t##lineStyle params
+    *)
     t##lineStyle ~width ~color ~alpha
   ;;
 

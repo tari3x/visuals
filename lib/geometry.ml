@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -214,6 +214,21 @@ module Rectangle = struct
     create_corners v1 v2
   ;;
 
+  let create_bounding vs =
+    match vs with
+    | [] -> V.zero, V.zero
+    | vs ->
+      let xs = List.map vs ~f:V.x in
+      let ys = List.map vs ~f:V.y in
+      let compare = Float.compare in
+      let exn = Option.value_exn ~here:[%here] in
+      let min_x = List.min_elt xs ~compare |> exn in
+      let min_y = List.min_elt ys ~compare |> exn in
+      let max_x = List.max_elt xs ~compare |> exn in
+      let max_y = List.max_elt ys ~compare |> exn in
+      V.create_float min_x min_y, V.create_float max_x max_y
+  ;;
+
   let top_left = fst
   let width (v1, v2) = Float.(V.x v2 - V.x v1)
   let height (v1, v2) = Float.(V.y v2 - V.y v1)
@@ -224,32 +239,61 @@ module Rectangle = struct
     let v = V.create_float in
     v x_0 y_0, v x y_0, v x y, v x_0 y
   ;;
+
+  let corner_list t =
+    let v1, v2, v3, v4 = corners t in
+    [ v1; v2; v3; v4 ]
+  ;;
+
+  let x1 (v1, _) = V.x v1
+  let x2 (_, v2) = V.x v2
+  let y1 (v1, _) = V.y v1
+  let y2 (_, v2) = V.y v2
 end
 
 module Shape = struct
+  module Corners = struct
+    type t =
+      | Segment of Vector.t * Vector.t
+      | Path of Vector.t list
+      | Polygon of Vector.t list (* not empty *)
+    [@@deriving sexp, variants]
+
+    let map t ~f =
+      match t with
+      | Segment (v1, v2) -> Segment (f v1, f v2)
+      | Polygon vs -> Polygon (List.map vs ~f)
+      | Path vs -> Path (List.map vs ~f)
+    ;;
+
+    let centre t =
+      let open Vector in
+      match t with
+      | Segment (v1, v2) -> (v1 + v2) / 2.
+      | Polygon vs | Path vs ->
+        let n = List.length vs in
+        List.reduce_exn vs ~f:( + ) / float n
+    ;;
+
+    let transform t m = map t ~f:(Matrix.apply m)
+  end
+
   type t =
-    | Segment of Vector.t * Vector.t
-    | Path of Vector.t list
-    | Polygon of Vector.t list (* not empty *)
-  [@@deriving sexp, variants]
+    { corners : Corners.t
+    ; centre : Vector.t
+    }
+  [@@deriving sexp, fields]
 
-  let map t ~f =
-    match t with
-    | Segment (v1, v2) -> Segment (f v1, f v2)
-    | Polygon vs -> Polygon (List.map vs ~f)
-    | Path vs -> Path (List.map vs ~f)
+  let create corners =
+    let centre = Corners.centre corners in
+    { corners; centre }
   ;;
 
-  let segment v1 v2 = Segment (v1, v2)
+  let segment v1 v2 = Corners.segment v1 v2 |> create
+  let polygon vs = Corners.polygon vs |> create
+  let path vs = Corners.path vs |> create
 
-  let centre t =
-    let open Vector in
-    match t with
-    | Segment (v1, v2) -> (v1 + v2) / 2.
-    | Polygon vs | Path vs ->
-      let n = List.length vs in
-      List.reduce_exn vs ~f:( + ) / float n
+  let transform { corners; centre = _ } m =
+    Corners.transform corners m |> create
   ;;
-
-  let transform t m = map t ~f:(Matrix.apply m)
 end
