@@ -21,21 +21,16 @@ module Container : sig
   val add_child : t -> DisplayObject.t -> unit
 end
 
-module Renderer : sig
-  include module type of Renderer
-
-  val resize : t -> int -> int -> unit
-end
-
 module Application : sig
   include module type of Application
 
+  (* CR-someday avatar: why are create and init separate? *)
   val create : unit -> t
+  val init : t -> unit Promise.t
   val view : t -> Html.canvasElement Js.t
   val stage : t -> Container.t
-
-  (* CR-someday: can also be an element. Doesn't work for me right now. *)
-  val resize : t -> Html.window Js.t -> unit
+  val resize_to : t -> Html.window Js.t -> unit
+  val resize : t -> unit
   val renderer : t -> Renderer.t
 end
 
@@ -62,23 +57,28 @@ module Graphics : sig
   val width : t -> float
   val height : t -> float
   val draw_circle : t -> x:float -> y:float -> radius:float -> unit
-  val begin_fill : t -> color:Color.t -> ?alpha:float -> unit -> unit
-  val end_fill : t -> unit
+
+  val draw_rect
+    :  t
+    -> x:float
+    -> y:float
+    -> width:float
+    -> height:float
+    -> unit
+
+  val fill : t -> color:Color.t -> ?alpha:float -> unit -> unit
+
+  val stroke
+    :  t
+    -> color:Color.t
+    -> ?alpha:float
+    -> ?width:float
+    -> unit
+    -> unit
+
   val move_to : t -> float -> float -> unit
   val line_to : t -> float -> float -> unit
   val close_path : t -> unit
-  val set_matrix : t -> Matrix.t -> unit
-
-  val line_style
-    :  t
-    -> ?width:float
-    -> ?color:Color.t
-    -> ?alpha:
-         float
-         (*
-            -> ?alignment:float
-            -> ?native:bool Js.t
-         *)
-    -> unit
-    -> unit
+  val reset_transform : t -> unit
+  val transform : t -> Matrix.t -> unit
 end

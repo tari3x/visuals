@@ -8,58 +8,104 @@ open Std_internal
 module C = Spark_lib.Config
 open C
 
-let dark_orange = Color.dark_orange
-let dark_blue = Color.create ~r:30 ~g:0 ~b:255 ~a:1.
-let dark_green = Color.create ~r:30 ~g:255 ~b:30 ~a:1.
-let purple = Color.create ~r:255 ~g:20 ~b:100 ~a:1.
-let blueish = Color.create ~r:140 ~g:140 ~b:255 ~a:1.
-let almost_red = Color.create ~r:255 ~g:20 ~b:50 ~a:1.
-let gray = Color.create ~r:130 ~g:130 ~b:130 ~a:1.
-let () = ignore dark_orange
-let () = ignore dark_blue
-let () = ignore purple
-let () = ignore blueish
-let () = ignore almost_red
-let () = ignore gray
-let () = ignore dark_green
+include struct
+  include Color
+
+  let dark_orange = Color.dark_orange
+  let dark_blue = Color.create ~r:30 ~g:0 ~b:255 ~a:1.
+  let dark_green = Color.create ~r:30 ~g:255 ~b:30 ~a:1.
+  let purple = Color.create ~r:255 ~g:20 ~b:100 ~a:1.
+  let blueish = Color.create ~r:140 ~g:140 ~b:255 ~a:1.
+  let almost_red = Color.create ~r:255 ~g:20 ~b:50 ~a:1.
+  let dark_red = Color.create ~r:200 ~g:20 ~b:20 ~a:1.
+  let gray = Color.create ~r:130 ~g:130 ~b:130 ~a:1.
+  let () = ignore dark_orange
+  let () = ignore dark_blue
+  let () = ignore purple
+  let () = ignore blueish
+  let () = ignore almost_red
+  let () = ignore dark_red
+  let () = ignore gray
+  let () = ignore dark_green
+end
 
 (* CR-someday: the current config is wasteful when you just set things to zero.
    Problem is I can't remove tiles without restarting *)
 
-(* CR avatar: shape id collisions and global uniqueness *)
-(* CR avatar: you are setting canvas width in html? *)
-(* CR avatar: tile too agressive. Oh looks like Burst {drops_at_once} is just
+(* CR-someday avatar: shape id collisions and global uniqueness *)
+(* CR-someday avatar: you are setting canvas width in html? *)
+(* CR-someday avatar: tile too agressive. Oh looks like Burst {drops_at_once} is just
    fucked, a single drop works fine. *)
-(* CR avatar: max bpm for tile *)
-(* CR avatar: the misalignment between the hexagons is what is ugly in bone. *)
-(* CR avatar: some bug in wire, too many colours, too many silent rains? *)
-(* CR avatar: play with perspective? *)
-(* CR avatar: must antialias when rotating *)
-(* CR avatar: allow shapes to be empty *)
-(* CR avatar: intersection with empty should not show! *)
-(* CR avatar: why does rotating hex not work? *)
-(* CR avatar: per-screen control *)
-(* CR avatar: line width doesn't update dynamically *)
-(* CR avatar: be able to duplicate the screen? *)
-(* CR avatar: goes white when reloading *)
-(* CR avatar: more efficiency, smaller hexes *)
-(* CR avatar: other star shapes *)
-(* CR avatar: make em stars fill the screen *)
-(* CR avatar: make hex fill the screen more *)
-(* CR avatar: reloading one window affects all, do I not have enough CPU? *)
-(* CR avatar: burst does seem better than drop for tile *)
-(* CR avatar: have some sort of health indicator *)
-(* CR avatar: upgrade jquery, they say some vulnerability *)
-(* CR avatar: max size wire does crazy shit *)
-(* CR avatar: window hangs after a little bit. Was it because of
+(* CR-someday avatar: max bpm for tile *)
+(* CR-someday avatar: the misalignment between the hexagons is what is ugly in bone. *)
+(* CR-someday avatar: some bug in wire, too many colours, too many silent rains? *)
+(* CR-someday avatar: play with perspective? *)
+(* CR-someday avatar: must antialias when rotating *)
+(* CR-someday avatar: allow shapes to be empty *)
+(* CR-someday avatar: intersection with empty should not show! *)
+(* CR-someday avatar: why does rotating hex not work? *)
+(* CR-someday avatar: per-screen control *)
+(* CR-someday avatar: line width doesn't update dynamically *)
+(* CR-someday avatar: be able to duplicate the screen? *)
+(* CR-someday avatar: goes white when reloading *)
+(* CR-someday avatar: more efficiency, smaller hexes *)
+(* CR-someday avatar: other star shapes *)
+(* CR-someday avatar: make em stars fill the screen *)
+(* CR-someday avatar: make hex fill the screen more *)
+(* CR-someday avatar: reloading one window affects all, do I not have enough CPU? *)
+(* CR-someday avatar: burst does seem better than drop for tile *)
+(* CR-someday avatar: have some sort of health indicator *)
+(* CR-someday avatar: upgrade jquery, they say some vulnerability *)
+(* CR-someday avatar: max size wire does crazy shit *)
+(* CR-someday avatar: window hangs after a little bit. Was it because of
    [Fade_to_base]? *)
-(* CR avatar: - the middle hex is not evne in any way aligned with the shape
+(* CR-someday avatar: - the middle hex is not evne in any way aligned with the shape
    hex *)
-(* CR avatar: fractional tile intensity *)
-(* CR avatar: the small square pattern was literally not changing *)
-(* CR avatar: antialiasing *)
-(* CR avatar: make colours non-optonal *)
-(* CR avatar: diamond bone is borken *)
+(* CR-someday avatar: the small square pattern was literally not changing *)
+(* CR-someday avatar: antialiasing *)
+(* CR-someday avatar: make colours non-optonal *)
+(* CR-someday avatar: things that are off never get deleted? *)
+(* CR-someday avatar: the way I send colours to pixi is via string, really
+   inefficient *)
+(* CR-someday avatar: the screen should not be black for too long *)
+(* CR-someday avatar: reloading causes many "ctl" updates in the log  *)
+(* CR-someday avatar: the edge is only half wide. Use left margin? *)
+(* CR-someday avatar: randomly flip between a finite set of speeds for all
+   elements of a star, it creates a cool jumping around effect. *)
+(* CR-someday avatar: play with alignments *)
+(* CR avatar: star is fucked
+
+   Remove [updateLocalTransform], is not used.
+
+   https://github.com/pixijs/pixijs/issues/11444
+*)
+(* CR avatar: star bone needs fractional intensity *)
+(* CR-someday avatar: fractional tile intensity *)
+(* CR-someday avatar: still black lines.
+
+   This is just hexes overlapping, but you could have a z-ordering where newer
+   ones fully cover the old ones.
+*)
+(* CR avatar: it's too black for too long when music changes *)
+(* CR avatar: some garbage collection is happening *)
+(* CR avatar: individual hex control *)
+(* CR avatar: permute maybe ex expensive? *)
+(* CR avatar: it does freeze and jump occasionally *)
+(* CR avatar: I'm no longer doing 60 frames? *)
+(* CR avatar: big jump when reloading config *)
+(* CR avatar: load_config seems to cause a page reload - sizes get
+   reconfigured. *)
+(* CR avatar: I need a better system for managing what is off. *)
+(* CR avatar: there's a lot more frames per second when you're full width.  I
+   guess it's just number of elements?
+*)
+(* CR-someday avatar: pixi js function allocates the most and shows up as
+   useDeprecated.js,
+   https://github.com/pixijs/pixijs/discussions/11746
+*)
+(* CR avatar:
+   PixiJS Deprecation Warning: Application.view is deprecated, please use Application.canvas instead.Deprecated since v8.0.0
+*)
 
 let zoom = 1.
 let new_strand_probability = 0.05
@@ -99,14 +145,7 @@ let star_wire_shapes ~r1_mult =
     ]
   in
   ignore condensed;
-  let middle ~mult =
-    [ square (70. * mult)
-    ; hex (70. * mult)
-    ; hex (70. * mult)
-    ; hex (70. * mult)
-    ; square (70. * mult)
-    ]
-  in
+  let middle ~mult = [ square (70. * mult); hex (70. * mult) ] in
   let middle1 = middle ~mult:(3. * r1_mult) in
   let middle2 = middle ~mult:(3.8 * r1_mult) in
   let middle3 = middle ~mult:(6. * r1_mult) in
@@ -146,7 +185,7 @@ let star_wire_shapes ~r1_mult =
   in
   ignore circles;
   ignore middle;
-  circles ~mult:1. @ circles ~mult:3. @ circles ~mult:7.
+  [ square 70. ]
 ;;
 
 let star_bone_shapes ~r1_mult =
@@ -216,19 +255,7 @@ let star_bone_shapes ~r1_mult =
   in
   ignore circles;
   ignore middle;
-  middle ~mult:(r1_mult * 1.)
-  @ middle ~mult:(r1_mult * 2.)
-  @ middle ~mult:(r1_mult * 3.)
-  @ middle ~mult:(r1_mult * 4.)
-  @ middle ~mult:(r1_mult * 6.)
-  @ middle ~mult:(r1_mult * 8.)
-  @ middle ~mult:(r1_mult * 10.)
-  @ middle ~mult:(r1_mult * 2.)
-  @ middle ~mult:(r1_mult * 3.)
-  @ middle ~mult:(r1_mult * 4.)
-  @ middle ~mult:(r1_mult * 6.)
-  @ middle ~mult:(r1_mult * 8.)
-  @ middle ~mult:(r1_mult * 10.)
+  [ square 70. ]
 ;;
 
 module Layer = struct
@@ -284,7 +311,7 @@ let hex_wire ?color ~flash_mult ~intensity () =
   let color : Config.Rain.Color.t =
     match color with
     | Some color -> color
-    | None -> Choose [ Color.white ]
+    | None -> Choose [ Color.none ]
   in
   (* This one doesn't matter, right, cause it's rain? *)
   let rain =
@@ -299,15 +326,13 @@ let hex_wire ?color ~flash_mult ~intensity () =
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 7.)
+    ; segment_life_span = Time.Span.(of_sec 10.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.35 * flash_mult
-    ; flash_duration = 0.5
+    ; flash_cutoff = 0.2 * flash_mult
+    ; flash_duration = 0.4
     ; color_flow = Fade_to_none_smooth
     ; on_sound = Some (Wave { max_drops_per_second = intensity * 100. })
     ; max_sound_sources = 2
-    ; base_color = Color.none
-    ; num_silent_rains = 2
     }
   in
   Hex_wire skin
@@ -318,7 +343,7 @@ let diamond_wire ?color ~flash_mult ~intensity () =
   let color : Config.Rain.Color.t =
     match color with
     | Some color -> color
-    | None -> Choose [ Color.white ]
+    | None -> Choose [ Color.none ]
   in
   (* This one doesn't matter, right, cause it's rain? *)
   let rain =
@@ -333,15 +358,13 @@ let diamond_wire ?color ~flash_mult ~intensity () =
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 5.)
+    ; segment_life_span = Time.Span.(of_sec 10.)
     ; flash_top = 1. * flash_mult
     ; flash_cutoff = 0.35 * flash_mult
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none_smooth
     ; on_sound = Some (Wave { max_drops_per_second = intensity * 100. })
     ; max_sound_sources = 2
-    ; base_color = Color.none
-    ; num_silent_rains = 2
     }
   in
   Diamond_wire skin
@@ -352,12 +375,12 @@ let quad_wire ?color ~flash_mult ~intensity () =
   let color : Config.Rain.Color.t =
     match color with
     | Some color -> color
-    | None -> Choose [ Color.white ]
+    | None -> Choose [ Color.none ]
   in
   (* This one doesn't matter, right, cause it's rain? *)
   let rain =
     { rain with
-      keep_raining_probability = 0.9 (* 0.6 *)
+      keep_raining_probability = 0.8 (* 0.6 *)
     ; rain_dropoff = 1.
     ; new_strand_probability
     ; flash_probability = 0.4
@@ -367,15 +390,13 @@ let quad_wire ?color ~flash_mult ~intensity () =
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 20.)
+    ; segment_life_span = Time.Span.(of_sec 10.)
     ; flash_top = 1. * flash_mult
     ; flash_cutoff = 0.35 * flash_mult
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none_smooth
     ; on_sound = Some (Wave { max_drops_per_second = intensity * 100. })
     ; max_sound_sources = 2
-    ; base_color = Color.none
-    ; num_silent_rains = 2
     }
   in
   Quad_wire skin
@@ -386,12 +407,16 @@ let hex_tile ?color ~flash_mult ~intensity () =
   let color : Config.Rain.Color.t =
     match color with
     | Some color -> color
-    | None -> Choose [ Color.white ]
+    | None -> Choose [ Color.none ]
   in
   let rain =
     { rain with
       new_strand_probability
-    ; keep_raining_probability = 0.3
+    ; keep_raining_probability =
+        0.9
+        (* ; rain_dropoff = 1.
+        *)
+    ; wind_dropoff = 1.
     ; color
     }
   in
@@ -404,7 +429,6 @@ let hex_tile ?color ~flash_mult ~intensity () =
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
@@ -416,12 +440,12 @@ let diamond_tile ?color ~flash_mult ~intensity () =
   let color : Config.Rain.Color.t =
     match color with
     | Some color -> color
-    | None -> Choose [ Color.white ]
+    | None -> Choose [ Color.none ]
   in
   let rain =
     { rain with
       new_strand_probability
-    ; keep_raining_probability = 0.5
+    ; keep_raining_probability = 0.9
     ; color
     }
   in
@@ -434,20 +458,19 @@ let diamond_tile ?color ~flash_mult ~intensity () =
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
   Diamond_tile skin
 ;;
 
-let quad_tile ~flash_mult ~intensity =
+let quad_tile ~color ~flash_mult ~intensity () =
   let open Float in
   let rain =
     { rain with
       new_strand_probability
-    ; keep_raining_probability = 0.95
-    ; color = Choose [ Color.white ]
+    ; keep_raining_probability = 0.9
+    ; color
     }
   in
   let skin =
@@ -459,26 +482,22 @@ let quad_tile ~flash_mult ~intensity =
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
-    ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
+    ; on_sound =
+        Some (Beat (Burst { drops_at_once = Float.to_int intensity }))
     }
   in
   Quad_tile skin
 ;;
 
-let hex_bone
-  ?(color = Config.Rain.Color.Choose [ Color.white ])
-  ~flash_mult
-  ~intensity
-  ()
-  =
+let hex_bone ~flash_mult ~intensity ~color () =
   let open Float in
   let rain =
     { rain with
       new_strand_probability = 0.1
     ; keep_raining_probability = 0.9
-    ; wind_dropoff = 2.
-    ; rain_dropoff = 1.5
+    ; wind_dropoff = 1.
+    ; rain_dropoff = 2.
+    ; flash_probability = 1.
     ; flash_first = false
     ; color
     }
@@ -487,71 +506,70 @@ let hex_bone
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 7.)
+    ; segment_life_span = Time.Span.(of_sec 3.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.2 * flash_mult
-    ; flash_duration = 0.3
+    ; flash_cutoff = 0.4 * flash_mult
+    ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
   Hex_bone skin
 ;;
 
-let diamond_bone ~flash_mult ~intensity =
+let diamond_bone ~color ~flash_mult ~intensity () =
   let open Float in
   let rain =
     { rain with
       new_strand_probability = 0.1
     ; keep_raining_probability = 0.9
-    ; wind_dropoff = 2.
-    ; rain_dropoff = 1.5
+    ; wind_dropoff = 1.7
+    ; rain_dropoff = 2.
+    ; flash_probability = 1.
     ; flash_first = false
-    ; color = Choose [ dark_blue; purple; dark_orange ]
+    ; color
     }
   in
   (* CR-someday: Fade_to_none seems more efficient than Fade_to_none_smooth? *)
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 7.)
+    ; segment_life_span = Time.Span.(of_sec 3.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.35 * flash_mult
+    ; flash_cutoff = 0.4 * flash_mult
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
   Diamond_bone skin
 ;;
 
-let quad_bone ~flash_mult ~intensity =
+let quad_bone ~color ~flash_mult ~intensity () =
   let open Float in
   let rain =
     { rain with
       new_strand_probability = 0.1
     ; keep_raining_probability = 0.9
-    ; wind_dropoff = 2.
-    ; rain_dropoff = 1.5
+    ; wind_dropoff = 1.
+    ; rain_dropoff = 2.
+    ; flash_probability = 1.
     ; flash_first = false
-    ; color = Choose [ dark_blue ]
+    ; color
     }
   in
   (* CR-someday: Fade_to_none seems more efficient than Fade_to_none_smooth? *)
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 7.)
+    ; segment_life_span = Time.Span.(of_sec 3.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.35 * flash_mult
+    ; flash_cutoff = 0.4 * flash_mult
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
@@ -560,11 +578,6 @@ let quad_bone ~flash_mult ~intensity =
 
 let star_wire ~flash_mult ~intensity ~shapes ~color =
   let open Float in
-  let choose : Config.Rain.Color.t =
-    (* Color.create ~r:255 ~g:50 ~b:80 ~a:1.; *)
-    Choose [ Color.white ]
-  in
-  ignore choose;
   let rain =
     { rain with
       keep_raining_probability = 0.9 (* 0.6 *)
@@ -584,8 +597,6 @@ let star_wire ~flash_mult ~intensity ~shapes ~color =
     ; color_flow = Fade_to_none_smooth
     ; on_sound = Some (Wave { max_drops_per_second = intensity })
     ; max_sound_sources = 2
-    ; base_color = Color.none
-    ; num_silent_rains = 2
     }
   in
   Star { skin; shapes }
@@ -609,29 +620,31 @@ let star_bone ~flash_mult ~intensity ~shapes ~color =
       rain
     ; segment_life_span = Time.Span.(of_sec 7.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.35 * flash_mult
+    ; flash_cutoff = 0.15 * flash_mult
     ; flash_duration = 0.5
     ; color_flow = Fade_to_none
     ; max_sound_sources = 2
-    ; base_color = Color.none
     ; on_sound = Some (Beat (Drop intensity))
     }
   in
   Star { skin; shapes }
 ;;
 
-let off = Layer.map_skin ~f:(fun skin -> { skin with on_sound = None })
+let off =
+  Layer.map_skin ~f:(fun skin ->
+    { skin with on_sound = None; max_sound_sources = 0 })
+;;
 
 let config : C.t =
   let open Float in
   let _list_speed : Config.Spark.Speed.t = List [ 2.; 2.; 1. ] in
   let slow_speed : Config.Spark.Speed.t = Range { min = -5.; max = 5. } in
   let fast_speed : Config.Spark.Speed.t = Range { min = -5.; max = 6. } in
-  let size1 = Layer.spark ~r1_mult:(zoom / 15.) ~speed:slow_speed in
+  let size1 = Layer.spark ~r1_mult:(zoom / 18.) ~speed:slow_speed in
   let size2 = Layer.spark ~r1_mult:(zoom / 12.) ~speed:slow_speed in
   let size3 = Layer.spark ~r1_mult:(zoom / 9.) ~speed:slow_speed in
-  let size4 = Layer.spark ~r1_mult:(zoom / 5.) ~speed:slow_speed in
-  let size5 = Layer.spark ~r1_mult:(zoom / 4.) ~speed:slow_speed in
+  let size4 = Layer.spark ~r1_mult:(zoom / 6.) ~speed:slow_speed in
+  let size5 = Layer.spark ~r1_mult:(zoom / 3.) ~speed:slow_speed in
   (* CR avatar: remove the mult here, is not used. *)
   let star_size1 = Layer.spark ~r1_mult:(zoom * 1.) ~speed:slow_speed in
   let star_size2 = Layer.spark ~r1_mult:(zoom * 0.002) ~speed:fast_speed in
@@ -653,12 +666,11 @@ let config : C.t =
         ~intensity:40.
         ~shapes:(star_wire_shapes ~r1_mult:(zoom * 2.1))
         ~color:(Choose [ dark_blue ])
-      |> off
       |> star_size1
     ; star_bone
-        ~flash_mult:0.3
+        ~flash_mult:0.35
         ~intensity:1
-        ~color:(Choose [ purple ])
+        ~color:(Choose [ purple; dark_blue; dark_blue ])
         ~shapes:(star_bone_shapes ~r1_mult:(zoom * 1.5))
       |> off
       |> star_size2
@@ -666,96 +678,235 @@ let config : C.t =
   in
   let size1 =
     [ hex_wire
-        ~flash_mult:0.1
-        ~intensity:6.
-        ~color:(Choose [ dark_green ])
+        ~flash_mult:1.
+        ~intensity:10.
+        ~color:(Choose [ dark_blue; purple ])
         ()
       |> off
-    ; quad_wire ~flash_mult:0.1 ~intensity:0.1 () |> off
-    ; hex_tile
-        ~flash_mult:0.35
+    ; diamond_wire
+        ~flash_mult:0.22
+        ~intensity:1.3
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; quad_wire
+        ~flash_mult:0.5
+        ~intensity:1.5
+        ~color:(Choose [ purple; dark_blue ])
+        ()
+      |> off
+    ; quad_tile
+        ~flash_mult:0.17
+        ~intensity:25.
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; hex_tile ~flash_mult:0.18 ~intensity:60 ~color:(Choose [ purple ]) ()
+      |> off
+    ; diamond_tile
+        ~flash_mult:0.15
         ~intensity:10
-        ~color:(Choose [ Color.white ])
+        ~color:(Choose [ purple ])
         ()
       |> off
-    ; hex_bone ~flash_mult:0.6 ~intensity:10 () |> off
+    ; diamond_bone
+        ~flash_mult:0.15
+        ~intensity:100
+        ~color:(Choose [ purple ])
+        ()
+      |> off
+    ; hex_bone ~flash_mult:0.1 ~intensity:100 ~color:(Choose [ purple ]) ()
+      |> off
+    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
     ]
     |> List.map ~f:size1
   in
   let size2 =
     [ hex_wire
-        ~flash_mult:0.07
-        ~intensity:3.
-        ~color:(Choose [ dark_green ])
+        ~flash_mult:1.
+        ~intensity:10.
+        ~color:(Choose [ dark_orange ])
         ()
       |> off
-    ; quad_wire ~flash_mult:0.07 ~intensity:0.3 () |> off
-    ; hex_tile ~flash_mult:0.15 ~intensity:10 () |> off
-    ; hex_bone ~flash_mult:0.2 ~intensity:250 () |> off
+    ; diamond_wire
+        ~flash_mult:0.22
+        ~intensity:1.3
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; quad_wire
+        ~flash_mult:0.5
+        ~intensity:0.5
+        ~color:(Choose [ purple; dark_blue ])
+        ()
+      |> off
+    ; quad_tile
+        ~flash_mult:0.17
+        ~intensity:25.
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; hex_tile ~flash_mult:0.33 ~intensity:80 ~color:Any () |> off
+    ; diamond_tile
+        ~flash_mult:0.15
+        ~intensity:10
+        ~color:(Choose [ purple ])
+        ()
+      |> off
+    ; diamond_bone
+        ~flash_mult:0.3
+        ~intensity:200
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; hex_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
+    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
     ]
     |> List.map ~f:size2
   in
   let size3 =
     [ hex_wire
-        ~flash_mult:0.05
-        ~intensity:2.
-        ~color:(Choose [ Color.white ])
+        ~flash_mult:0.7
+        ~intensity:16.
+        ~color:(Choose [ dark_orange ])
+        ()
+    ; diamond_wire
+        ~flash_mult:0.22
+        ~intensity:10.
+        ~color:(Choose [ dark_blue ])
+        ()
+    ; quad_wire
+        ~flash_mult:0.8
+        ~intensity:1.5
+        ~color:(Choose [ purple; dark_blue ])
         ()
       |> off
-    ; quad_wire ~flash_mult:0.1 ~intensity:0.1 () |> off
-    ; hex_tile ~flash_mult:0.1 ~intensity:1 () |> off
-    ; hex_bone ~flash_mult:0.3 ~intensity:100 () |> off
+    ; quad_tile
+        ~flash_mult:0.2
+        ~intensity:25.
+        ~color:(Choose [ dark_blue; purple ])
+        ()
+      |> off
+    ; hex_tile ~flash_mult:0.3 ~intensity:50 ~color:(Choose [ blueish ]) ()
+      |> off
+    ; diamond_tile
+        ~flash_mult:0.15
+        ~intensity:10
+        ~color:(Choose [ purple ])
+        ()
+      |> off
+    ; diamond_bone
+        ~flash_mult:0.15
+        ~intensity:100
+        ~color:(Choose [ dark_blue; purple ])
+        ()
+      |> off
+    ; hex_bone ~flash_mult:0.12 ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
+    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
     ]
     |> List.map ~f:size3
   in
   let size4 =
     [ hex_wire
         ~flash_mult:1.
-        ~intensity:0.3
-        ~color:(Choose [ dark_blue; purple; dark_orange ])
+        ~intensity:0.2
+        ~color:(Choose [ dark_orange ])
         ()
       |> off
     ; diamond_wire
-        ~flash_mult:0.17
-        ~intensity:5.
+        ~flash_mult:0.22
+        ~intensity:1.3
         ~color:(Choose [ dark_blue ])
         ()
       |> off
-    ; quad_wire ~flash_mult:0.1 ~intensity:0.05 () |> off
-    ; hex_tile
-        ~flash_mult:0.09
-        ~intensity:40
-        ~color:(Choose [ Color.white ])
-        ()
-      |> off
-    ; diamond_tile
-        ~flash_mult:0.45
-        ~intensity:10
+    ; quad_wire
+        ~flash_mult:0.5
+        ~intensity:1.5
         ~color:(Choose [ purple; dark_blue ])
         ()
+      |> off
+    ; quad_tile
+        ~flash_mult:0.15
+        ~intensity:40.
+        ~color:(Choose [ blueish ])
+        ()
+      |> off
+    ; hex_tile ~flash_mult:0.6 ~intensity:10 ~color:Any () |> off
+    ; diamond_tile
+        ~flash_mult:0.15
+        ~intensity:10
+        ~color:(Choose [ purple ])
+        ()
+      |> off
+    ; diamond_bone
+        ~flash_mult:0.6
+        ~intensity:200
+        ~color:(Choose [ dark_blue; purple ])
+        ()
+      |> off
     ; hex_bone
         ~flash_mult:1.
-        ~intensity:20
-        ~color:(Choose [ dark_blue; purple; dark_orange ])
+        ~intensity:200
+        ~color:(Choose [ dark_blue; purple ])
         ()
+      |> off
+    ; quad_bone ~flash_mult:1. ~intensity:50 ~color:(Choose [ purple ]) ()
+      |> off
     ]
     |> List.map ~f:size4
   in
   let size5 =
     [ hex_wire
-        ~flash_mult:0.45
-        ~intensity:0.1
+        ~flash_mult:1.
+        ~intensity:2.
+        ~color:(Choose [ dark_orange ])
+        ()
+      |> off
+    ; diamond_wire
+        ~flash_mult:0.22
+        ~intensity:1.3
         ~color:(Choose [ dark_blue ])
         ()
       |> off
-    ; quad_wire ~flash_mult:0.03 ~intensity:0.04 () |> off
-    ; hex_tile
-        ~flash_mult:0.25
-        ~intensity:3
-        ~color:(Choose [ Color.white ])
+    ; quad_wire
+        ~flash_mult:0.5
+        ~intensity:1.5
+        ~color:(Choose [ purple; dark_blue; dark_orange ])
         ()
       |> off
-    ; hex_bone ~flash_mult:0.3 ~intensity:20 () |> off
+    ; quad_tile
+        ~flash_mult:0.17
+        ~intensity:25.
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; hex_tile
+        ~flash_mult:0.8
+        ~intensity:40
+        ~color:(Choose [ purple; dark_orange ])
+        ()
+      |> off
+    ; diamond_tile
+        ~flash_mult:0.4
+        ~intensity:20
+        ~color:(Choose [ purple ])
+        ()
+      |> off
+    ; diamond_bone
+        ~flash_mult:0.3
+        ~intensity:200
+        ~color:(Choose [ dark_blue ])
+        ()
+      |> off
+    ; hex_bone ~flash_mult:0.15 ~intensity:10 ~color:(Choose [ purple ]) ()
+      |> off
+    ; quad_bone ~flash_mult:0.2 ~intensity:30 ~color:(Choose [ purple ]) ()
+      |> off
     ]
     |> List.map ~f:size5
   in
@@ -764,5 +915,7 @@ let config : C.t =
   ; calibration = Skip
   ; sparks = star @ size1 @ size2 @ size3 @ size4 @ size5
   ; global_channel_name = "global-hex"
+  ; crop_top = 0.
+  ; crop_bottom = 0.
   }
 ;;

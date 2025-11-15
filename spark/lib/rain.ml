@@ -18,8 +18,8 @@ module E = struct
 end
 
 module Id = Id (struct
-  let name = "Rain"
-end)
+    let name = "Rain"
+  end)
 
 type t =
   { id : Id.t
@@ -67,9 +67,9 @@ let random_drop_around_centre ~step centre elts ~dropoff =
   let other_elts =
     List.filter elts ~f:(fun e -> not (phys_equal e centre))
     |> List.filter_map ~f:(fun e ->
-         let distance = max step (E.distance centre e) in
-         let weight = (step / distance) **. dropoff in
-         PD.Elt.create_exn e ~weight)
+      let distance = max step (E.distance centre e) in
+      let weight = (step / distance) **. dropoff in
+      PD.Elt.create_exn e ~weight)
   in
   (PD.Elt.create_exn centre ~weight:1. |> Option.value_exn ~here:[%here])
   :: other_elts
@@ -101,13 +101,16 @@ let next_drop t =
         PD.Elt.create_exn e ~weight)
     in
     let max_weight =
-      List.map elts ~f:PD.Elt.weight
-      |> List.max_elt ~compare:Float.compare
-      |> Option.value_exn ~here:[%here]
+      List.map elts ~f:PD.Elt.weight |> List.max_elt ~compare:Float.compare
     in
-    if Float.(max_weight = raw_weight last_drop)
-    then (* We hit the wall, start a new strand *) None
-    else Some (PD.create_exn elts))
+    match max_weight with
+    | None ->
+      (* We went too far through the wall and didn't see any elements at all? *)
+      None
+    | Some max_weight ->
+      if Float.(max_weight = raw_weight last_drop)
+      then (* We hit the wall, start a new strand *) None
+      else Some (PD.create_exn elts))
 ;;
 
 let create_exn
@@ -124,6 +127,7 @@ let create_exn
     | Choose colors -> List.random_element_exn colors
     | Any -> Color.random_interesting () |> Color.maximize
   in
+  (* debug [%message "Rain.create" (color : Color.t)]; *)
   let centre = choose_new_centre_exn ~elts ~other_rains in
   let wind = V.(scale (random_unit ()) ~by:step) in
   let next_strand =

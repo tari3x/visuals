@@ -61,30 +61,32 @@ module Elt = struct
 
   (* CR avatar: set both perspective and transform *)
   let render
-    { id = _; shape; transform; line_width }
-    ~perspective
+    { id = _; shape; transform = _; line_width }
+    ~perspective:_
     ~pixi
     ~color
     =
-    let _perspective = Pixi.Matrix.create perspective in
+    (* CR avatar: surely thee way you create a new object for each stroke and
+       fill operation is hugely allocating? *)
+    (* let _perspective = Pixi.Matrix.create perspective in *)
     match Shape.corners shape with
     | Segment (v1, v2) ->
-      Pixi.set_matrix pixi transform;
-      Pixi.line_style pixi ~color ~width:line_width ();
+      (* CR avatar: restore *)
+      (* Pixi.set_transform pixi transform; *)
       Pixi.move_to pixi v1;
       Pixi.line_to pixi v2;
-      Pixi.end_fill pixi
+      Pixi.stroke pixi color ~width:line_width
     | Polygon vs ->
-      Pixi.set_matrix pixi transform;
-      Pixi.line_style pixi ~width:0. ();
-      Pixi.begin_fill pixi color;
+      (* CR avatar: restore *)
+      (* Pixi.set_transform pixi transform; *)
+      (* Pixi.line_style pixi ~width:0. (); *)
       Pixi.path pixi ~closed:true vs;
-      Pixi.end_fill pixi
+      Pixi.fill pixi color
     | Path vs ->
-      Pixi.set_matrix pixi transform;
-      Pixi.line_style pixi ~color ~width:line_width ();
+      (* CR avatar: restore *)
+      (* Pixi.set_transform pixi transform; *)
       Pixi.path pixi ~closed:true vs;
-      Pixi.end_fill pixi
+      Pixi.stroke pixi color ~width:line_width
   ;;
 
   let set_transform t m =
@@ -126,7 +128,7 @@ let pixi_corners ?(wmargin = 0.) ?(hmargin = 0.) pixi =
   let height = Pixi.height pixi -. (2. *. hmargin) in
   let top_left = V.create_float wmargin hmargin in
   let bottom_right = V.(top_left + create_float width height) in
-  debug [%message (top_left : V.t) (bottom_right : V.t)];
+  (* debug [%message (top_left : V.t) (bottom_right : V.t)]; *)
   Rectangle.create_corners top_left bottom_right
 ;;
 
@@ -234,9 +236,9 @@ let hex_exn ~pixi ~(kind : Hex_kind.t) ~r1 ~vertices =
     let vs = List.map vertices ~f:vertex in
     [ Hex_kind.make_shape kind vs ]
   in
-  let width = Pixi.width pixi in
-  let height = Pixi.height pixi in
-  debug [%message (width : float) (height : float)];
+  (* let width = Pixi.width pixi in
+   * let height = Pixi.height pixi in
+   * (\* debug [%message (width : float) (height : float)]; *\) *)
   if Float.(Pixi.width pixi = 0.) then assert false;
   (* CR avatar: we divide by 2 elsewhere *)
   let n_x =
@@ -295,18 +297,18 @@ let diamond_exn ~pixi ~(kind : Hex_kind.t) ~r1 ~vertices =
     let vs =
       let hv = hex_vertex in
       match slice with
-      | 0 | 3 -> [ c; hv 0; hv 1; hv 2 ]
-      | 1 -> [ c; hv 2; hv 3; hv 4 ]
-      | 2 -> [ c; hv 4; hv 5; hv 6 ]
+      | 0 | 3 -> [ c; hv 0; hv 1; hv 2; c ]
+      | 1 -> [ c; hv 2; hv 3; hv 4; c ]
+      | 2 -> [ c; hv 4; hv 5; hv 6; c ]
       | _ -> assert false
     in
     let vertex i = List.nth_exn vs i in
     let vs = List.map vertices ~f:vertex in
     [ Hex_kind.make_shape kind vs ]
   in
-  let width = Pixi.width pixi in
-  let height = Pixi.height pixi in
-  debug [%message (width : float) (height : float)];
+  (* let width = Pixi.width pixi in
+   * let height = Pixi.height pixi in
+   * (\* debug [%message (width : float) (height : float)]; *\) *)
   if Float.(Pixi.width pixi = 0.) then assert false;
   (* CR avatar: we divide by 2 elsewhere *)
   let n_x =
@@ -336,7 +338,7 @@ let diamond_tile_exn ~pixi ~r1_mult =
 
 let diamond_bone_exn ~pixi ~r1_mult =
   let r1 = r1 ~pixi ~r1_mult in
-  List.init 6 ~f:(fun i ->
+  List.init 4 ~f:(fun i ->
     diamond_exn ~pixi ~kind:Bone ~r1 ~vertices:[ i; i + 1 ])
   |> List.concat
   |> create_with_pixi ~pixi ~step:r1 ~line_width:hex_line_width

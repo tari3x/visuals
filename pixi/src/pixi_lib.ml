@@ -17,18 +17,14 @@ module Container = struct
   let add_child t child = t##addChild child
 end
 
-module Renderer = struct
-  include Renderer
-
-  let resize t w h = t##resize w h
-end
-
 module Application = struct
   include Application
 
+  let init t = t##init
   let view t = t##.view
   let stage t = t##.stage
-  let resize t window = t##resize window
+  let resize_to t window = t##.resizeTo := window
+  let resize t = t##resize
   let renderer t = t##.renderer
 end
 
@@ -48,35 +44,24 @@ module Graphics = struct
   let clear (t : t) = t##clear
   let width t = t##.width
   let height t = t##.height
-  let draw_circle t ~x ~y ~radius = t##drawCircle ~x ~y ~radius
 
-  let begin_fill (t : t) ~(color : Color.t) ?(alpha = 1.) () =
-    t##beginFill ~color ~alpha
+  let draw_circle (t : t) ~x ~y ~radius : unit =
+    t##drawCircle ~x ~y ~radius
   ;;
 
-  let end_fill t = t##endFill
+  let draw_rect t ~x ~y ~width ~height = t##drawRect ~x ~y ~width ~height
+
+  let fill (t : t) ~(color : Color.t) ?alpha () =
+    t##fill (FillStyle.create ~color ?alpha ())
+  ;;
+
+  let stroke (t : t) ~(color : Color.t) ?alpha ?width () =
+    t##stroke (StrokeStyle.create ~color ?alpha ?width ())
+  ;;
+
   let move_to t x y = t##moveTo x y
   let line_to t x y = t##lineTo x y
   let close_path t = t##closePath
-
-  let line_style
-    (t : t)
-    ?(width = 0.)
-    ?(color = Color.white)
-    ?(alpha = 1.)
-    (* ?alignment
-       ?native
-    *)
-      ()
-    =
-    (*
-       let params =
-       LineStyleParams.create ?width ?color ?alpha ?alignment ?native ()
-       in
-       t##lineStyle params
-    *)
-    t##lineStyle ~width ~color ~alpha
-  ;;
-
-  let set_matrix t m = t##setMatrix m
+  let reset_transform t = t##resetTransform
+  let transform t m = t##transform m
 end

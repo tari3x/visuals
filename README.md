@@ -6,8 +6,10 @@
     
     `eval $(opam env)`
 
-* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom tgls tsdl camlimages tgls tsdl`
+* `opam install core async graphics async_shell js_of_ocaml-lwt js_of_ocaml-ppx angstrom promise_jsoo_lwt`
   and whetever else is listed as libraries in the dune files.
+
+  These don't build as of 2024-08: ` tgls tsdl camlimages`.
 
 * poly/ is bitrotten at the moment.
 

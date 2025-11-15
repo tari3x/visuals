@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 (* CR-someday: make these use float, otherwise you get weird aliasing effects,
@@ -37,14 +37,14 @@ val interpolate_two : t -> t -> float -> t
 (* Defaults to white if list is empty *)
 val interpolate : t list -> arg:float -> t
 
-(* scale proportionally such that at least one coordinate will be max.  *)
+(* scale proportionally such that at least one coordinate will be max. *)
 val maximize : t -> t
 val set_alpha : t -> alpha:float -> t
 val scale : t -> by:float -> t
-
+val is_black : t -> bool
 (*
-val red : t -> int
-val green : t -> int
-val blue : t -> int
-val alpha : t -> float
+   val red : t -> int
+   val green : t -> int
+   val blue : t -> int
+   val alpha : t -> float
 *)

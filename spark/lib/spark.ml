@@ -75,48 +75,48 @@ let start_transform_loop t =
     let open Float in
     Vector.create_float (Pixi.width t.pixi / 2.) (Pixi.height t.pixi / 2.)
   in
-  let rec loop () =
+  let rec loop speed =
     let%bind () = Lwt_js_events.request_animation_frame () in
-    match t.config with
-    | Free _
-    | Grid _
-    | Hex_tile _
-    | Hex_wire _
-    | Hex_bone _
-    | Quad_tile _
-    | Quad_wire _
-    | Quad_bone _
-    | Diamond_tile _
-    | Diamond_wire _
-    | Diamond_bone _ -> loop ()
-    | Star { skin = _; shapes = _; speed; line_width = _ } ->
-      let now_ = Time.now () in
-      let d = Time.(diff now_ t.last_transform_time) |> Time.Span.to_sec in
-      t.last_transform_time <- now_;
-      let make_speed = Memo.unit (fun () -> make_speed speed) in
-      Shapes.elts t.shapes
-      |> Map.iteri ~f:(fun ~key ~data:shape ->
-        let open Float in
-        let speed =
-          Hashtbl.find_or_add t.speeds key ~default:(fun () ->
-            make_speed () ())
-        in
-        let d = d * speed in
-        let angle =
-          match Hashtbl.find t.angles key with
-          | None -> t.last_angle
-          | Some angle -> Angle.(angle + of_degrees d)
-        in
-        t.last_angle <- angle;
-        Hashtbl.set t.angles ~key ~data:angle;
-        let m =
-          let open Matrix in
-          translate center * rotate angle
-        in
-        Shape.set_transform shape m);
-      loop ()
+    let now_ = Time.now () in
+    let d = Time.(diff now_ t.last_transform_time) |> Time.Span.to_sec in
+    t.last_transform_time <- now_;
+    let make_speed = Memo.unit (fun () -> make_speed speed) in
+    Shapes.elts t.shapes
+    |> Map.iteri ~f:(fun ~key ~data:shape ->
+      let open Float in
+      let speed =
+        Hashtbl.find_or_add t.speeds key ~default:(fun () ->
+          make_speed () ())
+      in
+      let d = d * speed in
+      let angle =
+        match Hashtbl.find t.angles key with
+        | None -> t.last_angle
+        | Some angle -> Angle.(angle + of_degrees d)
+      in
+      t.last_angle <- angle;
+      Hashtbl.set t.angles ~key ~data:angle;
+      let m =
+        let open Matrix in
+        translate center * rotate angle
+      in
+      Shape.set_transform shape m);
+    loop speed
   in
-  Lwt.async loop
+  match t.config with
+  | Free _
+  | Grid _
+  | Hex_tile _
+  | Hex_wire _
+  | Hex_bone _
+  | Quad_tile _
+  | Quad_wire _
+  | Quad_bone _
+  | Diamond_tile _
+  | Diamond_wire _
+  | Diamond_bone _ -> ()
+  | Star { skin = _; shapes = _; speed; line_width = _ } ->
+    Lwt.async (fun () -> loop speed)
 ;;
 
 let shapes (config : Config.t) ~pixi =

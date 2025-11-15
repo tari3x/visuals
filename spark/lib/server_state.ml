@@ -10,7 +10,8 @@ open Js_of_ocaml_lwt
 open Std_internal
 
 type t =
-  { sparks : Spark.t list
+  { config : Config.t
+  ; sparks : Spark.t list
   ; global : Ctl.t Global.t option
   ; pixi : Pixi.t
   ; mutable frames : int
@@ -35,7 +36,20 @@ let render t =
             let box = Box.map box ~f:(const ctl) in
             Spark.ctl spark box))
   in
-  List.iter t.sparks ~f:Spark.render
+  List.iter t.sparks ~f:Spark.render;
+  let w = Pixi.width t.pixi in
+  let h = Pixi.height t.pixi in
+  (* CR-someday avatar: use [Graphics.rect] *)
+  let fill x y w h =
+    let v = Vector.create_float in
+    let vs =
+      Float.[ v x y; v x (y + h); v (x + w) (y + h); v (x + w) y ]
+    in
+    Pixi.path t.pixi ~closed:true vs;
+    Pixi.fill t.pixi Color.black
+  in
+  fill 0. 0. w t.config.crop_top;
+  fill 0. Float.(h - t.config.crop_bottom) w t.config.crop_bottom
 ;;
 
 let one_sec = Time_ns.Span.of_sec 1.
@@ -52,7 +66,6 @@ let report_frame t =
 
 let rec render_loop t =
   Lwt_js_events.request_animation_frame ()
-  (* Lwt_js.sleep 0.01 *)
   >>= fun () ->
   render t;
   report_frame t;
@@ -81,7 +94,8 @@ let start (config : Config.t) sparks ~pixi =
         return None)
   >>= fun global ->
   let t =
-    { sparks
+    { config
+    ; sparks
     ; global
     ; pixi
     ; frames = 0

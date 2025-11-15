@@ -39,30 +39,39 @@ type t =
   }
 
 let init_exn () =
+  let open Lwt.Let_syntax in
   let a = A.create () in
-  let width = Window.(inner_width current) in
-  let height = Window.(inner_height current) in
-  (* CR-someday: why do I need this? *)
-  let height = height - 20 in
-  Renderer.resize (A.renderer a) width height;
+  let%bind () = A.init a |> Promise_lwt.of_promise in
   let (_ : Dom.node Js.t) =
     Html.document##.body##appendChild (A.view a :> Dom.node Js.t)
   in
+  (* CR-someday avatar: this creates scrollbars, but I hide them with overflow:
+     hidden
+
+     I think you might need innerWidth and innerHeight!
+  *)
+  A.resize_to a Dom_html.window;
+  A.resize a;
   let g = G.create () in
   C.add_child (A.stage a) (g :> DisplayObject.t);
-  { a; g }
+  Lwt.return { a; g }
 ;;
 
 let clear t = clear t.g
 let width t = Canvas.width (A.view t.a)
 let height t = Canvas.height (A.view t.a)
 let draw_circle t = draw_circle t.g
-let end_fill t = end_fill t.g
+let draw_rect t = draw_rect t.g
 let close_path t = close_path t.g
 
-let begin_fill (t : t) color =
+let fill (t : t) color =
   let color, alpha = color_to_pixi color in
-  begin_fill t.g ~color ~alpha ()
+  fill t.g ~color ~alpha ()
+;;
+
+let stroke (t : t) color ~width =
+  let color, alpha = color_to_pixi color in
+  stroke t.g ~color ~alpha ~width ()
 ;;
 
 let move_to t v =
@@ -86,21 +95,16 @@ let path (t : t) ~closed vs =
     if closed then close_path t
 ;;
 
-let line_style (t : t) ?width ?color (* ?alignment ?native *) () =
-  let color, alpha =
-    match color with
-    | None -> None, None
-    | Some color ->
-      let color, alpha = color_to_pixi color in
-      Some color, Some alpha
-  in
-  line_style t.g ?width ?color ?alpha (*  ?alignment ?native *) ()
-;;
-
 (* CR-someday: get events of [Container]? *)
 let actions t =
   let canvas = (Application.view t.a :> #Html.element Js.t) in
   Dom_wrappers.actions canvas
 ;;
 
-let set_matrix t m = set_matrix t.g m
+let transform t m = transform t.g m
+let reset_transform t = reset_transform t.g
+
+let set_transform t m =
+  reset_transform t;
+  transform t m
+;;

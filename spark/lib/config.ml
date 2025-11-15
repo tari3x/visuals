@@ -31,7 +31,7 @@ module Rain = struct
       | Choose of Color.t list
     [@@deriving sexp]
 
-    let default = Choose [ Color.white ]
+    let default = Choose [ Color.none ]
   end
 
   type t =
@@ -108,7 +108,7 @@ module Skin = struct
   [@@deriving sexp, fields]
 
   let default =
-    { base_color = Color.white
+    { base_color = Color.none
     ; flash_cutoff = 0.4
     ; flash_top = 0.6
     ; flash_color_weight = 0.2 (* 0.15 *)
@@ -119,7 +119,9 @@ module Skin = struct
     ; segment_life_span = Time.Span.of_sec 3.
     ; color_flow = Fade_to_none
     ; rain = Rain.default
-    ; num_silent_rains = 0
+    ; (* CR-someday avatar: why do we need
+         silent reains for hex to function? *)
+      num_silent_rains = 2
     ; on_sound = Some (Beat (Burst { drops_at_once = 1 }))
     ; max_sound_sources = 1
     ; bot_active = true
@@ -220,6 +222,8 @@ type t =
   ; calibration : Calibration.t
   ; sparks : Spark.t list
   ; global_channel_name : string
+  ; crop_top : float
+  ; crop_bottom : float
   }
 [@@deriving sexp, fields]
 

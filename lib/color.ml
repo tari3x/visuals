@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -29,7 +29,7 @@ let yellow = create ~r:255 ~g:255 ~b:0 ~a:1.
 let dark_orange = create ~r:255 ~g:140 ~b:0 ~a:1.
 
 (*
-let wave ~cycle time =
+   let wave ~cycle time =
   ((sin (time *. cycle) +. 1.) /. 2.) *. 255. |> int
 
 let of_time time =
@@ -132,3 +132,5 @@ let maximize t =
   let s = Float.(255. / max_component) in
   scale t ~by:s
 ;;
+
+let is_black { r; g; b; a = _ } = r = 0 && g = 0 && b = 0

@@ -18,6 +18,22 @@ module DisplayObject : sig
   type t = js Js.t
 end
 
+module Matrix : sig
+  type witness
+
+  class type js = object
+    method witness : witness
+    method fromArray : float js_array Js.t -> unit meth
+
+    method set :
+      float -> float -> float -> float -> float -> float -> unit meth
+  end
+
+  type t = js Js.t
+
+  val create : unit -> t
+end
+
 module Container : sig
   type witness
 
@@ -35,7 +51,6 @@ module Renderer : sig
 
   class type js = object
     method renderer_witness : witness
-    method resize : int -> int -> unit meth
   end
 
   type t = js Js.t
@@ -48,8 +63,10 @@ module Application : sig
     method application_witness : witness
     method view : Html.canvasElement Js.t readonly_prop
     method stage : Container.t readonly_prop
-    method resize : Html.window Js.t -> unit meth
+    method resize : unit meth
+    method resizeTo : Html.window Js.t prop
     method renderer : Renderer.t readonly_prop
+    method init : unit Promise.t meth
   end
 
   type t = js Js.t
@@ -64,37 +81,40 @@ module Color : sig
   val white : t
 end
 
-module Matrix : sig
-  type witness
-
+module FillStyle : sig
   class type js = object
-    method witness : witness
-    method fromArray : float js_array Js.t -> unit meth
-
-    method set :
-      float -> float -> float -> float -> float -> float -> unit meth
+    method color : Color.t optdef readonly_prop
+    method alpha : float optdef readonly_prop
   end
 
   type t = js Js.t
 
-  val create : unit -> t
+  val create : ?color:Color.t -> ?alpha:float -> unit -> t
+end
+
+module StrokeAttributes : sig
+  class type js = object
+    method width : float optdef readonly_prop
+  end
+
+  type t = js Js.t
+
+  val create : ?width:float -> unit -> t
+end
+
+module StrokeStyle : sig
+  class type js = object
+    inherit FillStyle.js
+    inherit StrokeAttributes.js
+  end
+
+  type t = js Js.t
+
+  val create : ?color:Color.t -> ?alpha:float -> ?width:float -> unit -> t
 end
 
 module Graphics : sig
   type witness
-
-  module LineStyleParams : sig
-    type t
-
-    val create
-      :  ?width:float
-      -> ?color:Color.t
-      -> ?alpha:float
-      -> ?alignment:float
-      -> ?native:bool Js.t
-      -> unit
-      -> t
-  end
 
   class type js = object
     inherit Container.js
@@ -103,16 +123,17 @@ module Graphics : sig
     method width : float readonly_prop
     method height : float readonly_prop
     method drawCircle : x:float -> y:float -> radius:float -> unit meth
-    method beginFill : color:Color.t -> alpha:float -> unit meth
-    method endFill : unit meth
+
+    method drawRect :
+      x:float -> y:float -> width:float -> height:float -> unit meth
+
+    method fill : FillStyle.t -> unit meth
+    method stroke : StrokeStyle.t -> unit meth
     method moveTo : float -> float -> unit meth
     method lineTo : float -> float -> unit meth
     method closePath : unit meth
-
-    method lineStyle :
-      width:float -> color:Color.t -> alpha:float -> unit meth
-
-    method setMatrix : Matrix.t -> unit meth
+    method resetTransform : unit meth
+    method transform : Matrix.t -> unit meth
   end
 
   type t = js Js.t

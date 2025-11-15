@@ -207,8 +207,8 @@ module type Id = sig
 end
 
 module Id (M : sig
-  val name : string
-end) : Id = struct
+    val name : string
+  end) : Id = struct
   include String
 
   (* CR avatar: do we still see collisions? We want this to be globally
@@ -218,12 +218,12 @@ end) : Id = struct
 end
 
 module Client_id = Id (struct
-  let name = "Client_id"
-end)
+    let name = "Client_id"
+  end)
 
 module Box_id = Id (struct
-  let name = "Box_id"
-end)
+    let name = "Box_id"
+  end)
 
 module Fn = struct
   let flip f x y = f y x
@@ -283,7 +283,7 @@ let add_event_listener elt event ~f =
          | exn -> error "uncaught exn in handler: %s" (Exn.to_string exn));
         Js._true))
      Js._true
-    : Html.event_listener_id)
+   : Html.event_listener_id)
   |> ignore
 ;;
 

@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -61,23 +61,23 @@ let main (config : Config.t) =
   Random.self_init ();
   let%bind sound =
     (*
-    let%bind () = Lwt_js.sleep 3. in
-    Sound.create_from_html
-      ~id:"audio"
-      ~max_sources:(Config.num_sound_sources config)
-    |> return
+       let%bind () = Lwt_js.sleep 3. in
+       Sound.create_from_html
+       ~id:"audio"
+       ~max_sources:(Config.num_sound_sources config)
+       |> return
     *)
     Sound.create_from_mic ()
   in
   Sound.start sound;
-  let pixi = Pixi.init_exn () in
+  let%bind pixi = Pixi.init_exn () in
   if config.debug_sound
   then
     failwith "Fix debug sound"
     (*
-    Sound.set_debug sound (Some pixi);
-    Sound.start sound;
-    return ()
+       Sound.set_debug sound (Some pixi);
+       Sound.start sound;
+       return ()
     *)
   else (
     debug [%message "getting corners"];

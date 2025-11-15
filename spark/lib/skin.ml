@@ -1,7 +1,7 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
 open Base
@@ -48,21 +48,10 @@ module E = struct
     ; mutable color_flow : Color_flow.t option
     ; mutable base_color : Color.t
     }
-  [@@deriving fields]
+  [@@deriving fields, sexp]
 
   let a c alpha = Color.set_alpha c ~alpha
   let current_color t = Option.map t.color_flow ~f:CF.eval
-
-  let touch t new_color =
-    let set () = t.color_flow <- Some new_color in
-    match t.color_flow with
-    | None -> set ()
-    | Some old_color ->
-      let old_color = CF.eval old_color in
-      let new_color = CF.eval new_color in
-      (* Transitions "down" look ragged, avoid. *)
-      if Float.(Color.a new_color >= Color.a old_color) then set ()
-  ;;
 
   let fade_to_black ~(config : Config.t) ~base_color ~flash =
     let open Time.Span in
@@ -123,8 +112,20 @@ module E = struct
          ~color:(a new_base config.flash_cutoff)
   ;;
 
+  let touch t new_color =
+    let set () = t.color_flow <- Some new_color in
+    match t.color_flow with
+    | None -> set ()
+    | Some old_color ->
+      let old_color = CF.eval old_color in
+      let new_color = CF.eval new_color in
+      (* Transitions "down" look ragged, avoid. *)
+      if Float.(Color.a new_color >= Color.a old_color) then set ()
+  ;;
+
   let touch t ~(config : Config.t) ~color ~flash =
     (* CR-someday: if we are faded out, why interpolate? *)
+    (* debug [%message "E.touch" (color : Color.t)]; *)
     let base_color, color =
       match config.color_flow with
       | Fade_to_none ->
@@ -170,6 +171,7 @@ module E = struct
   let create shape ~(config : Config.t) =
     let base_color = config.base_color in
     let t = { base_color; shape; color_flow = None } in
+    (* CR-soemday avatar: I think this might not be necessary *)
     touch t ~config ~color:base_color ~flash:false;
     t
   ;;
@@ -188,13 +190,14 @@ end
 type t =
   { mutable config : (Config.t[@sexp.opaque])
   ; mutable shapes : (Shapes.t[@sexp.opaque])
-  ; elts : (E.t Hashtbl.M(E.Id).t[@sexp.opaque] (* not empty *))
+  ; elts : E.t Hashtbl.M(E.Id).t (* not empty *)
   ; sound : (Sound.t[@sexp.opaque])
   ; silent_rains : Rain.t Hashtbl.M(Rain.Id).t
   ; sound_rains : Rain.t Hashtbl.M(Rain.Id).t
   ; sound_rain_ids : Rain.Id.t Hashtbl.M(Sound.Source.Id).t
   ; mutable last_human_touch : Time.t
-  ; mutable silent_drop_count : int
+  ; mutable drop_count : int
+  ; mutable rain_create_count : int
   ; mutable num_sources : int
   ; mutable listener : (Sound.Listener.t[@sexp.opaque]) option
   }
@@ -204,12 +207,12 @@ let reset_shapes t ~old_shapes (shapes : Shapes.t) =
   let new_shapes = Shapes.elts shapes in
   Map.symmetric_diff old_shapes new_shapes ~data_equal:(fun _ _ -> true)
   |> Sequence.iter ~f:(fun (key, value) ->
-       match value with
-       | `Unequal _ -> assert false
-       | `Right elt ->
-         let data = E.create elt ~config:t.config in
-         Hashtbl.set t.elts ~key ~data
-       | `Left _ -> Hashtbl.remove t.elts key);
+    match value with
+    | `Unequal _ -> assert false
+    | `Right elt ->
+      let data = E.create elt ~config:t.config in
+      Hashtbl.set t.elts ~key ~data
+    | `Left _ -> Hashtbl.remove t.elts key);
   t.shapes <- shapes
 ;;
 
@@ -219,11 +222,10 @@ let set_shapes t shapes =
 ;;
 
 let create ~(config : Config.t) ~sound shapes =
-  debug [%message "creating skin"];
+  (* debug [%message "creating skin"]; *)
   let last_human_touch =
     Time.(sub (now ()) config.human_playing_timeout)
   in
-  debug [%message "human touch"];
   let t =
     { config
     ; sound
@@ -233,12 +235,13 @@ let create ~(config : Config.t) ~sound shapes =
     ; shapes
     ; elts = Hashtbl.create (module E.Id)
     ; last_human_touch
-    ; silent_drop_count = 0
+    ; drop_count = 0
+    ; rain_create_count = 0
     ; num_sources = min 1 config.max_sound_sources
     ; listener = None
     }
   in
-  debug [%message "created skin"];
+  (* debug [%message "created skin"]; *)
   reset_shapes t ~old_shapes:Shapes.Elt.Id.Map.empty shapes;
   t
 ;;
@@ -252,12 +255,14 @@ let human_playing t =
 let rains t = Hashtbl.data t.silent_rains @ Hashtbl.data t.sound_rains
 
 let touch t shape ~color ~flash =
+  (* debug [%message "Skin.touch" (color : Color.t)]; *)
   match Hashtbl.find t.elts (Shape.id shape) with
   | None -> ()
   | Some elt -> E.touch elt ~config:t.config ~color ~flash
 ;;
 
 let new_rain t id =
+  t.rain_create_count <- t.rain_create_count + 1;
   Rain.create_exn
     ~id
     ~config:t.config.rain
@@ -279,8 +284,7 @@ let find_or_add_rain t which ~id =
 let run_silent_rain t =
   let rec loop rain =
     let%bind () = Lwt_js.sleep 15. in
-    (* CR avatar: undo *)
-    if (* Rain.saturation rain < 0.0001 *) false
+    if Float.(Rain.saturation rain < 0.0001)
     then loop rain
     else (
       Hashtbl.remove t.silent_rains (Rain.id rain);
@@ -293,8 +297,7 @@ let run_silent_rain t =
 ;;
 
 let drop ?(flash = true) t =
-  (* CR-someday: why silent? *)
-  t.silent_drop_count <- t.silent_drop_count + 1;
+  t.drop_count <- t.drop_count + 1;
   Option.iter (List.random_element (rains t)) ~f:(Rain.drop ~flash)
 ;;
 
@@ -302,7 +305,7 @@ let _run_silent_drops t =
   let open Lwt.Let_syntax in
   let open Float in
   (* CR-someday: surely there's something smarter possible that doesn't wake
-       up every quantum if not many drops are happening. *)
+     up every quantum if not many drops are happening. *)
   (* CR-someday: shurely the probability needs to scale with [quantum]? *)
   let quantum = 0.1 (* 0.001 *) in
   let drops =
@@ -329,8 +332,8 @@ let start_silent_rains t =
 
 (* CR avatar: undo *)
 (*
-      Lwt.async (fun () -> run_silent_drops t))
-      *)
+   Lwt.async (fun () -> run_silent_drops t))
+*)
 
 let rec sound_rain t id =
   match Hashtbl.find t.sound_rain_ids id with
@@ -366,7 +369,7 @@ let delete_sound_rain t id =
   | None -> ()
   | Some rain_id ->
     (* CR-someday: this logic trips you up. Maybe redefine saturation for
-           different rains? *)
+       different rains? *)
     let saturation_threshold =
       match t.config.color_flow with
       | Fade_to_base -> 0.4
@@ -406,10 +409,10 @@ let set_config t config =
     match config.on_sound with
     | None -> None
     | Some on_sound ->
-      Sound.start t.sound;
       (match on_sound with
        | Wave { max_drops_per_second } ->
          Sound.on_wave t.sound ~f:(fun event ->
+           (* debug [%message "wave"]; *)
            match event with
            | Beat _ -> assert false
            | Wave intensity ->
@@ -435,6 +438,7 @@ let set_config t config =
            ~f:(function
            | Wave _ -> assert false
            | Beat source ->
+             (* debug [%message "beat"]; *)
              if (not (human_playing t)) && t.config.bot_active
              then (
                match sound_rain t (Sound.Source.id source) with
@@ -456,16 +460,17 @@ let set_config t config =
 ;;
 
 let rec debug_loop t =
+  debug [%message (t.drop_count : int) (t.rain_create_count : int)];
+  t.drop_count <- 0;
+  t.rain_create_count <- 0;
   let%bind () = Lwt_js.sleep 5. in
-  (* t.silent_drop_count <- 0; *)
-  debug [%message (t : t)];
   debug_loop t
 ;;
 
 let () = ignore debug_loop
 
 let start t =
-  (* Lwt.async (fun () -> debug_loop t); *)
+  Lwt.async (fun () -> debug_loop t);
   Lwt.async (fun () -> update_num_sources_loop t);
   start_silent_rains t
 ;;
