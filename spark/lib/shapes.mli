@@ -13,28 +13,23 @@ module Elt : sig
 
   type t [@@deriving sexp]
 
-  val create : Shape.t -> line_width:float -> t
+  val create : Shape.t -> line_width:float -> pixi:Pixi.t -> t
   val id : t -> Id.t
   val centre : t -> V.t
-
-  val render
-    :  t
-    -> perspective:Matrix.t
-    -> pixi:Pixi.t
-    -> color:Color.t
-    -> unit
-
+  val set_visible : t -> bool -> unit
+  val render : t -> perspective:Matrix.t -> color:Color.t -> unit
   val set_transform : t -> Matrix.t -> unit
 end
 
 type t [@@deriving sexp]
 
-val create
-  :  corners:Prism.Quad.t
-  -> step:float
-  -> line_width:float
-  -> Shape.t list
-  -> t
+(* CR-someday avatar: restore, will need a [Set_once] in [Elt.graphics]. *)
+(* val create
+ *   :  corners:Prism.Quad.t
+ *   -> step:float
+ *   -> line_width:float
+ *   -> Shape.t list
+ *   -> t *)
 
 val create_with_pixi
   :  pixi:Pixi.t
@@ -61,6 +56,6 @@ val diamond_tile_exn : pixi:Pixi.t -> r1_mult:float -> t
 val diamond_bone_exn : pixi:Pixi.t -> r1_mult:float -> t
 val set_transform : t -> Matrix.t -> unit
 
-(* CR avatar: short this crazy out. We don't fix [quad] here. *)
+(* CR avatar: sort this crazy out. We don't fix [quad] here. *)
 val update : t -> t -> t
 val find_rect : t -> Rectangle.t -> Elt.t list

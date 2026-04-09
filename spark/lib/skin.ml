@@ -176,14 +176,18 @@ module E = struct
     t
   ;;
 
-  let render t ~perspective ~pixi =
+  let render t ~perspective =
     let open Float in
     match t.color_flow with
     | None -> ()
     | Some cf ->
       let color = CF.eval cf in
-      if CF.finished cf && Color.a color = 0. then t.color_flow <- None;
-      Shape.render t.shape ~perspective ~pixi ~color
+      Shape.render t.shape ~perspective ~color;
+      if CF.finished cf && Color.a color = 0.
+      then (
+        t.color_flow <- None;
+        Shape.set_visible t.shape false)
+      else Shape.set_visible t.shape true
   ;;
 end
 
@@ -470,7 +474,7 @@ let rec debug_loop t =
 let () = ignore debug_loop
 
 let start t =
-  Lwt.async (fun () -> debug_loop t);
+  (* Lwt.async (fun () -> debug_loop t); *)
   Lwt.async (fun () -> update_num_sources_loop t);
   start_silent_rains t
 ;;
@@ -487,6 +491,4 @@ let human_touch t shape color =
   touch t shape ~color ~flash:true
 ;;
 
-let render t ~perspective ~pixi =
-  Hashtbl.iter t.elts ~f:(E.render ~perspective ~pixi)
-;;
+let render t ~perspective = Hashtbl.iter t.elts ~f:(E.render ~perspective)

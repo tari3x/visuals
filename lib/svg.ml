@@ -32,13 +32,12 @@ end
 module Path_seg = struct
   type witness
 
-  class type js =
-    object
-      inherit Dom_svg.pathSeg
-      method path_seg_witness : witness
-      method x : float readonly_prop
-      method y : float readonly_prop
-    end
+  class type js = object
+    inherit Dom_svg.pathSeg
+    method path_seg_witness : witness
+    method x : float readonly_prop
+    method y : float readonly_prop
+  end
 
   type t = js Js.t
 
@@ -50,8 +49,8 @@ module Circle = struct
   type t = Dom_svg.circleElement Js.t
 
   let center (t : t) =
-    let x = t##.cx##.baseVal##.value in
-    let y = t##.cy##.baseVal##.value in
+    let x = t##.cx##.baseVal##.value |> Js.to_float in
+    let y = t##.cy##.baseVal##.value |> Js.to_float in
     Vector.create_float x y
   ;;
 end
@@ -92,32 +91,32 @@ let shapes (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "path")
   |> Node_list.to_list
   |> List.concat_map ~f:(fun path ->
-       let path =
-         Dom_svg.CoerceTo.element path
-         |> Opt.value_exn ~here:[%here]
-         |> Dom_svg.CoerceTo.path
-         |> Opt.value_exn ~here:[%here]
-       in
-       (* CR-someday: normalizedPathSegList blows up. *)
-       let segments =
-         path##.pathSegList
-         |> Svg_list.to_list
-         |> List.map ~f:Path_seg.of_path_seg
-         |> collect_segments
-       in
-       if is_polygon path
-       then [ Shape.polygon (List.map segments ~f:fst) ]
-       else List.map segments ~f:(fun (v1, v2) -> Shape.segment v1 v2))
+    let path =
+      Dom_svg.CoerceTo.element path
+      |> Opt.value_exn ~here:[%here]
+      |> Dom_svg.CoerceTo.path
+      |> Opt.value_exn ~here:[%here]
+    in
+    (* CR-someday: normalizedPathSegList blows up. *)
+    let segments =
+      path##.pathSegList
+      |> Svg_list.to_list
+      |> List.map ~f:Path_seg.of_path_seg
+      |> collect_segments
+    in
+    if is_polygon path
+    then [ Shape.polygon (List.map segments ~f:fst) ]
+    else List.map segments ~f:(fun (v1, v2) -> Shape.segment v1 v2))
 ;;
 
 let calibration_points (svg_document : Dom_html.document Js.t) =
   svg_document##getElementsByTagName (string "circle")
   |> Node_list.to_list
   |> List.map ~f:(fun circle ->
-       Dom_svg.CoerceTo.element circle
-       |> Opt.value_exn ~here:[%here]
-       |> Dom_svg.CoerceTo.circle
-       |> Opt.value_exn ~here:[%here])
+    Dom_svg.CoerceTo.element circle
+    |> Opt.value_exn ~here:[%here]
+    |> Dom_svg.CoerceTo.circle
+    |> Opt.value_exn ~here:[%here])
   |> function
   | [ c1; c2; c3; c4 ] ->
     let c = Circle.center in
@@ -132,11 +131,11 @@ let parse_exn (elt : Html.iFrameElement Js.t) =
   let step =
     List.cartesian_product shapes shapes
     |> List.filter_map ~f:(fun (s1, s2) ->
-         if phys_equal s1 s2
-         then None
-         else
-           let open Vector in
-           Some (length (Shape.centre s1 - Shape.centre s2)))
+      if phys_equal s1 s2
+      then None
+      else
+        let open Vector in
+        Some (length (Shape.centre s1 - Shape.centre s2)))
     |> List.min_elt ~compare:Float.compare
     |> Option.value_exn
   in

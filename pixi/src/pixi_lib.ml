@@ -15,6 +15,10 @@ module Container = struct
   include Container
 
   let add_child t child = t##addChild child
+  let set_tint t color = t##.tint := color
+  let set_alpha t alpha = t##.alpha := alpha
+  let set_visible t visible = t##.visible := visible
+  let set_zindex t zindex = t##.zindex := zindex
 end
 
 module Application = struct

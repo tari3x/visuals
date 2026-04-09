@@ -36,6 +36,13 @@ module Matrix = struct
   let create () = new%js constr
 end
 
+module Color = struct
+  type t = int
+
+  let create r g b = (r * 256 * 256) + (g * 256) + b
+  let white = create 255 255 255
+end
+
 module Container = struct
   type witness
 
@@ -43,6 +50,10 @@ module Container = struct
     inherit DisplayObject.js
     method container_witness : witness
     method addChild : DisplayObject.t -> unit meth
+    method tint : Color.t prop
+    method alpha : float prop
+    method visible : bool Js.t prop
+    method zindex : int prop
   end
 
   type t = js Js.t
@@ -75,13 +86,6 @@ module Application = struct
 
   let constr : t constr = Js.Unsafe.global ##. PIXI ##. Application
   let create () = new%js constr
-end
-
-module Color = struct
-  type t = int
-
-  let create r g b = (r * 256 * 256) + (g * 256) + b
-  let white = create 255 255 255
 end
 
 module FillStyle = struct

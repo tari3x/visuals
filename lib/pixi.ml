@@ -7,9 +7,7 @@ open (
   Pixi_lib : module type of Pixi_lib with module Color := Pixi_lib.Color)
 
 module A = Application
-module G = Graphics
 module C = Container
-open G
 
 module Matrix = struct
   include Pixi_lib.Matrix
@@ -28,15 +26,70 @@ module Matrix = struct
   ;;
 end
 
+(* CR-someday avatar: this looks like an allocator *)
 let color_to_pixi color =
   let r, g, b, alpha = Color.components color in
   Pixi_lib.Color.create r g b, alpha
 ;;
 
-type t =
-  { a : A.t
-  ; g : G.t
-  }
+module Graphics = struct
+  include Graphics
+
+  let fill (t : t) color =
+    let color, alpha = color_to_pixi color in
+    fill t ~color ~alpha ()
+  ;;
+
+  let stroke (t : t) color ~width =
+    let color, alpha = color_to_pixi color in
+    stroke t ~color ~alpha ~width ()
+  ;;
+
+  let move_to t v =
+    let x = Vector.x v in
+    let y = Vector.y v in
+    move_to t x y
+  ;;
+
+  let line_to t v =
+    let x = Vector.x v in
+    let y = Vector.y v in
+    line_to t x y
+  ;;
+
+  let path (t : t) ~closed vs =
+    match vs with
+    | [] -> ()
+    | v :: vs ->
+      move_to t v;
+      List.iter vs ~f:(line_to t);
+      if closed then close_path t
+  ;;
+
+  let set_tint_and_alpha (t : t) color =
+    let t = (t :> Container.t) in
+    let color, alpha = color_to_pixi color in
+    Container.set_tint t color;
+    Container.set_alpha t alpha
+  ;;
+
+  let set_visible (t : t) visible =
+    let t = (t :> Container.t) in
+    Container.set_visible t (Js.bool visible)
+  ;;
+
+  let set_zindex (t : t) zindex =
+    let t = (t :> Container.t) in
+    Container.set_zindex t zindex
+  ;;
+
+  let set_transform t m =
+    reset_transform t;
+    transform t m
+  ;;
+end
+
+type t = A.t
 
 let init_exn () =
   let open Lwt.Let_syntax in
@@ -52,59 +105,20 @@ let init_exn () =
   *)
   A.resize_to a Dom_html.window;
   A.resize a;
-  let g = G.create () in
-  C.add_child (A.stage a) (g :> DisplayObject.t);
-  Lwt.return { a; g }
+  Lwt.return a
 ;;
 
-let clear t = clear t.g
-let width t = Canvas.width (A.view t.a)
-let height t = Canvas.height (A.view t.a)
-let draw_circle t = draw_circle t.g
-let draw_rect t = draw_rect t.g
-let close_path t = close_path t.g
-
-let fill (t : t) color =
-  let color, alpha = color_to_pixi color in
-  fill t.g ~color ~alpha ()
+let create_graphics t =
+  let g = Graphics.create () in
+  C.add_child (A.stage t) (g :> DisplayObject.t);
+  g
 ;;
 
-let stroke (t : t) color ~width =
-  let color, alpha = color_to_pixi color in
-  stroke t.g ~color ~alpha ~width ()
-;;
-
-let move_to t v =
-  let x = Vector.x v in
-  let y = Vector.y v in
-  move_to t.g x y
-;;
-
-let line_to t v =
-  let x = Vector.x v in
-  let y = Vector.y v in
-  line_to t.g x y
-;;
-
-let path (t : t) ~closed vs =
-  match vs with
-  | [] -> ()
-  | v :: vs ->
-    move_to t v;
-    List.iter vs ~f:(line_to t);
-    if closed then close_path t
-;;
+let width t = Canvas.width (A.view t)
+let height t = Canvas.height (A.view t)
 
 (* CR-someday: get events of [Container]? *)
 let actions t =
-  let canvas = (Application.view t.a :> #Html.element Js.t) in
+  let canvas = (Application.view t :> #Html.element Js.t) in
   Dom_wrappers.actions canvas
-;;
-
-let transform t m = transform t.g m
-let reset_transform t = reset_transform t.g
-
-let set_transform t m =
-  reset_transform t;
-  transform t m
 ;;

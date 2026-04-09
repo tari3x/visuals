@@ -128,12 +128,16 @@ module Skin = struct
     }
   ;;
 
-  let validate t =
+  let validate_exn t =
     if t.max_sound_sources = 0 then assert (Option.is_none t.on_sound)
   ;;
 end
 
 module Spark = struct
+  module Id = Id (struct
+      let name = "Spark"
+    end)
+
   module Speed = struct
     type t =
       | Range of
@@ -144,75 +148,43 @@ module Spark = struct
     [@@deriving sexp]
   end
 
-  (* CR-someday avatar: unify [Free] and [Star]. Just need to sort out the
-     step and corners. *)
-  type t =
-    | Free of
-        { skin : Skin.t
-        ; shapes : Shapes.t
-        }
-    | Grid of
-        { skin : Skin.t
-        ; rows : int
-        ; cols : int
-        }
-    | Hex_wire of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Hex_tile of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Hex_bone of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Quad_wire of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Quad_tile of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Quad_bone of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Diamond_wire of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Diamond_tile of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Diamond_bone of
-        { skin : Skin.t
-        ; r1_mult : float
-        }
-    | Star of
-        { skin : Skin.t
-        ; shapes : Shape.t list
-        ; speed : Speed.t
-        ; line_width : float
-        }
-  [@@deriving sexp]
+  module Kind = struct
+    (* CR-someday avatar: unify [Free] and [Star]. Just need to sort out the
+       step and corners. *)
+    type t =
+      | Free of { shapes : Shapes.t }
+      | Grid of
+          { rows : int
+          ; cols : int
+          }
+      | Hex_wire of { r1_mult : float }
+      | Hex_tile of { r1_mult : float }
+      | Hex_bone of { r1_mult : float }
+      | Quad_wire of { r1_mult : float }
+      | Quad_tile of { r1_mult : float }
+      | Quad_bone of { r1_mult : float }
+      | Diamond_wire of { r1_mult : float }
+      | Diamond_tile of { r1_mult : float }
+      | Diamond_bone of { r1_mult : float }
+      | Star of
+          { shapes : Shape.t list
+          ; speed : Speed.t
+          ; line_width : float
+          }
+    [@@deriving sexp]
+  end
 
-  let skin = function
-    | Grid { skin; _ }
-    | Free { skin; _ }
-    | Hex_tile { skin; _ }
-    | Hex_wire { skin; _ }
-    | Hex_bone { skin; _ }
-    | Quad_tile { skin; _ }
-    | Quad_wire { skin; _ }
-    | Quad_bone { skin; _ }
-    | Diamond_tile { skin; _ }
-    | Diamond_wire { skin; _ }
-    | Diamond_bone { skin; _ }
-    | Star { skin; _ } -> skin
+  type t =
+    { kind : Kind.t
+    ; skin : Skin.t
+    }
+  [@@deriving sexp, fields ~getters]
+
+  let validate_exn t = skin t |> Skin.validate_exn
+
+  let off t =
+    let skin = { t.skin with on_sound = None; max_sound_sources = 0 } in
+    { t with skin }
   ;;
 end
 
@@ -220,21 +192,19 @@ type t =
   { drawing_mode : bool
   ; debug_sound : bool
   ; calibration : Calibration.t
-  ; sparks : Spark.t list
+  ; sparks : Spark.t Spark.Id.Table.t
   ; global_channel_name : string
   ; crop_top : float
   ; crop_bottom : float
   }
 [@@deriving sexp, fields]
 
-let validate t =
-  List.map ~f:Spark.skin t.sparks |> List.iter ~f:Skin.validate
-;;
+let validate_exn t = Hashtbl.iter t.sparks ~f:Spark.validate_exn
 
 (* CR-someday: do we even use this? *)
 let t_of_sexp s =
   let t = t_of_sexp s in
-  validate t;
+  validate_exn t;
   t
 ;;
 

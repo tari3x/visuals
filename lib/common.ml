@@ -149,7 +149,7 @@ end
 module Typed_array = struct
   include Typed_array
 
-  let fold (t : ('a, 'b) typedArray Js.t) ~init ~f =
+  let fold (t : _ typedArray Js.t) ~init ~f =
     let rec loop i acc =
       match get t i |> Optdef.to_option with
       | None -> acc
@@ -158,7 +158,7 @@ module Typed_array = struct
     loop 0 init
   ;;
 
-  let iter (t : ('a, 'b) typedArray Js.t) ~f =
+  let iter (t : _ typedArray Js.t) ~f =
     let rec loop i =
       match get t i |> Optdef.to_option with
       | None -> ()

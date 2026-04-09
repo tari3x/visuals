@@ -19,6 +19,10 @@ module Container : sig
   include module type of Container
 
   val add_child : t -> DisplayObject.t -> unit
+  val set_tint : t -> Color.t -> unit
+  val set_alpha : t -> float -> unit
+  val set_visible : t -> bool Js.t -> unit
+  val set_zindex : t -> int -> unit
 end
 
 module Application : sig

@@ -1,9 +1,10 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
+open Core
 open Std_internal
 open Lwt
 open Lwt.Let_syntax
@@ -14,7 +15,7 @@ let main (config : Config.t) =
   Window.set_reload_on_resize ();
   let box =
     Config.sparks config
-    |> List.map ~f:Spark.Ctl.set_config
+    |> Hashtbl.map ~f:Spark.Ctl.set_config
     |> Ctl.list
     |> Box.create
   in

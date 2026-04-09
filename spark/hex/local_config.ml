@@ -87,14 +87,16 @@ end
    ones fully cover the old ones.
 *)
 (* CR avatar: it's too black for too long when music changes *)
-(* CR avatar: some garbage collection is happening *)
+(* CR avatar: some garbage collection is happening, still as of 2025-12.
+
+   But unpredictably, one tab is smooth, the other one is jumping, maybe
+   related to the fuckn screen refresh?
+*)
 (* CR avatar: individual hex control *)
 (* CR avatar: permute maybe ex expensive? *)
 (* CR avatar: it does freeze and jump occasionally *)
 (* CR avatar: I'm no longer doing 60 frames? *)
 (* CR avatar: big jump when reloading config *)
-(* CR avatar: load_config seems to cause a page reload - sizes get
-   reconfigured. *)
 (* CR avatar: I need a better system for managing what is off. *)
 (* CR avatar: there's a lot more frames per second when you're full width.  I
    guess it's just number of elements?
@@ -103,9 +105,13 @@ end
    useDeprecated.js,
    https://github.com/pixijs/pixijs/discussions/11746
 *)
-(* CR avatar:
+(* CR-someday avatar:
    PixiJS Deprecation Warning: Application.view is deprecated, please use Application.canvas instead.Deprecated since v8.0.0
+   These are only seen when you use not min.js
 *)
+(* CR avatar: load_config seems to cause a page reload - sizes get
+   reconfigured. Now it fucks shit up full time. *)
+(* CR-someday avatar: simple lines, color matching a video to frame it *)
 
 let zoom = 1.
 let new_strand_probability = 0.05
@@ -259,48 +265,45 @@ let star_bone_shapes ~r1_mult =
 ;;
 
 module Layer = struct
+  module Kind = struct
+    type t =
+      | Hex_wire
+      | Hex_tile
+      | Hex_bone
+      | Quad_wire
+      | Quad_tile
+      | Quad_bone
+      | Diamond_wire
+      | Diamond_tile
+      | Diamond_bone
+      | Star of Shape.t list
+    [@@deriving variants]
+  end
+
   type t =
-    | Hex_wire of Skin.t
-    | Hex_tile of Skin.t
-    | Hex_bone of Skin.t
-    | Quad_wire of Skin.t
-    | Quad_tile of Skin.t
-    | Quad_bone of Skin.t
-    | Diamond_wire of Skin.t
-    | Diamond_tile of Skin.t
-    | Diamond_bone of Skin.t
-    | Star of
-        { skin : Skin.t
-        ; shapes : Shape.t list
-        }
+    { kind : Kind.t
+    ; skin : Skin.t
+    }
 
-  let map_skin t ~f =
-    match t with
-    | Hex_wire skin -> Hex_wire (f skin)
-    | Hex_tile skin -> Hex_tile (f skin)
-    | Hex_bone skin -> Hex_bone (f skin)
-    | Quad_wire skin -> Quad_wire (f skin)
-    | Quad_tile skin -> Quad_tile (f skin)
-    | Quad_bone skin -> Quad_bone (f skin)
-    | Diamond_wire skin -> Diamond_wire (f skin)
-    | Diamond_tile skin -> Diamond_tile (f skin)
-    | Diamond_bone skin -> Diamond_bone (f skin)
-    | Star { skin; shapes } -> Star { skin = f skin; shapes }
-  ;;
-
-  let spark t ~r1_mult ~speed : Spark.t =
-    match t with
-    | Hex_wire skin -> Hex_wire { skin; r1_mult }
-    | Hex_tile skin -> Hex_tile { skin; r1_mult }
-    | Hex_bone skin -> Hex_bone { skin; r1_mult }
-    | Quad_wire skin -> Quad_wire { skin; r1_mult }
-    | Quad_tile skin -> Quad_tile { skin; r1_mult }
-    | Quad_bone skin -> Quad_bone { skin; r1_mult }
-    | Diamond_wire skin -> Diamond_wire { skin; r1_mult }
-    | Diamond_tile skin -> Diamond_tile { skin; r1_mult }
-    | Diamond_bone skin -> Diamond_bone { skin; r1_mult }
-    | Star { skin; shapes } ->
-      Star { skin; shapes; speed; line_width = 4. }
+  let spark { skin; kind } ~size_id ~r1_mult ~speed =
+    let id =
+      sprintf "%s_%d" (Kind.Variants.to_name kind) size_id
+      |> Spark.Id.of_string
+    in
+    let kind : Spark.Kind.t =
+      match kind with
+      | Hex_wire -> Hex_wire { r1_mult }
+      | Hex_tile -> Hex_tile { r1_mult }
+      | Hex_bone -> Hex_bone { r1_mult }
+      | Quad_wire -> Quad_wire { r1_mult }
+      | Quad_tile -> Quad_tile { r1_mult }
+      | Quad_bone -> Quad_bone { r1_mult }
+      | Diamond_wire -> Diamond_wire { r1_mult }
+      | Diamond_tile -> Diamond_tile { r1_mult }
+      | Diamond_bone -> Diamond_bone { r1_mult }
+      | Star shapes -> Star { shapes; speed; line_width = 4. }
+    in
+    id, { Spark.skin; kind }
   ;;
 end
 
@@ -326,16 +329,16 @@ let hex_wire ?color ~flash_mult ~intensity () =
   let skin =
     { Config.Skin.default with
       rain
-    ; segment_life_span = Time.Span.(of_sec 10.)
+    ; segment_life_span = Time.Span.(of_sec 15.)
     ; flash_top = 1. * flash_mult
-    ; flash_cutoff = 0.2 * flash_mult
-    ; flash_duration = 0.4
+    ; flash_cutoff = 0.15 * flash_mult
+    ; flash_duration = 0.2
     ; color_flow = Fade_to_none_smooth
     ; on_sound = Some (Wave { max_drops_per_second = intensity * 100. })
     ; max_sound_sources = 2
     }
   in
-  Hex_wire skin
+  { kind = Hex_wire; skin }
 ;;
 
 let diamond_wire ?color ~flash_mult ~intensity () =
@@ -367,7 +370,7 @@ let diamond_wire ?color ~flash_mult ~intensity () =
     ; max_sound_sources = 2
     }
   in
-  Diamond_wire skin
+  { kind = Diamond_wire; skin }
 ;;
 
 let quad_wire ?color ~flash_mult ~intensity () =
@@ -399,7 +402,7 @@ let quad_wire ?color ~flash_mult ~intensity () =
     ; max_sound_sources = 2
     }
   in
-  Quad_wire skin
+  { kind = Quad_wire; skin }
 ;;
 
 let hex_tile ?color ~flash_mult ~intensity () =
@@ -413,7 +416,7 @@ let hex_tile ?color ~flash_mult ~intensity () =
     { rain with
       new_strand_probability
     ; keep_raining_probability =
-        0.9
+        0.6
         (* ; rain_dropoff = 1.
         *)
     ; wind_dropoff = 1.
@@ -432,7 +435,7 @@ let hex_tile ?color ~flash_mult ~intensity () =
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
-  Hex_tile skin
+  { kind = Hex_tile; skin }
 ;;
 
 let diamond_tile ?color ~flash_mult ~intensity () =
@@ -461,7 +464,7 @@ let diamond_tile ?color ~flash_mult ~intensity () =
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
-  Diamond_tile skin
+  { kind = Diamond_tile; skin }
 ;;
 
 let quad_tile ~color ~flash_mult ~intensity () =
@@ -469,7 +472,7 @@ let quad_tile ~color ~flash_mult ~intensity () =
   let rain =
     { rain with
       new_strand_probability
-    ; keep_raining_probability = 0.9
+    ; keep_raining_probability = 0.6
     ; color
     }
   in
@@ -486,7 +489,7 @@ let quad_tile ~color ~flash_mult ~intensity () =
         Some (Beat (Burst { drops_at_once = Float.to_int intensity }))
     }
   in
-  Quad_tile skin
+  { kind = Quad_tile; skin }
 ;;
 
 let hex_bone ~flash_mult ~intensity ~color () =
@@ -515,7 +518,7 @@ let hex_bone ~flash_mult ~intensity ~color () =
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
-  Hex_bone skin
+  { kind = Hex_bone; skin }
 ;;
 
 let diamond_bone ~color ~flash_mult ~intensity () =
@@ -544,7 +547,7 @@ let diamond_bone ~color ~flash_mult ~intensity () =
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
-  Diamond_bone skin
+  { kind = Diamond_bone; skin }
 ;;
 
 let quad_bone ~color ~flash_mult ~intensity () =
@@ -573,7 +576,7 @@ let quad_bone ~color ~flash_mult ~intensity () =
     ; on_sound = Some (Beat (Burst { drops_at_once = intensity }))
     }
   in
-  Quad_bone skin
+  { kind = Quad_bone; skin }
 ;;
 
 let star_wire ~flash_mult ~intensity ~shapes ~color =
@@ -599,7 +602,7 @@ let star_wire ~flash_mult ~intensity ~shapes ~color =
     ; max_sound_sources = 2
     }
   in
-  Star { skin; shapes }
+  { kind = Star shapes; skin }
 ;;
 
 let star_bone ~flash_mult ~intensity ~shapes ~color =
@@ -627,27 +630,38 @@ let star_bone ~flash_mult ~intensity ~shapes ~color =
     ; on_sound = Some (Beat (Drop intensity))
     }
   in
-  Star { skin; shapes }
+  { kind = Star shapes; skin }
 ;;
 
-let off =
-  Layer.map_skin ~f:(fun skin ->
-    { skin with on_sound = None; max_sound_sources = 0 })
-;;
+let off (id, spark) = id, Spark.off spark
 
 let config : C.t =
   let open Float in
   let _list_speed : Config.Spark.Speed.t = List [ 2.; 2.; 1. ] in
   let slow_speed : Config.Spark.Speed.t = Range { min = -5.; max = 5. } in
   let fast_speed : Config.Spark.Speed.t = Range { min = -5.; max = 6. } in
-  let size1 = Layer.spark ~r1_mult:(zoom / 18.) ~speed:slow_speed in
-  let size2 = Layer.spark ~r1_mult:(zoom / 12.) ~speed:slow_speed in
-  let size3 = Layer.spark ~r1_mult:(zoom / 9.) ~speed:slow_speed in
-  let size4 = Layer.spark ~r1_mult:(zoom / 6.) ~speed:slow_speed in
-  let size5 = Layer.spark ~r1_mult:(zoom / 3.) ~speed:slow_speed in
+  let size1 =
+    Layer.spark ~size_id:1 ~r1_mult:(zoom / 18.) ~speed:slow_speed
+  in
+  let size2 =
+    Layer.spark ~size_id:2 ~r1_mult:(zoom / 12.) ~speed:slow_speed
+  in
+  let size3 =
+    Layer.spark ~size_id:3 ~r1_mult:(zoom / 9.) ~speed:slow_speed
+  in
+  let size4 =
+    Layer.spark ~size_id:4 ~r1_mult:(zoom / 6.) ~speed:slow_speed
+  in
+  let size5 =
+    Layer.spark ~size_id:5 ~r1_mult:(zoom / 3.) ~speed:slow_speed
+  in
   (* CR avatar: remove the mult here, is not used. *)
-  let star_size1 = Layer.spark ~r1_mult:(zoom * 1.) ~speed:slow_speed in
-  let star_size2 = Layer.spark ~r1_mult:(zoom * 0.002) ~speed:fast_speed in
+  let star_size1 =
+    Layer.spark ~size_id:10_000 ~r1_mult:(zoom * 1.) ~speed:slow_speed
+  in
+  let star_size2 =
+    Layer.spark ~size_id:10_001 ~r1_mult:(zoom * 0.002) ~speed:fast_speed
+  in
   ignore size2;
   ignore size3;
   ignore size4;
@@ -667,253 +681,270 @@ let config : C.t =
         ~shapes:(star_wire_shapes ~r1_mult:(zoom * 2.1))
         ~color:(Choose [ dark_blue ])
       |> star_size1
+      |> off
     ; star_bone
         ~flash_mult:0.35
         ~intensity:1
         ~color:(Choose [ purple; dark_blue; dark_blue ])
         ~shapes:(star_bone_shapes ~r1_mult:(zoom * 1.5))
-      |> off
       |> star_size2
-    ]
-  in
-  let size1 =
-    [ hex_wire
-        ~flash_mult:1.
-        ~intensity:10.
-        ~color:(Choose [ dark_blue; purple ])
-        ()
-      |> off
-    ; diamond_wire
-        ~flash_mult:0.22
-        ~intensity:1.3
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; quad_wire
-        ~flash_mult:0.5
-        ~intensity:1.5
-        ~color:(Choose [ purple; dark_blue ])
-        ()
-      |> off
-    ; quad_tile
-        ~flash_mult:0.17
-        ~intensity:25.
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; hex_tile ~flash_mult:0.18 ~intensity:60 ~color:(Choose [ purple ]) ()
-      |> off
-    ; diamond_tile
-        ~flash_mult:0.15
-        ~intensity:10
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; diamond_bone
-        ~flash_mult:0.15
-        ~intensity:100
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; hex_bone ~flash_mult:0.1 ~intensity:100 ~color:(Choose [ purple ]) ()
-      |> off
-    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
       |> off
     ]
-    |> List.map ~f:size1
   in
-  let size2 =
-    [ hex_wire
-        ~flash_mult:1.
-        ~intensity:10.
-        ~color:(Choose [ dark_orange ])
-        ()
-      |> off
-    ; diamond_wire
-        ~flash_mult:0.22
-        ~intensity:1.3
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; quad_wire
-        ~flash_mult:0.5
-        ~intensity:0.5
-        ~color:(Choose [ purple; dark_blue ])
-        ()
-      |> off
-    ; quad_tile
-        ~flash_mult:0.17
-        ~intensity:25.
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; hex_tile ~flash_mult:0.33 ~intensity:80 ~color:Any () |> off
-    ; diamond_tile
-        ~flash_mult:0.15
-        ~intensity:10
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; diamond_bone
-        ~flash_mult:0.3
-        ~intensity:200
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; hex_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
-      |> off
-    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
-      |> off
-    ]
-    |> List.map ~f:size2
+  let off =
+    let size1 =
+      [ diamond_wire
+          ~flash_mult:0.22
+          ~intensity:1.3
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; quad_wire
+          ~flash_mult:0.5
+          ~intensity:1.5
+          ~color:(Choose [ purple; dark_blue ])
+          ()
+      ; quad_tile
+          ~flash_mult:0.17
+          ~intensity:25.
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; hex_tile
+          ~flash_mult:0.18
+          ~intensity:60
+          ~color:(Choose [ purple ])
+          ()
+      ; diamond_tile
+          ~flash_mult:0.15
+          ~intensity:10
+          ~color:(Choose [ purple ])
+          ()
+      ; diamond_bone
+          ~flash_mult:0.15
+          ~intensity:100
+          ~color:(Choose [ purple ])
+          ()
+      ; hex_bone
+          ~flash_mult:0.1
+          ~intensity:100
+          ~color:(Choose [ purple ])
+          ()
+      ; quad_bone
+          ~flash_mult:0.7
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ]
+      |> List.map ~f:size1
+    in
+    let size2 =
+      [ hex_wire
+          ~flash_mult:1.
+          ~intensity:10.
+          ~color:(Choose [ dark_orange ])
+          ()
+      ; quad_wire
+          ~flash_mult:0.5
+          ~intensity:0.1
+          ~color:(Choose [ white ])
+          ()
+      ; diamond_wire
+          ~flash_mult:0.22
+          ~intensity:1.3
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; hex_tile ~flash_mult:0.33 ~intensity:80 ~color:Any ()
+      ; diamond_tile
+          ~flash_mult:0.15
+          ~intensity:10
+          ~color:(Choose [ purple ])
+          ()
+      ; quad_tile
+          ~flash_mult:0.15
+          ~intensity:1.
+          ~color:(Choose [ white ])
+          ()
+      ; diamond_bone
+          ~flash_mult:0.3
+          ~intensity:200
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; hex_bone
+          ~flash_mult:0.7
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ; quad_bone
+          ~flash_mult:0.7
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ]
+      |> List.map ~f:size2
+    in
+    let size3 =
+      [ quad_wire
+          ~flash_mult:0.8
+          ~intensity:1.5
+          ~color:(Choose [ purple; dark_blue ])
+          ()
+      ; quad_tile
+          ~flash_mult:0.2
+          ~intensity:25.
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; diamond_wire
+          ~flash_mult:0.2
+          ~intensity:10.
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; diamond_tile
+          ~flash_mult:0.15
+          ~intensity:10
+          ~color:(Choose [ purple ])
+          ()
+      ; diamond_bone
+          ~flash_mult:0.25
+          ~intensity:10
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; hex_bone
+          ~flash_mult:0.12
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ; quad_bone
+          ~flash_mult:0.7
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ]
+      |> List.map ~f:size3
+    in
+    let size4 =
+      [ diamond_wire
+          ~flash_mult:0.22
+          ~intensity:1.3
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; quad_wire
+          ~flash_mult:0.5
+          ~intensity:0.05
+          ~color:(Choose [ white ])
+          ()
+      ; hex_tile ~flash_mult:0.25 ~intensity:1 ~color:(Choose [ white ]) ()
+      ; quad_tile
+          ~flash_mult:0.15
+          ~intensity:40.
+          ~color:(Choose [ blueish ])
+          ()
+      ; diamond_tile
+          ~flash_mult:0.15
+          ~intensity:10
+          ~color:(Choose [ purple ])
+          ()
+      ; diamond_bone
+          ~flash_mult:0.6
+          ~intensity:50
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; hex_bone
+          ~flash_mult:1.
+          ~intensity:50
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; quad_bone
+          ~flash_mult:1.
+          ~intensity:50
+          ~color:(Choose [ purple ])
+          ()
+      ]
+      |> List.map ~f:size4
+    in
+    let size5 =
+      [ hex_wire
+          ~flash_mult:0.5
+          ~intensity:0.1
+          ~color:(Choose [ white ])
+          ()
+      ; diamond_wire
+          ~flash_mult:0.22
+          ~intensity:1.3
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; quad_wire
+          ~flash_mult:0.5
+          ~intensity:1.5
+          ~color:(Choose [ purple; dark_blue; dark_orange ])
+          ()
+      ; hex_tile ~flash_mult:0.15 ~intensity:1 ~color:(Choose [ white ]) ()
+      ; quad_tile
+          ~flash_mult:0.17
+          ~intensity:25.
+          ~color:(Choose [ dark_blue ])
+          ()
+      ; diamond_tile
+          ~flash_mult:0.4
+          ~intensity:20
+          ~color:(Choose [ purple ])
+          ()
+      ; hex_bone ~flash_mult:1. ~intensity:1 ~color:(Choose [ white ]) ()
+      ; diamond_bone
+          ~flash_mult:1.
+          ~intensity:1
+          ~color:(Choose [ dark_blue; purple ])
+          ()
+      ; quad_bone
+          ~flash_mult:0.2
+          ~intensity:30
+          ~color:(Choose [ purple ])
+          ()
+      ]
+      |> List.map ~f:size5
+    in
+    size1 @ size2 @ size3 @ size4 @ size5 |> List.map ~f:off
   in
-  let size3 =
-    [ hex_wire
-        ~flash_mult:0.7
-        ~intensity:16.
-        ~color:(Choose [ dark_orange ])
-        ()
-    ; diamond_wire
-        ~flash_mult:0.22
-        ~intensity:10.
-        ~color:(Choose [ dark_blue ])
-        ()
-    ; quad_wire
-        ~flash_mult:0.8
-        ~intensity:1.5
-        ~color:(Choose [ purple; dark_blue ])
-        ()
-      |> off
-    ; quad_tile
-        ~flash_mult:0.2
-        ~intensity:25.
-        ~color:(Choose [ dark_blue; purple ])
-        ()
-      |> off
-    ; hex_tile ~flash_mult:0.3 ~intensity:50 ~color:(Choose [ blueish ]) ()
-      |> off
-    ; diamond_tile
-        ~flash_mult:0.15
-        ~intensity:10
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; diamond_bone
-        ~flash_mult:0.15
-        ~intensity:100
-        ~color:(Choose [ dark_blue; purple ])
-        ()
-      |> off
-    ; hex_bone ~flash_mult:0.12 ~intensity:50 ~color:(Choose [ purple ]) ()
-      |> off
-    ; quad_bone ~flash_mult:0.7 ~intensity:50 ~color:(Choose [ purple ]) ()
-      |> off
-    ]
-    |> List.map ~f:size3
+  let on =
+    let size1 =
+      [ hex_wire
+          ~flash_mult:0.2
+          ~intensity:1.8
+          ~color:(Choose [ dark_blue; dark_orange ])
+          ()
+      ]
+      |> List.map ~f:size1
+    in
+    let size2 = [] |> List.map ~f:size2 in
+    let size3 =
+      [ hex_wire
+          ~flash_mult:0.1
+          ~intensity:1.8
+          ~color:(Choose [ dark_blue; dark_orange ])
+          ()
+      ; hex_tile
+          ~flash_mult:0.2
+          ~intensity:100
+          ~color:(Choose [ dark_blue; dark_orange ])
+          ()
+      ]
+      |> List.map ~f:size3
+    in
+    let size4 =
+      [ hex_wire
+          ~flash_mult:0.1
+          ~intensity:1.8
+          ~color:(Choose [ dark_blue; dark_orange ])
+          ()
+      ]
+      |> List.map ~f:size4
+    in
+    let size5 = [] |> List.map ~f:size5 in
+    size1 @ size2 @ size3 @ size4 @ size5
   in
-  let size4 =
-    [ hex_wire
-        ~flash_mult:1.
-        ~intensity:0.2
-        ~color:(Choose [ dark_orange ])
-        ()
-      |> off
-    ; diamond_wire
-        ~flash_mult:0.22
-        ~intensity:1.3
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; quad_wire
-        ~flash_mult:0.5
-        ~intensity:1.5
-        ~color:(Choose [ purple; dark_blue ])
-        ()
-      |> off
-    ; quad_tile
-        ~flash_mult:0.15
-        ~intensity:40.
-        ~color:(Choose [ blueish ])
-        ()
-      |> off
-    ; hex_tile ~flash_mult:0.6 ~intensity:10 ~color:Any () |> off
-    ; diamond_tile
-        ~flash_mult:0.15
-        ~intensity:10
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; diamond_bone
-        ~flash_mult:0.6
-        ~intensity:200
-        ~color:(Choose [ dark_blue; purple ])
-        ()
-      |> off
-    ; hex_bone
-        ~flash_mult:1.
-        ~intensity:200
-        ~color:(Choose [ dark_blue; purple ])
-        ()
-      |> off
-    ; quad_bone ~flash_mult:1. ~intensity:50 ~color:(Choose [ purple ]) ()
-      |> off
-    ]
-    |> List.map ~f:size4
-  in
-  let size5 =
-    [ hex_wire
-        ~flash_mult:1.
-        ~intensity:2.
-        ~color:(Choose [ dark_orange ])
-        ()
-      |> off
-    ; diamond_wire
-        ~flash_mult:0.22
-        ~intensity:1.3
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; quad_wire
-        ~flash_mult:0.5
-        ~intensity:1.5
-        ~color:(Choose [ purple; dark_blue; dark_orange ])
-        ()
-      |> off
-    ; quad_tile
-        ~flash_mult:0.17
-        ~intensity:25.
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; hex_tile
-        ~flash_mult:0.8
-        ~intensity:40
-        ~color:(Choose [ purple; dark_orange ])
-        ()
-      |> off
-    ; diamond_tile
-        ~flash_mult:0.4
-        ~intensity:20
-        ~color:(Choose [ purple ])
-        ()
-      |> off
-    ; diamond_bone
-        ~flash_mult:0.3
-        ~intensity:200
-        ~color:(Choose [ dark_blue ])
-        ()
-      |> off
-    ; hex_bone ~flash_mult:0.15 ~intensity:10 ~color:(Choose [ purple ]) ()
-      |> off
-    ; quad_bone ~flash_mult:0.2 ~intensity:30 ~color:(Choose [ purple ]) ()
-      |> off
-    ]
-    |> List.map ~f:size5
-  in
+  let sparks = star @ on @ off |> Spark.Id.Table.of_alist_exn in
   { drawing_mode = false
   ; debug_sound = false
   ; calibration = Skip
-  ; sparks = star @ size1 @ size2 @ size3 @ size4 @ size5
+  ; sparks
   ; global_channel_name = "global-hex"
   ; crop_top = 0.
   ; crop_bottom = 0.

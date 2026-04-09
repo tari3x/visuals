@@ -6,6 +6,7 @@
 
 open Std_internal
 module Config = Config.Spark
+module Id = Config.Id
 
 module Ctl : sig
   type t = private

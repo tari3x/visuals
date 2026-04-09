@@ -57,7 +57,7 @@ let _test_quantum () =
 
 let main (config : Config.t) =
   debug [%message "333"];
-  Config.validate config;
+  Config.validate_exn config;
   Random.self_init ();
   let%bind sound =
     (*
@@ -84,7 +84,7 @@ let main (config : Config.t) =
     let%bind real_corners = get_corners config pixi in
     debug [%message "got corners"];
     let sparks =
-      List.map config.sparks ~f:(fun config ->
+      Hashtbl.map config.sparks ~f:(fun config ->
         Spark.create ~config ~pixi ~sound ?real_corners ())
     in
     Server_state.start config sparks ~pixi)

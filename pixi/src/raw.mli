@@ -34,6 +34,13 @@ module Matrix : sig
   val create : unit -> t
 end
 
+module Color : sig
+  type t
+
+  val create : int -> int -> int -> t
+  val white : t
+end
+
 module Container : sig
   type witness
 
@@ -41,6 +48,10 @@ module Container : sig
     inherit DisplayObject.js
     method container_witness : witness
     method addChild : DisplayObject.t -> unit meth
+    method tint : Color.t prop
+    method alpha : float prop
+    method visible : bool Js.t prop
+    method zindex : int prop
   end
 
   type t = js Js.t
@@ -72,13 +83,6 @@ module Application : sig
   type t = js Js.t
 
   val create : unit -> t
-end
-
-module Color : sig
-  type t
-
-  val create : int -> int -> int -> t
-  val white : t
 end
 
 module FillStyle : sig

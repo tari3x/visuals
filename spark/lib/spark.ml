@@ -8,6 +8,7 @@ open Core
 open Js_of_ocaml_lwt
 open Std_internal
 module Config = Config.Spark
+module Id = Config.Id
 
 (* TODO:
    - defining segment groups that flash together.
@@ -103,7 +104,7 @@ let start_transform_loop t =
       Shape.set_transform shape m);
     loop speed
   in
-  match t.config with
+  match t.config.kind with
   | Free _
   | Grid _
   | Hex_tile _
@@ -115,27 +116,24 @@ let start_transform_loop t =
   | Diamond_tile _
   | Diamond_wire _
   | Diamond_bone _ -> ()
-  | Star { skin = _; shapes = _; speed; line_width = _ } ->
+  | Star { shapes = _; speed; line_width = _ } ->
     Lwt.async (fun () -> loop speed)
 ;;
 
 let shapes (config : Config.t) ~pixi =
-  match config with
-  | Grid { skin = _; rows; cols } -> Shapes.grid_exn ~pixi ~cols ~rows
-  | Hex_tile { skin = _; r1_mult } -> Shapes.hex_tile_exn ~pixi ~r1_mult
-  | Hex_wire { skin = _; r1_mult } -> Shapes.hex_wire_exn ~pixi ~r1_mult
-  | Hex_bone { skin = _; r1_mult } -> Shapes.hex_bone_exn ~pixi ~r1_mult
-  | Quad_tile { skin = _; r1_mult } -> Shapes.quad_tile_exn ~pixi ~r1_mult
-  | Quad_wire { skin = _; r1_mult } -> Shapes.quad_wire_exn ~pixi ~r1_mult
-  | Quad_bone { skin = _; r1_mult } -> Shapes.quad_bone_exn ~pixi ~r1_mult
-  | Diamond_tile { skin = _; r1_mult } ->
-    Shapes.diamond_tile_exn ~pixi ~r1_mult
-  | Diamond_wire { skin = _; r1_mult } ->
-    Shapes.diamond_wire_exn ~pixi ~r1_mult
-  | Diamond_bone { skin = _; r1_mult } ->
-    Shapes.diamond_bone_exn ~pixi ~r1_mult
-  | Free { skin = _; shapes } -> shapes
-  | Star { skin = _; shapes; speed = _; line_width } ->
+  match config.kind with
+  | Grid { rows; cols } -> Shapes.grid_exn ~pixi ~cols ~rows
+  | Hex_tile { r1_mult } -> Shapes.hex_tile_exn ~pixi ~r1_mult
+  | Hex_wire { r1_mult } -> Shapes.hex_wire_exn ~pixi ~r1_mult
+  | Hex_bone { r1_mult } -> Shapes.hex_bone_exn ~pixi ~r1_mult
+  | Quad_tile { r1_mult } -> Shapes.quad_tile_exn ~pixi ~r1_mult
+  | Quad_wire { r1_mult } -> Shapes.quad_wire_exn ~pixi ~r1_mult
+  | Quad_bone { r1_mult } -> Shapes.quad_bone_exn ~pixi ~r1_mult
+  | Diamond_tile { r1_mult } -> Shapes.diamond_tile_exn ~pixi ~r1_mult
+  | Diamond_wire { r1_mult } -> Shapes.diamond_wire_exn ~pixi ~r1_mult
+  | Diamond_bone { r1_mult } -> Shapes.diamond_bone_exn ~pixi ~r1_mult
+  | Free { shapes } -> shapes
+  | Star { shapes; speed = _; line_width } ->
     Shapes.create_with_pixi ~pixi ~step:100. shapes ~line_width
 ;;
 
@@ -203,11 +201,12 @@ let ctl t (box : Ctl.t Box.t) =
        <- max_keep_raining_probability * (y / h))
   | Set_config config ->
     t.config <- config;
-    let shapes = shapes config ~pixi:t.pixi in
-    set_shapes t shapes;
+    (* CR avatar: long cycle *)
+    (* CR avatar: will need to restore for the star *)
+    ignore set_shapes;
+    (* let shapes = shapes config ~pixi:t.pixi in
+     * set_shapes t shapes; *)
     Skin.set_config t.skin (Config.skin config)
 ;;
 
-let render { skin; perspective; pixi; _ } =
-  Skin.render skin ~perspective ~pixi
-;;
+let render { skin; perspective; _ } = Skin.render skin ~perspective

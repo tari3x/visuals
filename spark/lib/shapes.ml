@@ -34,15 +34,42 @@ module Elt = struct
     { id : Id.t
     ; mutable shape : Shape.t
     ; mutable transform : (Pixi.Matrix.t[@sexp.opaque])
+    ; mutable visible : bool
     ; line_width : float
+    ; graphics : (Pixi.Graphics.t[@sexp.opaque])
     }
   [@@deriving fields, sexp]
 
-  let create shape ~line_width =
+  (* CR-someday avatar: share [GraphicsGeometry] for hex. *)
+  let create_graphics ~pixi shape ~line_width =
+    let module G = Pixi.Graphics in
+    let g = Pixi.create_graphics pixi in
+    let () =
+      match Shape.corners shape with
+      | Segment (v1, v2) ->
+        G.move_to g v1;
+        G.line_to g v2
+      | Polygon vs | Path vs -> G.path g ~closed:true vs
+    in
+    let () =
+      (* If you paint black, tint will have no effect later. *)
+      match Shape.corners shape with
+      | Segment _ | Path _ -> G.stroke g Color.white ~width:line_width
+      | Polygon _ ->
+        (* G.line_style graphics ~width:0. (); *)
+        G.fill g Color.white
+    in
+    g
+  ;;
+
+  let create shape ~line_width ~pixi =
+    let graphics = create_graphics ~pixi shape ~line_width in
     { id = Id.create ()
     ; shape
     ; transform = Pixi.Matrix.create Matrix.ident
+    ; visible = false
     ; line_width
+    ; graphics
     }
   ;;
 
@@ -52,7 +79,7 @@ module Elt = struct
      we do for rains, but it is a shitshow. *)
   let centre t = Shape.centre t.shape
 
-  (* CR avatar: don't shorten in render, it's a memory leak. *)
+  (* CR-someday avatar: don't shorten in render, it's a memory hog. *)
   let _shortened_ends v1 v2 =
     let open Vector in
     let delta = normalize (v2 - v1) * shorten_by in
@@ -61,37 +88,31 @@ module Elt = struct
 
   (* CR avatar: set both perspective and transform *)
   let render
-    { id = _; shape; transform = _; line_width }
+    { id = _; shape = _; transform = _; line_width = _; visible; graphics }
     ~perspective:_
-    ~pixi
     ~color
     =
+    let module G = Pixi.Graphics in
     (* CR avatar: surely thee way you create a new object for each stroke and
        fill operation is hugely allocating? *)
     (* let _perspective = Pixi.Matrix.create perspective in *)
-    match Shape.corners shape with
-    | Segment (v1, v2) ->
-      (* CR avatar: restore *)
-      (* Pixi.set_transform pixi transform; *)
-      Pixi.move_to pixi v1;
-      Pixi.line_to pixi v2;
-      Pixi.stroke pixi color ~width:line_width
-    | Polygon vs ->
-      (* CR avatar: restore *)
-      (* Pixi.set_transform pixi transform; *)
-      (* Pixi.line_style pixi ~width:0. (); *)
-      Pixi.path pixi ~closed:true vs;
-      Pixi.fill pixi color
-    | Path vs ->
-      (* CR avatar: restore *)
-      (* Pixi.set_transform pixi transform; *)
-      Pixi.path pixi ~closed:true vs;
-      Pixi.stroke pixi color ~width:line_width
+    if visible
+    then
+      (* CR avatar: transform doens't seem to work *)
+      G.set_tint_and_alpha graphics color
+  ;;
+
+  let set_visible t visible =
+    let module G = Pixi.Graphics in
+    t.visible <- visible;
+    G.set_visible t.graphics visible
   ;;
 
   let set_transform t m =
+    let module G = Pixi.Graphics in
     let transform = Pixi.Matrix.create m in
-    t.transform <- transform
+    t.transform <- transform;
+    G.set_transform t.graphics transform
   ;;
 end
 
@@ -103,9 +124,9 @@ type t =
   }
 [@@deriving fields, sexp]
 
-let create ~corners ~step ~line_width shapes =
+let create_with_pixi_raw ~corners ~step ~line_width shapes ~pixi =
   Elt.Id.reset ();
-  let elts = List.map shapes ~f:(Elt.create ~line_width) in
+  let elts = List.map shapes ~f:(Elt.create ~line_width ~pixi) in
   let quad =
     List.map elts ~f:(fun elt -> Elt.centre elt, elt) |> Quadtree.of_list
   in
@@ -134,7 +155,7 @@ let pixi_corners ?(wmargin = 0.) ?(hmargin = 0.) pixi =
 
 let create_with_pixi ~pixi ~step ~line_width shapes =
   let corners = pixi_corners pixi |> Prism.Quad.rectangle in
-  create ~corners shapes ~step ~line_width
+  create_with_pixi_raw ~corners shapes ~step ~line_width ~pixi
 ;;
 
 let grid_exn ~pixi ~rows ~cols =
@@ -178,7 +199,12 @@ let grid_exn ~pixi ~rows ~cols =
     Prism.Quad.create v1 v2 v3 v4
   in
   let step = Float.min dx dy in
-  create shapes ~corners ~step ~line_width:grid_line_width
+  create_with_pixi_raw
+    shapes
+    ~corners
+    ~step
+    ~line_width:grid_line_width
+    ~pixi
 ;;
 
 module Hex_kind = struct

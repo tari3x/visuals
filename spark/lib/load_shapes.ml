@@ -1,9 +1,10 @@
 (*
-  Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
-  This file is distributed under a BSD license.
-  See LICENSE file for copyright notice.
+   Copyright (c) Mihhail Aizatulin (avatar@hot.ee).
+   This file is distributed under a BSD license.
+   See LICENSE file for copyright notice.
 *)
 
+open Core
 open Std_internal
 open Lwt
 open Lwt.Let_syntax
@@ -16,15 +17,19 @@ let load () =
   let { Svg.shapes; calibration_points = corners; step } =
     Svg.parse_exn svg
   in
-  Shapes.create shapes ~corners ~step ~line_width:3.
+  ignore shapes;
+  ignore corners;
+  ignore step;
+  (* Shapes.create shapes ~corners ~step ~line_width:3. *)
+  assert false
 ;;
 
 let main (config : Config.t) =
   Random.self_init ();
   let shapes = load () in
   let spark_config : Config.Spark.t =
-    match config.sparks with
-    | [ Free { skin; shapes = _ } ] -> Free { skin; shapes }
+    match Hashtbl.data config.sparks with
+    | [ { skin; kind = Free _ } ] -> { skin; kind = Free { shapes } }
     | _ -> assert false
   in
   let box = Spark.Ctl.set_config spark_config |> Ctl.all |> Box.create in

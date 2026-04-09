@@ -11,15 +11,15 @@ open Std_internal
 
 type t =
   { config : Config.t
-  ; sparks : Spark.t list
+  ; sparks : Spark.t Spark.Id.Table.t
   ; global : Ctl.t Global.t option
   ; pixi : Pixi.t
+  ; crop : Pixi.Graphics.t
   ; mutable frames : int
   ; mutable last_frame_report : Time_ns.t
   }
 
 let render t =
-  Pixi.clear t.pixi;
   let () =
     (* CR-someday: should I only be doing this in [on_change]? *)
     match t.global with
@@ -30,24 +30,29 @@ let render t =
         match Box.kind box with
         | All ctl ->
           let box = Box.map box ~f:(const ctl) in
-          List.iter t.sparks ~f:(fun spark -> Spark.ctl spark box)
+          Hashtbl.iter t.sparks ~f:(fun spark -> Spark.ctl spark box)
         | List ctls ->
-          List.iter2_exn t.sparks ctls ~f:(fun spark ctl ->
+          Hashtbl.iteri ctls ~f:(fun ~key ~data:ctl ->
+            let spark = Hashtbl.find_exn t.sparks key in
             let box = Box.map box ~f:(const ctl) in
             Spark.ctl spark box))
   in
-  List.iter t.sparks ~f:Spark.render;
+  Hashtbl.iter t.sparks ~f:Spark.render;
   let w = Pixi.width t.pixi in
   let h = Pixi.height t.pixi in
+  let module G = Pixi.Graphics in
   (* CR-someday avatar: use [Graphics.rect] *)
   let fill x y w h =
     let v = Vector.create_float in
     let vs =
       Float.[ v x y; v x (y + h); v (x + w) (y + h); v (x + w) y ]
     in
-    Pixi.path t.pixi ~closed:true vs;
-    Pixi.fill t.pixi Color.black
+    G.path t.crop ~closed:true vs;
+    G.fill t.crop Color.black;
+    G.set_zindex t.crop 10000000
   in
+  (* CR-someday avatar: don't clear, create once at the start *)
+  G.clear t.crop;
   fill 0. 0. w t.config.crop_top;
   fill 0. Float.(h - t.config.crop_bottom) w t.config.crop_bottom
 ;;
@@ -64,6 +69,8 @@ let report_frame t =
     t.last_frame_report <- now_)
 ;;
 
+(* CR-someday avatar: you should add a ticker to pixi instead of running your
+   own loop. *)
 let rec render_loop t =
   Lwt_js_events.request_animation_frame ()
   >>= fun () ->
@@ -93,11 +100,13 @@ let start (config : Config.t) sparks ~pixi =
         debug [%message (exn : Exn.t)];
         return None)
   >>= fun global ->
+  let crop = Pixi.create_graphics pixi in
   let t =
     { config
     ; sparks
     ; global
     ; pixi
+    ; crop
     ; frames = 0
     ; last_frame_report = Time_ns.now ()
     }
